@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useRecoilValue } from 'recoil';
-import { BarChart3, MessagesSquare } from 'lucide-react';
+import { BarChart3, FolderKanban, MessagesSquare } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserKeyQuery } from 'librechat-data-provider/react-query';
 import { getConfigDefaults, getEndpointField } from 'librechat-data-provider';
@@ -71,12 +71,20 @@ export default function useUnifiedSidebarLinks() {
       id: 'conversations',
       Component: ConversationsSection,
     };
+    const projectLink: NavLink[] = import.meta.env.VITE_CODECHAT_API_ORIGIN
+      ? [{
+          title: 'com_codechat_workspace',
+          icon: FolderKanban,
+          id: 'codechat-workspace',
+          onClick: () => navigate('/codechat'),
+        }]
+      : [];
 
     if (
       !insightsFeatureEnabled ||
       (!isInsightsRoute && !isInsightsAccessLoading && insightsAccess?.access !== true)
     ) {
-      return [conversationLink, ...sideNavLinks];
+      return [conversationLink, ...projectLink, ...sideNavLinks];
     }
 
     const insightsLink: NavLink = {
@@ -95,7 +103,7 @@ export default function useUnifiedSidebarLinks() {
     const nextLinks = [...sideNavLinks];
     nextLinks.splice(mcpIndex >= 0 ? mcpIndex + 1 : nextLinks.length, 0, insightsLink);
 
-    return [conversationLink, ...nextLinks];
+    return [conversationLink, ...projectLink, ...nextLinks];
   }, [
     insightsAccess?.access,
     insightsFeatureEnabled,

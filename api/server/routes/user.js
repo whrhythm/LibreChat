@@ -1,6 +1,7 @@
 const express = require('express');
 const {
   createUserPreferencesHandler,
+  codeChatIdentityHandler,
   preAuthTenantMiddleware,
   requirePreAuthTenantContext,
 } = require('@librechat/api');
@@ -38,6 +39,7 @@ const updateUserPreferences = createUserPreferencesHandler({
 
 router.use('/settings', settings);
 router.get('/', requireJwtAuth, getUserController);
+router.get('/codechat-identity', requireJwtAuth, codeChatIdentityHandler);
 router.patch('/preferences', requireJwtAuth, configMiddleware, updateUserPreferences);
 router.get('/terms', requireJwtAuth, getTermsStatusController);
 router.post('/terms/accept', requireJwtAuth, acceptTermsController);

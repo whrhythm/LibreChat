@@ -3,6 +3,8 @@
 # Base node image
 FROM node:24.22.1-alpine AS node
 
+ARG ALPINE_MIRROR=
+RUN if [ -n "$ALPINE_MIRROR" ]; then sed -i "s|https://dl-cdn.alpinelinux.org/alpine|${ALPINE_MIRROR}|g" /etc/apk/repositories; fi
 RUN apk upgrade --no-cache
 RUN apk add --no-cache bash jemalloc
 RUN apk add --no-cache python3 py3-pip uv
@@ -20,6 +22,7 @@ RUN uv --version
 ARG NODE_MAX_OLD_SPACE_SIZE=6144
 ARG NPM_CI_TIMEOUT_SECONDS=1500
 ARG NPM_CI_ATTEMPTS=2
+ARG NPM_REGISTRY=
 
 RUN mkdir -p /app && chown node:node /app
 WORKDIR /app
@@ -41,6 +44,7 @@ RUN \
     # Create directories for the volumes to inherit the correct permissions
     mkdir -p /app/client/public/images /app/logs /app/uploads /app/skill /app/data ; \
     chmod 1777 /app/data ; \
+    if [ -n "$NPM_REGISTRY" ]; then npm config set registry "$NPM_REGISTRY"; fi ; \
     npm config set fetch-retry-maxtimeout 600000 ; \
     npm config set fetch-retries 5 ; \
     npm config set fetch-retry-mintimeout 15000 ; \
@@ -59,9 +63,15 @@ RUN \
 COPY --chown=node:node . .
 
 ARG VITE_MCP_SANDBOX_URL=
+ARG VITE_CODECHAT_API_ORIGIN=
+ARG CODECHAT_VERIFY=false
 RUN \
     # React client build with configurable memory
     NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" npm run frontend && \
+    if [ "$CODECHAT_VERIFY" = "true" ]; then \
+      (cd packages/api && npx tsc --noEmit && npx jest src/user/codeChatIdentity.spec.ts --runInBand --coverage=false) && \
+      (cd client && npx tsc --noEmit && npx jest src/components/CodeChat/identity.spec.ts --runInBand --coverage=false); \
+    fi && \
     npm prune --production && \
     npm cache clean --force
 

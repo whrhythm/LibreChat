@@ -56,6 +56,11 @@ const loadProjectWorkspace = () =>
     Component: m.ProjectWorkspace,
   }));
 
+const loadCodeChatWorkspace = () =>
+  importWithRecovery(() => import('~/components/CodeChat/Workspace')).then((m) => ({
+    Component: m.default,
+  }));
+
 const baseEl = document.querySelector('base');
 const baseHref = baseEl?.getAttribute('href') || '/';
 
@@ -187,6 +192,10 @@ export const router = createBrowserRouter(
                 {
                   path: 'projects/:projectId',
                   lazy: loadProjectWorkspace,
+                },
+                {
+                  path: 'codechat',
+                  lazy: loadCodeChatWorkspace,
                 },
                 {
                   path: 'agents',
