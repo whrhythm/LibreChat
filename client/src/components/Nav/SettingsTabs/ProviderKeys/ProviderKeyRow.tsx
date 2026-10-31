@@ -52,9 +52,13 @@ export default function ProviderKeyRow({ endpoint, endpointsConfig }: ProviderKe
             <div className="truncate text-xs text-text-secondary">{expiryLabel}</div>
           </div>
         </div>
-        <Button variant="outline" onClick={() => setDialogOpen(true)}>
-          {hasKey ? localize('com_ui_update') : localize('com_endpoint_config_key')}
-        </Button>
+        {import.meta.env.VITE_CODECHAT_API_ORIGIN && endpoint === 'LiteLLM' ? (
+          <span className="text-xs text-text-secondary">{localize('com_codechat_managed_key')}</span>
+        ) : (
+          <Button variant="outline" onClick={() => setDialogOpen(true)}>
+            {hasKey ? localize('com_ui_update') : localize('com_endpoint_config_key')}
+          </Button>
+        )}
       </div>
       {dialogOpen && (
         <SetKeyDialog

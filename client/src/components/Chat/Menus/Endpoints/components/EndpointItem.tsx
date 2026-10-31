@@ -265,7 +265,7 @@ export function EndpointItem({ endpoint, endpointIndex }: EndpointItemProps) {
 
   const searchValue = endpointSearchValues[endpoint.value] || '';
   const isUserProvided = useMemo(
-    () => endpointRequiresUserKey(endpoint.value),
+    () => endpointRequiresUserKey(endpoint.value) && !(import.meta.env.VITE_CODECHAT_API_ORIGIN && endpoint.value === 'LiteLLM'),
     [endpointRequiresUserKey, endpoint.value],
   );
 
@@ -334,7 +334,7 @@ export function EndpointItem({ endpoint, endpointIndex }: EndpointItemProps) {
       >
         {renderIconLabel()}
         <div className="flex shrink-0 items-center gap-2">
-          {endpointRequiresUserKey(endpoint.value) && (
+          {isUserProvided && (
             <SettingsButton endpoint={endpoint} handleOpenKeyDialog={handleOpenKeyDialog} />
           )}
           {isAssistantsNotLoaded && (

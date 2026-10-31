@@ -12,6 +12,7 @@ const { sendOpenIDAuthResponse } = require('~/server/services/OpenIDRefreshRecov
 const getLogStores = require('~/cache/getLogStores');
 const { checkBan } = require('~/server/middleware');
 const { generateToken } = require('~/models');
+const { provisionCodeChatModelKey } = require('~/server/services/CodeChatModelKey');
 
 const domains = {
   client: process.env.DOMAIN_CLIENT,
@@ -35,6 +36,10 @@ function createOAuthHandler(redirectUri = domains.client) {
       await checkBan(req, res);
       if (req.banned) {
         return;
+      }
+
+      if (req.user?.provider === 'openid') {
+        await provisionCodeChatModelKey(req.user);
       }
 
       /** Check if this is an admin panel redirect (cross-origin or same-origin subpath) */
