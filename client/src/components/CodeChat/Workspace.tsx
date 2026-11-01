@@ -1,16 +1,22 @@
 import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
+import { Button, Input } from '@librechat/client';
 import { InMemoryWebStorage, UserManager, WebStorageStateStore } from 'oidc-client-ts';
 import type { User } from 'oidc-client-ts';
-import { Button, Input } from '@librechat/client';
+import type { FormEvent } from 'react';
+import type { Identity } from './identity';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { sameIdentity } from './identity';
-import type { Identity } from './identity';
 
 type Project = { id: string; name: string };
 type Tenant = { id: string };
+type Environment = { id: string; storage_gib: number; status: string };
 type AuthConfig = { issuer: string; client_id: string; scope: string };
-type Connection = { token: string; tenant: Tenant; projects: Project[] };
+type Connection = {
+  token: string;
+  tenant: Tenant;
+  projects: Project[];
+  environment: Environment | null;
+};
 
 const configuredOrigin = import.meta.env.VITE_CODECHAT_API_ORIGIN || '';
 const sessionStore = new InMemoryWebStorage();
@@ -19,10 +25,24 @@ let initialization: { owner: string; promise: Promise<Connection | null> } | und
 
 function origin(): string {
   const parsed = new URL(configuredOrigin);
-  if (parsed.origin !== configuredOrigin || (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && parsed.hostname === 'localhost'))) {
+  if (
+    parsed.origin !== configuredOrigin ||
+    (parsed.protocol !== 'https:' &&
+      !(parsed.protocol === 'http:' && parsed.hostname === 'localhost'))
+  ) {
     throw new Error('Invalid platform origin');
   }
   return parsed.origin;
+}
+
+function failure(status: number): string {
+  if (status === 401) {
+    return 'unauthorized';
+  }
+  if (status === 403 || status === 409) {
+    return 'limit';
+  }
+  return 'unavailable';
 }
 
 async function platform<T>(path: string, bearer?: string, body?: unknown): Promise<T> {
@@ -36,7 +56,7 @@ async function platform<T>(path: string, bearer?: string, body?: unknown): Promi
     credentials: 'omit',
   });
   if (!response.ok) {
-    throw new Error(response.status === 401 ? 'unauthorized' : response.status === 403 || response.status === 409 ? 'limit' : 'unavailable');
+    throw new Error(failure(response.status));
   }
   return response.json() as Promise<T>;
 }
@@ -83,8 +103,22 @@ async function connect(libresession: string): Promise<Connection | null> {
     throw new Error('unavailable');
   }
   const tenant = await platform<Tenant>('/v1/me/personal-tenant', session.access_token, {});
-  const projects = await platform<Project[]>(`/v1/tenants/${tenant.id}/projects`, session.access_token);
-  return { token: session.access_token, tenant, projects };
+  const projects = await platform<Project[]>(
+    `/v1/tenants/${tenant.id}/projects`,
+    session.access_token,
+  );
+  let environment: Environment | null = null;
+  if (projects.length > 0) {
+    try {
+      environment = await platform<Environment>(
+        `/v1/tenants/${tenant.id}/projects/${projects[0].id}/environment`,
+        session.access_token,
+      );
+    } catch {
+      environment = null;
+    }
+  }
+  return { token: session.access_token, tenant, projects, environment };
 }
 
 function connectOnce(owner: string, token: string): Promise<Connection | null> {
@@ -92,8 +126,12 @@ function connectOnce(owner: string, token: string): Promise<Connection | null> {
     const pending = { owner, promise: connect(token) };
     initialization = pending;
     void pending.promise.then(
-      () => { if (initialization === pending) initialization = undefined; },
-      () => { if (initialization === pending) initialization = undefined; },
+      () => {
+        if (initialization === pending) initialization = undefined;
+      },
+      () => {
+        if (initialization === pending) initialization = undefined;
+      },
     );
   }
   return initialization.promise;
@@ -110,15 +148,22 @@ export default function Workspace() {
 
   useEffect(() => {
     let active = true;
-    if (!user?.id || !token) return () => { active = false; };
+    if (!user?.id || !token)
+      return () => {
+        active = false;
+      };
     setConnection(null);
     setError('');
-    void connectOnce(user.id, token).then((value) => {
-      if (active) setConnection(value);
-    }).catch(() => {
-      if (active) setError('unavailable');
-    });
-    return () => { active = false; };
+    void connectOnce(user.id, token)
+      .then((value) => {
+        if (active) setConnection(value);
+      })
+      .catch(() => {
+        if (active) setError('unavailable');
+      });
+    return () => {
+      active = false;
+    };
   }, [user?.id, token, attempt]);
 
   async function createProject(event: FormEvent<HTMLFormElement>) {
@@ -127,7 +172,11 @@ export default function Workspace() {
     setBusy(true);
     setError('');
     try {
-      const project = await platform<Project>(`/v1/tenants/${connection.tenant.id}/projects`, connection.token, { name });
+      const project = await platform<Project>(
+        `/v1/tenants/${connection.tenant.id}/projects`,
+        connection.token,
+        { name },
+      );
       setConnection({ ...connection, projects: [...connection.projects, project] });
       setName('');
     } catch (err) {
@@ -137,30 +186,109 @@ export default function Workspace() {
         setConnection(null);
       }
       setError(err instanceof Error && err.message === 'limit' ? 'limit' : 'unavailable');
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function requestWorkspace(projectId: string) {
+    if (!connection || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const environment = await platform<Environment>(
+        `/v1/tenants/${connection.tenant.id}/projects/${projectId}/environment`,
+        connection.token,
+        {},
+      );
+      setConnection({ ...connection, environment });
+    } catch (err) {
+      if (err instanceof Error && err.message === 'unauthorized') {
+        await manager?.removeUser();
+        initialization = undefined;
+        setConnection(null);
+      }
+      setError(err instanceof Error && err.message === 'limit' ? 'limit' : 'unavailable');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-6 text-text-primary">
-      <div><h1 className="text-2xl font-semibold">{localize('com_codechat_workspace')}</h1>
-        <p className="mt-2 text-text-secondary">{localize('com_codechat_intro')}</p></div>
-      {error && <div role="alert" className="text-text-primary">{localize(error === 'limit' ? 'com_codechat_limit' : 'com_codechat_unavailable')}
-        {!connection && <Button variant="outline" onClick={() => { initialization = undefined; setAttempt((n) => n + 1); }}>{localize('com_codechat_retry')}</Button>}
-      </div>}
+    <main className="text-text-primary mx-auto flex w-full max-w-3xl flex-col gap-5 p-6">
+      <div>
+        <h1 className="text-2xl font-semibold">{localize('com_codechat_workspace')}</h1>
+        <p className="text-text-secondary mt-2">{localize('com_codechat_intro')}</p>
+      </div>
+      {error && (
+        <div role="alert" className="text-text-primary">
+          {localize(error === 'limit' ? 'com_codechat_limit' : 'com_codechat_unavailable')}
+          {!connection && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                initialization = undefined;
+                setAttempt((n) => n + 1);
+              }}
+            >
+              {localize('com_codechat_retry')}
+            </Button>
+          )}
+        </div>
+      )}
       {!connection && !error && <p role="status">{localize('com_codechat_loading')}</p>}
-      {connection && <>
-        <form onSubmit={createProject} className="flex flex-wrap items-end gap-2">
-          <label className="flex flex-col gap-1">{localize('com_codechat_project_name')}
-            <Input value={name} onChange={(event) => setName(event.target.value)} required maxLength={63} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="my-project" />
-          </label>
-          <Button type="submit" disabled={busy}>{localize('com_codechat_create')}</Button>
-        </form>
-        {connection.projects.length === 0 ? <p>{localize('com_codechat_empty')}</p> :
-          <ul className="flex flex-col gap-3">{connection.projects.map((project) =>
-            <li key={project.id} className="border-border-light rounded-lg border p-4">
-              <strong>{project.name}</strong><p className="text-text-secondary">{localize('com_codechat_draft')}</p>
-            </li>)}</ul>}
-      </>}
+      {connection && (
+        <>
+          <form onSubmit={createProject} className="flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-1">
+              {localize('com_codechat_project_name')}
+              <Input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
+                maxLength={63}
+                pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+                placeholder="my-project"
+              />
+            </label>
+            <Button type="submit" disabled={busy}>
+              {localize('com_codechat_create')}
+            </Button>
+          </form>
+          {connection.projects.length === 0 ? (
+            <p>{localize('com_codechat_empty')}</p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {connection.projects.map((project) => (
+                <li key={project.id} className="border-border-light rounded-lg border p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <strong>{project.name}</strong>
+                    {connection.environment ? (
+                      <span className="text-text-secondary">
+                        {localize('com_codechat_workspace_status', {
+                          size: connection.environment.storage_gib,
+                        })}
+                      </span>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => {
+                          void requestWorkspace(project.id);
+                        }}
+                      >
+                        {localize('com_codechat_request_workspace')}
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-text-secondary">{localize('com_codechat_draft')}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
     </main>
   );
 }
