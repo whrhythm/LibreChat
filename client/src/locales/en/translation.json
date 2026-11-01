@@ -2607,6 +2607,8 @@
   "com_codechat_project_name": "Project name",
   "com_codechat_create": "Create project",
   "com_codechat_draft": "Draft · development environment not started",
+  "com_codechat_request_workspace": "Request workspace",
+  "com_codechat_workspace_status": "Workspace: {{size}} GiB · requested",
   "com_codechat_unavailable": "Could not connect to your project space. Please try again.",
   "com_codechat_retry": "Try again",
   "com_codechat_limit": "Project quota or payment entitlement prevents this action.",
