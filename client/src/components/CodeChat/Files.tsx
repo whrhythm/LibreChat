@@ -25,6 +25,7 @@ export default function PersonalFiles({ expanded }: { expanded: boolean }) {
     queryKey: [QueryKeys.codechatFiles, owner, path],
     queryFn: async () => (await personalFileRequest(token!, 'directories', 'GET', path)).json(),
     enabled: expanded && !!token && space.data?.status === 'ready',
+    refetchInterval: expanded ? 5000 : false,
     retry: false,
   });
   const upload = useMutation({
