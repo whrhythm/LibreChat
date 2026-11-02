@@ -19,6 +19,11 @@ import type { SearchState } from '~/store/search';
 const streamTickAtom = atom<number>({ key: 'conversations-section-stream-tick', default: 0 });
 
 const TEST_TIMEOUT = 30_000;
+const mockCodeChatEnabled = jest.fn(() => true);
+
+jest.mock('~/components/CodeChat/config', () => ({
+  isCodeChatEnabled: () => mockCodeChatEnabled(),
+}));
 
 const mockUseFavorites = jest.fn(() => ({
   favorites: [] as unknown[],
@@ -245,6 +250,29 @@ const renderSection = (searchQuery = '') =>
   );
 
 describe('ConversationsSection section order', () => {
+  it('shows My space above Projects and opens it', async () => {
+    renderSection();
+    const space = screen.getByRole('button', { name: 'com_codechat_workspace' });
+    const projects = screen.getByTestId('projects-stub');
+    expect(space.compareDocumentPosition(projects) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(space);
+    expect(window.location.pathname).toBe('/codechat');
+  });
+
+  it('hides My space when the feature is disabled or searching', () => {
+    mockCodeChatEnabled.mockReturnValue(false);
+    const { unmount } = renderSection();
+    expect(
+      screen.queryByRole('button', { name: 'com_codechat_workspace' }),
+    ).not.toBeInTheDocument();
+    unmount();
+    mockCodeChatEnabled.mockReturnValue(true);
+    renderSection('search');
+    expect(
+      screen.queryByRole('button', { name: 'com_codechat_workspace' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('renders Pinned between Projects and Chats', async () => {
     const { getByTestId } = renderSection();
     await settleRenders();

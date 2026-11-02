@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, useMemo, memo, useRef } from 'react';
 import { useAtomValue } from 'jotai';
+import { FolderKanban } from 'lucide-react';
 import { useRecoilValue } from 'recoil';
+import { useNavigate } from 'react-router-dom';
 import type { InfiniteQueryObserverResult } from '@tanstack/react-query';
 import type { ConversationListResponse } from 'librechat-data-provider';
 import type { List } from 'react-virtualized';
@@ -28,6 +30,7 @@ import ProjectsSection from '~/components/Conversations/ProjectsSection';
 import ChatFilterMenu from '~/components/Conversations/ChatFilterMenu';
 import PinnedSection from '~/components/Conversations/PinnedSection';
 import ProjectNamesProvider from '~/Providers/ProjectNamesContext';
+import { isCodeChatEnabled } from '~/components/CodeChat/config';
 import useDrawerViewport from '~/hooks/Nav/useDrawerViewport';
 import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
 import { Conversations } from '~/components/Conversations';
@@ -39,6 +42,7 @@ const chatsHeaderTrailing = <ChatFilterMenu />;
 
 const ConversationsSection = memo(() => {
   const localize = useLocalize();
+  const navigate = useNavigate();
   const isSmallScreen = useDrawerViewport();
   const { setSidebarOpen } = useSidebarToggle();
   const { isAuthenticated } = useAuthContext();
@@ -240,6 +244,16 @@ const ConversationsSection = memo(() => {
             {/* `min-h-full` keeps the sections filling a tall sidebar, so the chats
             list still claims the space below them when there is little to show. */}
             <div ref={setScrollContent} className="flex min-h-full flex-col">
+              {!search.query && isAuthenticated && isCodeChatEnabled() && (
+                <button
+                  type="button"
+                  className="text-text-primary hover:bg-surface-hover mx-3 flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm"
+                  onClick={() => toggleNav(() => navigate('/codechat'))}
+                >
+                  <FolderKanban aria-hidden="true" className="h-4 w-4" />
+                  {localize('com_codechat_workspace')}
+                </button>
+              )}
               {!search.query && (
                 <ProjectsSection toggleNav={toggleNav} isAuthenticated={isAuthenticated} />
               )}
