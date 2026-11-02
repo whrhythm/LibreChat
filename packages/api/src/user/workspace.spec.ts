@@ -9,6 +9,42 @@ function response() {
 }
 
 describe('workspace same-origin bridge', () => {
+  it('requires a version for destructive file changes and forwards it without browser identity headers', async () => {
+    const request = jest
+      .fn()
+      .mockResolvedValue(new globalThis.Response(JSON.stringify({ deleted: true })));
+    const handlers = createWorkspaceHandlers({
+      baseUrl: 'https://platform.test/internal/v1/workspace/',
+      serviceToken: 's'.repeat(40),
+      issuer: 'https://identity.test/',
+      request,
+    });
+    const res = response();
+    const version = '"' + 'a'.repeat(64) + '"';
+    await handlers.deleteFile(
+      { user, query: { path: 'app.py' }, headers: {} } as unknown as Parameters<
+        typeof handlers.deleteFile
+      >[0],
+      res as unknown as Response,
+    );
+    expect(res.status).toHaveBeenLastCalledWith(428);
+    expect(request).not.toHaveBeenCalled();
+    await handlers.deleteFile(
+      {
+        user,
+        query: { path: 'app.py' },
+        headers: { 'if-match': version, 'x-codechat-subject': 'bob' },
+      } as unknown as Parameters<typeof handlers.deleteFile>[0],
+      res as unknown as Response,
+    );
+    expect(String(request.mock.calls[0][0])).toBe(
+      'https://platform.test/internal/v1/workspace/file?path=app.py',
+    );
+    expect(request.mock.calls[0][1].headers).toMatchObject({
+      'If-Match': version,
+      'X-CodeChat-Subject': 'alice',
+    });
+  });
   it('forwards lifecycle actions to a fixed application path and rejects malformed identifiers', async () => {
     const request = jest
       .fn()

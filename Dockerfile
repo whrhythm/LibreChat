@@ -70,6 +70,8 @@ RUN \
     NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" npm run frontend && \
     if [ "$CODECHAT_VERIFY" = "true" ]; then \
       (cd api && npx jest server/services/CodeChatModelKey.spec.js --runInBand --coverage=false) && \
+      (cd packages/data-provider && npx tsc --noEmit) && \
+      (cd packages/client && NODE_OPTIONS=--max-old-space-size=12288 npx tsc --noEmit && npx jest src/components/__tests__/dialogPlacement.spec.tsx --runInBand --coverage=false) && \
       (cd packages/api && NODE_OPTIONS=--max-old-space-size=12288 npx tsc --noEmit && npx jest src/user/codeChatIdentity.spec.ts src/user/workspace.spec.ts --runInBand --coverage=false) && \
       (cd client && NODE_OPTIONS=--max-old-space-size=12288 npx tsc --noEmit && npx jest src/components/CodeChat/identity.spec.ts src/components/CodeChat/SpaceStatus.spec.tsx src/components/CodeChat/Files.spec.tsx src/components/CodeChat/Applications.spec.tsx --runInBand --coverage=false); \
     fi && \

@@ -7,10 +7,11 @@ import './Field.css';
  *  border or ring because the surrounding frame owns the indicator, and `embedded` fills a row
  *  edge to edge. */
 const TEXTAREA_VARIANTS: Record<
-  'default' | 'transparent' | 'document' | 'flush' | 'embedded',
+  'default' | 'transparent' | 'document' | 'flush' | 'embedded' | 'code',
   string
 > = {
   default: 'bg-surface-secondary',
+  code: 'bg-surface-secondary font-mono',
   transparent: fieldFillTransparent,
   document: `${fieldFillTransparent} text-base leading-relaxed`,
   flush: fieldFlush,

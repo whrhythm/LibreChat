@@ -35,6 +35,7 @@ import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
 import { Conversations } from '~/components/Conversations';
 import { cn, collectPinnedConversations } from '~/utils';
 import PersonalFiles from '~/components/CodeChat/Files';
+import ApplicationNotice from '~/components/CodeChat/ApplicationNotice';
 import SearchBar from '~/components/Nav/SearchBar';
 import store from '~/store';
 
@@ -246,6 +247,7 @@ const ConversationsSection = memo(() => {
             <div ref={setScrollContent} className="flex min-h-full flex-col">
               {!search.query && isAuthenticated && isCodeChatEnabled() && (
                 <div className="mx-3">
+                  <ApplicationNotice onOpen={() => setIsSpaceExpanded(true)} />
                   <button
                     type="button"
                     aria-expanded={isSpaceExpanded}

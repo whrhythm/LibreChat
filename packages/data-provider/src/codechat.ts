@@ -14,7 +14,21 @@ export class CodeChatEnvironmentError extends Error {
 }
 
 export type PersonalSpace = { status: string; storage_gib: number };
-export type WorkspaceEntry = { name: string; kind: 'file' | 'directory'; size: number | null };
+export type WorkspaceEntry = {
+  name: string;
+  kind: 'file' | 'directory';
+  size: number | null;
+  etag?: string | null;
+};
+
+export type PersonalUsage = {
+  used_bytes: number;
+  quota_bytes: number;
+  available_bytes: number;
+  physical_available_bytes: number;
+  observed_at: string;
+  scope: 'personal_volume';
+};
 
 export type PersonalApplication = {
   id: string;
@@ -24,6 +38,12 @@ export type PersonalApplication = {
   image: string | null;
   url: string | null;
   error_code: string | null;
+  cleanup?: {
+    status: 'pending' | 'complete';
+    runtime?: 'previous_release' | 'stopped';
+    error_code?: string;
+  } | null;
+  previous_url?: string | null;
   observation: {
     observed_at: string;
     logs: string;
@@ -43,12 +63,9 @@ export async function personalApplicationRequest(
   action: 'list' | 'publish' | 'start' | 'stop' | 'delete',
   value = '',
 ): Promise<Response> {
-  const suffix =
-    action === 'publish'
-      ? `?path=${encodeURIComponent(value)}`
-      : action === 'list'
-        ? ''
-        : `/${encodeURIComponent(value)}/${action}`;
+  let suffix = '';
+  if (action === 'publish') suffix = `?path=${encodeURIComponent(value)}`;
+  else if (action !== 'list') suffix = `/${encodeURIComponent(value)}/${action}`;
   const response = await fetch(`/api/user/workspace/apps${suffix}`, {
     method: action === 'list' ? 'GET' : 'POST',
     headers: { Authorization: `Bearer ${token}` },
@@ -62,25 +79,39 @@ export async function personalApplicationRequest(
 
 export async function personalFileRequest(
   token: string,
-  endpoint: 'ensure' | 'directories' | 'file',
-  method: 'GET' | 'POST' | 'PUT' = 'GET',
+  endpoint: 'ensure' | 'directories' | 'file' | 'usage',
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
   path = '',
   content?: Blob,
+  options?: { overwrite?: boolean; version?: string },
 ): Promise<Response> {
-  const query = endpoint === 'ensure' ? '' : `?path=${encodeURIComponent(path)}`;
+  const query =
+    endpoint === 'ensure' || endpoint === 'usage'
+      ? ''
+      : `?path=${encodeURIComponent(path)}${options?.overwrite ? '&overwrite=true' : ''}`;
   const response = await fetch(`/api/user/workspace/${endpoint}${query}`, {
     method,
     headers: {
       Authorization: `Bearer ${token}`,
+      ...(options?.version ? { 'If-Match': options.version } : {}),
       ...(content ? { 'Content-Type': 'application/octet-stream' } : {}),
     },
     credentials: 'same-origin',
     cache: 'no-store',
     body: content,
   });
+  if (!response.ok && response.status === 409 && endpoint === 'file')
+    throw new PersonalFileError('conflict');
+  if (!response.ok && response.status === 507) throw new PersonalFileError('full');
   if (!response.ok)
     throw new CodeChatEnvironmentError(response.status === 401 ? 'unauthorized' : 'unavailable');
   return response;
+}
+
+export class PersonalFileError extends Error {
+  constructor(public readonly code: 'conflict' | 'full') {
+    super(code);
+  }
 }
 
 export async function codeChatEnvironment(

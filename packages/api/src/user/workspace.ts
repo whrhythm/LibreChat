@@ -14,6 +14,8 @@ type WorkspaceHandlers = {
   mkdir: WorkspaceHandler;
   read: WorkspaceHandler;
   write: WorkspaceHandler;
+  deleteFile: WorkspaceHandler;
+  usage: WorkspaceHandler;
   apps: WorkspaceHandler;
   publish: WorkspaceHandler;
   start: WorkspaceHandler;
@@ -64,7 +66,11 @@ export function createWorkspaceHandlers(deps: Dependencies): WorkspaceHandlers {
       } catch {
         return res.status(503).json({ code: 'workspace_unavailable' });
       }
-      if (endpoint !== 'ensure' && !(endpoint === 'apps' && (method === 'GET' || action))) {
+      if (
+        endpoint !== 'ensure' &&
+        endpoint !== 'usage' &&
+        !(endpoint === 'apps' && (method === 'GET' || action))
+      ) {
         if (typeof req.query.path !== 'string' || req.query.path.length > 4096) {
           return res.status(400).json({ code: 'workspace_invalid_path' });
         }
@@ -75,12 +81,19 @@ export function createWorkspaceHandlers(deps: Dependencies): WorkspaceHandlers {
       if (method === 'PUT' && !Buffer.isBuffer(req.body)) {
         return res.status(400).json({ code: 'workspace_binary_required' });
       }
+      const ifMatch = req.headers?.['if-match'];
+      const requiresVersion =
+        method === 'DELETE' || (method === 'PUT' && req.query.overwrite === 'true');
+      if (requiresVersion && (typeof ifMatch !== 'string' || !/^"[0-9a-f]{64}"$/.test(ifMatch))) {
+        return res.status(428).json({ code: 'workspace_version_required' });
+      }
       try {
         const upstream = await request(url, {
           method,
           headers: {
             'X-CodeChat-Service-Token': deps.serviceToken,
             'X-CodeChat-Subject': user.openidId,
+            ...(requiresVersion && typeof ifMatch === 'string' ? { 'If-Match': ifMatch } : {}),
             ...(method === 'PUT' ? { 'Content-Type': 'application/octet-stream' } : {}),
           },
           body:
@@ -89,18 +102,21 @@ export function createWorkspaceHandlers(deps: Dependencies): WorkspaceHandlers {
           signal: AbortSignal.timeout(35000),
         });
         if (!upstream.ok) {
-          const status = [400, 403, 404, 409, 413, 507].includes(upstream.status)
+          const status = [400, 403, 404, 409, 413, 428, 507].includes(upstream.status)
             ? upstream.status
             : 503;
-          return res
-            .status(status)
-            .json({ code: status === 409 ? 'workspace_preparing' : 'workspace_operation_failed' });
+          let code = 'workspace_operation_failed';
+          if (status === 409) code = 'workspace_preparing';
+          if (status === 409 && endpoint === 'file') code = 'workspace_file_conflict';
+          return res.status(status).json({ code });
         }
         if (method === 'GET' && endpoint === 'file') {
           const bytes = new Uint8Array(await upstream.arrayBuffer());
           if (bytes.length > 16 * 1024 * 1024)
             return res.status(413).json({ code: 'workspace_file_too_large' });
           res.setHeader('Content-Type', 'application/octet-stream');
+          const etag = upstream.headers.get('etag');
+          if (etag && /^"[0-9a-f]{64}"$/.test(etag)) res.setHeader('ETag', etag);
           return res.status(200).send(Buffer.from(bytes));
         }
         return res.status(upstream.status).json(await upstream.json());
@@ -114,6 +130,8 @@ export function createWorkspaceHandlers(deps: Dependencies): WorkspaceHandlers {
     mkdir: handler('POST', 'directories'),
     read: handler('GET', 'file'),
     write: handler('PUT', 'file'),
+    deleteFile: handler('DELETE', 'file'),
+    usage: handler('GET', 'usage'),
     apps: handler('GET', 'apps'),
     publish: handler('POST', 'apps'),
     start: handler('POST', 'apps', 'start'),

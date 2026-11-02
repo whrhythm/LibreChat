@@ -68,6 +68,7 @@ export enum QueryKeys {
   projectConversations = 'projectConversations',
   codechatEnvironment = 'codechatEnvironment',
   codechatFiles = 'codechatFiles',
+  codechatUsage = 'codechatUsage',
   codechatApps = 'codechatApps',
   codechatSpace = 'codechatSpace',
   categories = 'categories',

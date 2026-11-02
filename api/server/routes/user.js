@@ -55,6 +55,8 @@ router.post('/workspace/apps/:applicationId/delete', requireJwtAuth, workspace.r
 router.get('/workspace/directories', requireJwtAuth, workspace.list);
 router.post('/workspace/directories', requireJwtAuth, workspace.mkdir);
 router.get('/workspace/file', requireJwtAuth, workspace.read);
+router.delete('/workspace/file', requireJwtAuth, workspace.deleteFile);
+router.get('/workspace/usage', requireJwtAuth, workspace.usage);
 router.put(
   '/workspace/file',
   requireJwtAuth,

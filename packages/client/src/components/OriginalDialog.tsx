@@ -196,6 +196,7 @@ type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.
    * focus trap, Escape, scroll lock, aria wiring — are unchanged.
    */
   bare?: boolean;
+  placement?: 'center' | 'right';
   /** Keep the portal mounted while closed so the caller can animate the exit itself. */
   forceMount?: true;
   focusOutline?: FocusOutline;
@@ -211,12 +212,18 @@ const DIALOG_SURFACE_CLASSES =
    *  slide names only the 2% the surface travels. */
   'left-[50%] top-[50%] grid max-h-[90vh] w-full translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-2xl border-(length:--theme-dialog-stroke) border-border-light bg-surface-dialog py-6 px-theme-dialog-x shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-bottom-[2%] data-[state=open]:slide-in-from-bottom-[2%] high-contrast:border high-contrast:border-solid high-contrast:border-border-medium high-contrast:shadow-none';
 
+const DIALOG_RIGHT_CLASSES = cn(
+  DIALOG_SURFACE_CLASSES,
+  'top-0 right-0 left-auto flex h-dvh max-h-dvh translate-x-0 translate-y-0 flex-col rounded-none border-l data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100 data-[state=open]:slide-in-from-right-full data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-bottom-0 data-[state=closed]:slide-out-to-bottom-0 data-[state=open]:motion-reduce:animate-none data-[state=closed]:motion-reduce:animate-none',
+);
+
 const DialogContent: React.ForwardRefExoticComponent<
   Omit<DialogPrimitive.DialogContentProps & React.RefAttributes<HTMLDivElement>, 'ref'> & {
     showCloseButton?: boolean;
     disableScroll?: boolean;
     overlayClassName?: string;
     bare?: boolean;
+    placement?: 'center' | 'right';
     forceMount?: true;
     focusOutline?: FocusOutline;
   } & React.RefAttributes<HTMLDivElement>
@@ -227,6 +234,7 @@ const DialogContent: React.ForwardRefExoticComponent<
       overlayClassName,
       showCloseButton = true,
       bare = false,
+      placement = 'center',
       forceMount,
       focusOutline,
       children,
@@ -367,7 +375,7 @@ const DialogContent: React.ForwardRefExoticComponent<
           onEscapeKeyDown={handleEscapeKeyDown}
           className={cn(
             'text-text-primary fixed',
-            !bare && DIALOG_SURFACE_CLASSES,
+            !bare && (placement === 'right' ? DIALOG_RIGHT_CLASSES : DIALOG_SURFACE_CLASSES),
             focusOutlineVariants({ focusOutline }),
             className,
           )}

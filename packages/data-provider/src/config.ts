@@ -3652,6 +3652,7 @@ export function supportsConversationTitleOwnership(config?: {
 }
 
 export type TStartupConfig = {
+  codechat?: { filePreviewMaxBytes?: number };
   conversationTitleOwnershipVersion?: typeof CONVERSATION_TITLE_OWNERSHIP_VERSION;
   appTitle: string;
   socialLogins?: string[];
@@ -4430,6 +4431,16 @@ export type TToolCallPreviewsConfig = z.infer<typeof toolCallPreviewsConfigSchem
 
 export const configSchema = z.object({
   version: z.string(),
+  codechat: z
+    .object({
+      filePreviewMaxBytes: z
+        .number()
+        .int()
+        .min(1024)
+        .max(16 * 1024 * 1024)
+        .default(1024 * 1024),
+    })
+    .optional(),
   telemetry: telemetrySchema.optional(),
   clientLimits: clientLimitsSchema.optional(),
   permissions: z

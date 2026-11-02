@@ -17,6 +17,13 @@ const statusKeys = {
   deleted: 'com_codechat_app_deleted',
 } as const;
 
+function failureKey(code: string) {
+  if (code === 'build_failed') return 'com_codechat_app_build_failed';
+  if (code === 'application_start_failed') return 'com_codechat_app_start_failed';
+  if (code === 'pushed_image_verify_failed') return 'com_codechat_app_image_failed';
+  return 'com_codechat_app_failed_detail';
+}
+
 export default function Applications({
   path,
   canPublish,
@@ -103,8 +110,43 @@ export default function Applications({
               </p>
               {app.error_code && (
                 <p role="alert" className="text-xs">
-                  {localize('com_codechat_app_failed_detail')}
+                  {localize(failureKey(app.error_code))}
                 </p>
+              )}
+              {app.status === 'failed' && (
+                <>
+                  <p className="text-xs">{localize('com_codechat_app_failure_retained')}</p>
+                  {app.cleanup && (
+                    <p role="status" className="text-xs">
+                      {localize(
+                        app.cleanup.status === 'complete'
+                          ? 'com_codechat_app_cleanup_complete'
+                          : 'com_codechat_app_cleanup_pending',
+                      )}
+                    </p>
+                  )}
+                  {app.previous_url && (
+                    <a
+                      className="text-sm underline"
+                      href={app.previous_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {localize('com_codechat_app_previous_release')}
+                    </a>
+                  )}
+                  <Button
+                    variant="outline"
+                    disabled={
+                      operation.isLoading ||
+                      app.cleanup?.status !== 'complete' ||
+                      !!app.error_code?.includes('requires_review')
+                    }
+                    onClick={() => operation.mutate({ action: 'publish', value: app.project_path })}
+                  >
+                    {localize('com_codechat_app_retry_publish')}
+                  </Button>
+                </>
               )}
               {app.url && app.status === 'running' && (
                 <a className="text-sm underline" href={app.url} target="_blank" rel="noreferrer">

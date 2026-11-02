@@ -362,6 +362,7 @@ router.get('/', async function (req, res) {
       ...(cloudFront ? { cloudFront } : {}),
       rum: getRumConfig(appConfig?.config?.telemetry),
       clientLimits: getClientLimits(appConfig?.config?.clientLimits),
+      codechat: appConfig?.config?.codechat,
       fileUploadSseEnabled: isEnabled(process.env.FILE_UPLOAD_SSE_ENABLED),
       endpointsDropParamsMap: endpointsDropParamsMap,
     };
