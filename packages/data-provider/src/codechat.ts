@@ -13,6 +13,32 @@ export class CodeChatEnvironmentError extends Error {
   }
 }
 
+export type PersonalSpace = { status: string; storage_gib: number };
+export type WorkspaceEntry = { name: string; kind: 'file' | 'directory'; size: number | null };
+
+export async function personalFileRequest(
+  token: string,
+  endpoint: 'ensure' | 'directories' | 'file',
+  method: 'GET' | 'POST' | 'PUT' = 'GET',
+  path = '',
+  content?: Blob,
+): Promise<Response> {
+  const query = endpoint === 'ensure' ? '' : `?path=${encodeURIComponent(path)}`;
+  const response = await fetch(`/api/user/workspace/${endpoint}${query}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(content ? { 'Content-Type': 'application/octet-stream' } : {}),
+    },
+    credentials: 'same-origin',
+    cache: 'no-store',
+    body: content,
+  });
+  if (!response.ok)
+    throw new CodeChatEnvironmentError(response.status === 401 ? 'unauthorized' : 'unavailable');
+  return response;
+}
+
 export async function codeChatEnvironment(
   origin: string,
   token: string,

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useMemo, memo, useRef } from 'react';
 import { useAtomValue } from 'jotai';
-import { FolderKanban } from 'lucide-react';
 import { useRecoilValue } from 'recoil';
+import { FolderKanban } from 'lucide-react';
 import type { InfiniteQueryObserverResult } from '@tanstack/react-query';
 import type { ConversationListResponse } from 'librechat-data-provider';
 import type { List } from 'react-virtualized';
@@ -34,6 +34,7 @@ import useDrawerViewport from '~/hooks/Nav/useDrawerViewport';
 import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
 import { Conversations } from '~/components/Conversations';
 import { cn, collectPinnedConversations } from '~/utils';
+import PersonalFiles from '~/components/CodeChat/Files';
 import SearchBar from '~/components/Nav/SearchBar';
 import store from '~/store';
 
@@ -259,9 +260,8 @@ const ConversationsSection = memo(() => {
                     id="codechat-space-panel"
                     hidden={!isSpaceExpanded}
                     className="text-text-secondary px-3 pb-3 text-sm"
-                    role="status"
                   >
-                    {localize('com_codechat_files_unavailable')}
+                    <PersonalFiles expanded={isSpaceExpanded} />
                   </div>
                 </div>
               )}

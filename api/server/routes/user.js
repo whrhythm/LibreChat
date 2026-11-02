@@ -2,6 +2,7 @@ const express = require('express');
 const {
   createUserPreferencesHandler,
   codeChatIdentityHandler,
+  createWorkspaceHandlers,
   preAuthTenantMiddleware,
   requirePreAuthTenantContext,
 } = require('@librechat/api');
@@ -32,6 +33,11 @@ const settings = require('./settings');
 const { updateUserStatefulCodeEnvironment } = require('~/models');
 
 const router = express.Router();
+const workspace = createWorkspaceHandlers({
+  baseUrl: process.env.CODECHAT_WORKSPACE_URL,
+  serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
+  issuer: process.env.OPENID_ISSUER,
+});
 
 const updateUserPreferences = createUserPreferencesHandler({
   updateStatefulCodeEnvironment: updateUserStatefulCodeEnvironment,
@@ -40,6 +46,16 @@ const updateUserPreferences = createUserPreferencesHandler({
 router.use('/settings', settings);
 router.get('/', requireJwtAuth, getUserController);
 router.get('/codechat-identity', requireJwtAuth, codeChatIdentityHandler);
+router.post('/workspace/ensure', requireJwtAuth, workspace.ensure);
+router.get('/workspace/directories', requireJwtAuth, workspace.list);
+router.post('/workspace/directories', requireJwtAuth, workspace.mkdir);
+router.get('/workspace/file', requireJwtAuth, workspace.read);
+router.put(
+  '/workspace/file',
+  requireJwtAuth,
+  express.raw({ type: 'application/octet-stream', limit: '16mb' }),
+  workspace.write,
+);
 router.patch('/preferences', requireJwtAuth, configMiddleware, updateUserPreferences);
 router.get('/terms', requireJwtAuth, getTermsStatusController);
 router.post('/terms/accept', requireJwtAuth, acceptTermsController);

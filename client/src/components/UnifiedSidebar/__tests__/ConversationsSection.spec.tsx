@@ -24,6 +24,10 @@ const mockCodeChatEnabled = jest.fn(() => true);
 jest.mock('~/components/CodeChat/config', () => ({
   isCodeChatEnabled: () => mockCodeChatEnabled(),
 }));
+jest.mock('~/components/CodeChat/Files', () => ({
+  __esModule: true,
+  default: () => <div role="status">personal-files-panel</div>,
+}));
 
 const mockUseFavorites = jest.fn(() => ({
   favorites: [] as unknown[],
@@ -260,10 +264,10 @@ describe('ConversationsSection section order', () => {
     fireEvent.click(space);
     expect(window.location.pathname).toBe(currentPath);
     expect(space).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('status')).toHaveTextContent('com_codechat_files_unavailable');
+    expect(screen.getByRole('status')).toHaveTextContent('personal-files-panel');
     fireEvent.click(space);
     expect(space).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByText('com_codechat_files_unavailable')).not.toBeVisible();
+    expect(screen.getByText('personal-files-panel')).not.toBeVisible();
   });
 
   it('hides My space when the feature is disabled or searching', () => {
