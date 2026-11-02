@@ -250,13 +250,20 @@ const renderSection = (searchQuery = '') =>
   );
 
 describe('ConversationsSection section order', () => {
-  it('shows My space above Projects and opens it', async () => {
+  it('expands My space above Projects without navigating away from chat', async () => {
     renderSection();
     const space = screen.getByRole('button', { name: 'com_codechat_workspace' });
     const projects = screen.getByTestId('projects-stub');
     expect(space.compareDocumentPosition(projects) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const currentPath = window.location.pathname;
+    expect(space).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(space);
-    expect(window.location.pathname).toBe('/codechat');
+    expect(window.location.pathname).toBe(currentPath);
+    expect(space).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('status')).toHaveTextContent('com_codechat_files_unavailable');
+    fireEvent.click(space);
+    expect(space).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByText('com_codechat_files_unavailable')).not.toBeVisible();
   });
 
   it('hides My space when the feature is disabled or searching', () => {

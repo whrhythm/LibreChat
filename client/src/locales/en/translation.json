@@ -2600,6 +2600,7 @@
   "com_ui_project_update_error": "Failed to update project assignment",
   "com_ui_project_updated": "Project assignment updated",
   "com_codechat_workspace": "My space",
+  "com_codechat_files_unavailable": "Personal files are not available yet.",
   "com_codechat_managed_key": "Managed by the platform",
   "com_codechat_intro": "Create and manage your development projects.",
   "com_codechat_loading": "Connecting to your project space…",

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState, useMemo, memo, useRef } from 'react';
 import { useAtomValue } from 'jotai';
 import { FolderKanban } from 'lucide-react';
 import { useRecoilValue } from 'recoil';
-import { useNavigate } from 'react-router-dom';
 import type { InfiniteQueryObserverResult } from '@tanstack/react-query';
 import type { ConversationListResponse } from 'librechat-data-provider';
 import type { List } from 'react-virtualized';
@@ -42,13 +41,13 @@ const chatsHeaderTrailing = <ChatFilterMenu />;
 
 const ConversationsSection = memo(() => {
   const localize = useLocalize();
-  const navigate = useNavigate();
   const isSmallScreen = useDrawerViewport();
   const { setSidebarOpen } = useSidebarToggle();
   const { isAuthenticated } = useAuthContext();
   useTitleGeneration(isAuthenticated);
 
   const [isChatsExpanded, setIsChatsExpanded] = useLocalStorage('chatsExpanded', true);
+  const [isSpaceExpanded, setIsSpaceExpanded] = useState(false);
 
   const tags = useAtomValue(chatFilterTagsAtom);
   const sort = useAtomValue(chatSortAtom);
@@ -245,14 +244,26 @@ const ConversationsSection = memo(() => {
             list still claims the space below them when there is little to show. */}
             <div ref={setScrollContent} className="flex min-h-full flex-col">
               {!search.query && isAuthenticated && isCodeChatEnabled() && (
-                <button
-                  type="button"
-                  className="text-text-primary hover:bg-surface-hover mx-3 flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm"
-                  onClick={() => toggleNav(() => navigate('/codechat'))}
-                >
-                  <FolderKanban aria-hidden="true" className="h-4 w-4" />
-                  {localize('com_codechat_workspace')}
-                </button>
+                <div className="mx-3">
+                  <button
+                    type="button"
+                    aria-expanded={isSpaceExpanded}
+                    aria-controls="codechat-space-panel"
+                    className="text-text-primary hover:bg-surface-hover flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm"
+                    onClick={() => setIsSpaceExpanded((expanded) => !expanded)}
+                  >
+                    <FolderKanban aria-hidden="true" className="h-4 w-4" />
+                    {localize('com_codechat_workspace')}
+                  </button>
+                  <div
+                    id="codechat-space-panel"
+                    hidden={!isSpaceExpanded}
+                    className="text-text-secondary px-3 pb-3 text-sm"
+                    role="status"
+                  >
+                    {localize('com_codechat_files_unavailable')}
+                  </div>
+                </div>
               )}
               {!search.query && (
                 <ProjectsSection toggleNav={toggleNav} isAuthenticated={isAuthenticated} />
