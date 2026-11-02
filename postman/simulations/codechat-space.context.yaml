@@ -1,0 +1,18 @@
+purpose:
+  stands_in_for: The platform environment plan endpoint with synthetic identities.
+  unblocks: Testing the real client against an HTTP service without creating user records.
+assumptions:
+  - id: environment-plan
+    status: supported
+    claim: GET returns 404 for no environment and POST records a user-scoped plan without creating a disk.
+    reason: Matches the checked-in platform API contract; a 404 can also represent inaccessible project.
+    verification: Local simulation checks two synthetic users, repeated requests, unauthorized and malformed/error responses.
+    source: ../platform-control/contracts/openapi.json
+    updated_at: '2026-11-02'
+  - id: identity-authority
+    status: unverified
+    claim: Production must validate user tokens and project membership independently of browser state.
+    reason: The mock provides synthetic behavior and cannot establish production authorization.
+    verification: Requires separate authenticated live end-to-end validation.
+    source: ../platform-control/control_plane/main.py
+    updated_at: '2026-11-02'

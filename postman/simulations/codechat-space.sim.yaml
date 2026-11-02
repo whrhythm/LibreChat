@@ -1,0 +1,6 @@
+simulation: codechat-space
+routing: path
+mocks:
+  - name: codechat-space
+    routeKey: platform
+    path: ../mocks/codechat-space/config.yaml
