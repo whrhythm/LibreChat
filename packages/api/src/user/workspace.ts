@@ -14,6 +14,11 @@ type WorkspaceHandlers = {
   mkdir: WorkspaceHandler;
   read: WorkspaceHandler;
   write: WorkspaceHandler;
+  apps: WorkspaceHandler;
+  publish: WorkspaceHandler;
+  start: WorkspaceHandler;
+  stop: WorkspaceHandler;
+  remove: WorkspaceHandler;
 };
 
 /** Same-origin bridge: identity is taken only from the authenticated user doc.
@@ -22,7 +27,8 @@ export function createWorkspaceHandlers(deps: Dependencies): WorkspaceHandlers {
   const request = deps.request ?? fetch;
   const normalize = (value: string) => value.replace(/\/$/, '');
   const handler =
-    (method: string, endpoint: string) => async (req: ServerRequest, res: Response) => {
+    (method: string, endpoint: string, action?: string) =>
+    async (req: ServerRequest, res: Response) => {
       res.setHeader('Cache-Control', 'no-store');
       res.setHeader('X-Content-Type-Options', 'nosniff');
       const user = req.user;
@@ -40,14 +46,25 @@ export function createWorkspaceHandlers(deps: Dependencies): WorkspaceHandlers {
       }
       let url: URL;
       try {
-        url = new URL(endpoint, deps.baseUrl.endsWith('/') ? deps.baseUrl : deps.baseUrl + '/');
+        let suffix = endpoint;
+        if (action) {
+          if (!req.params || typeof req.params !== 'object' || !('applicationId' in req.params)) {
+            return res.status(400).json({ code: 'application_invalid_id' });
+          }
+          const identifier = req.params.applicationId;
+          if (typeof identifier !== 'string' || !/^[0-9a-f-]{36}$/.test(identifier)) {
+            return res.status(400).json({ code: 'application_invalid_id' });
+          }
+          suffix = `apps/${encodeURIComponent(identifier)}/${action}`;
+        }
+        url = new URL(suffix, deps.baseUrl.endsWith('/') ? deps.baseUrl : deps.baseUrl + '/');
         if (url.protocol !== 'https:' || url.username || url.password) {
           return res.status(503).json({ code: 'workspace_unavailable' });
         }
       } catch {
         return res.status(503).json({ code: 'workspace_unavailable' });
       }
-      if (endpoint !== 'ensure') {
+      if (endpoint !== 'ensure' && !(endpoint === 'apps' && (method === 'GET' || action))) {
         if (typeof req.query.path !== 'string' || req.query.path.length > 4096) {
           return res.status(400).json({ code: 'workspace_invalid_path' });
         }
@@ -97,5 +114,10 @@ export function createWorkspaceHandlers(deps: Dependencies): WorkspaceHandlers {
     mkdir: handler('POST', 'directories'),
     read: handler('GET', 'file'),
     write: handler('PUT', 'file'),
+    apps: handler('GET', 'apps'),
+    publish: handler('POST', 'apps'),
+    start: handler('POST', 'apps', 'start'),
+    stop: handler('POST', 'apps', 'stop'),
+    remove: handler('POST', 'apps', 'delete'),
   };
 }

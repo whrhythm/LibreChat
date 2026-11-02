@@ -16,6 +16,50 @@ export class CodeChatEnvironmentError extends Error {
 export type PersonalSpace = { status: string; storage_gib: number };
 export type WorkspaceEntry = { name: string; kind: 'file' | 'directory'; size: number | null };
 
+export type PersonalApplication = {
+  id: string;
+  project_path: string;
+  status: string;
+  desired_state: string;
+  image: string | null;
+  url: string | null;
+  error_code: string | null;
+  observation: {
+    observed_at: string;
+    logs: string;
+    metrics: {
+      cpu_millicores: number;
+      cpu_limit_millicores: number;
+      cpu_percent: number;
+      memory_bytes: number;
+      memory_limit_bytes: number;
+      memory_percent: number;
+    } | null;
+  } | null;
+};
+
+export async function personalApplicationRequest(
+  token: string,
+  action: 'list' | 'publish' | 'start' | 'stop' | 'delete',
+  value = '',
+): Promise<Response> {
+  const suffix =
+    action === 'publish'
+      ? `?path=${encodeURIComponent(value)}`
+      : action === 'list'
+        ? ''
+        : `/${encodeURIComponent(value)}/${action}`;
+  const response = await fetch(`/api/user/workspace/apps${suffix}`, {
+    method: action === 'list' ? 'GET' : 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'same-origin',
+    cache: 'no-store',
+  });
+  if (!response.ok)
+    throw new CodeChatEnvironmentError(response.status === 401 ? 'unauthorized' : 'unavailable');
+  return response;
+}
+
 export async function personalFileRequest(
   token: string,
   endpoint: 'ensure' | 'directories' | 'file',

@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { personalFileRequest } from 'librechat-data-provider';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import PersonalFiles from './Files';
 
 jest.mock('~/hooks', () => ({
@@ -10,6 +10,7 @@ jest.mock('~/hooks', () => ({
 jest.mock('librechat-data-provider', () => ({
   ...jest.requireActual('librechat-data-provider'),
   personalFileRequest: jest.fn(),
+  personalApplicationRequest: jest.fn(async () => ({ json: async () => ({ apps: [] }) })),
 }));
 const request = personalFileRequest as jest.MockedFunction<typeof personalFileRequest>;
 

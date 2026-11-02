@@ -5,6 +5,7 @@ import { personalFileRequest, QueryKeys } from 'librechat-data-provider';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PersonalSpace, WorkspaceEntry } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
+import Applications from './Applications';
 
 export default function PersonalFiles({ expanded }: { expanded: boolean }) {
   const { user, token } = useAuthContext();
@@ -109,7 +110,7 @@ export default function PersonalFiles({ expanded }: { expanded: boolean }) {
               ..
             </Button>
           )}
-          {files.isFetching && <p role="status">{localize('com_codechat_files_loading')}</p>}
+          {files.isLoading && <p role="status">{localize('com_codechat_files_loading')}</p>}
           {files.isError && (
             <div role="alert">
               <p>{localize('com_codechat_files_error')}</p>
@@ -141,6 +142,15 @@ export default function PersonalFiles({ expanded }: { expanded: boolean }) {
               </li>
             ))}
           </ul>
+          <Applications
+            path={path}
+            enabled={expanded && space.data?.status === 'ready'}
+            canPublish={
+              !!files.data?.entries.some(
+                (entry) => entry.name === 'Dockerfile' && entry.kind === 'file',
+              )
+            }
+          />
         </>
       )}
     </div>

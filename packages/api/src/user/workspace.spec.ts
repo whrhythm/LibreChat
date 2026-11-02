@@ -9,6 +9,39 @@ function response() {
 }
 
 describe('workspace same-origin bridge', () => {
+  it('forwards lifecycle actions to a fixed application path and rejects malformed identifiers', async () => {
+    const request = jest
+      .fn()
+      .mockResolvedValue(
+        new globalThis.Response(JSON.stringify({ status: 'changing' }), { status: 202 }),
+      );
+    const handlers = createWorkspaceHandlers({
+      baseUrl: 'https://platform.test/internal/v1/workspace/',
+      serviceToken: 's'.repeat(40),
+      issuer: 'https://identity.test/',
+      request,
+    });
+    const id = '12345678-1234-1234-1234-123456789abc';
+    const res = response();
+    await handlers.stop(
+      { user, params: { applicationId: id }, query: {} } as unknown as Parameters<
+        typeof handlers.stop
+      >[0],
+      res as unknown as Response,
+    );
+    expect(String(request.mock.calls[0][0])).toBe(
+      `https://platform.test/internal/v1/workspace/apps/${id}/stop`,
+    );
+    expect(request.mock.calls[0][1].headers['X-CodeChat-Subject']).toBe('alice');
+    await handlers.stop(
+      { user, params: { applicationId: '../other' }, query: {} } as unknown as Parameters<
+        typeof handlers.stop
+      >[0],
+      res as unknown as Response,
+    );
+    expect(res.status).toHaveBeenLastCalledWith(400);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
   it('forwards only the authenticated user identity and returns no service credentials', async () => {
     const request = jest.fn().mockResolvedValue(
       new globalThis.Response(JSON.stringify({ status: 'preparing', storage_gib: 2 }), {
