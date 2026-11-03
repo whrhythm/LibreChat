@@ -69,11 +69,12 @@ RUN \
     # React client build with configurable memory
     NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" npm run frontend && \
     if [ "$CODECHAT_VERIFY" = "true" ]; then \
+      npx eslint packages/client/src/components/Tabs.tsx packages/data-provider/src/codechatCapabilities.ts packages/data-provider/src/config.ts packages/data-provider/src/index.ts client/src/components/CodeChat/Capabilities.tsx client/src/components/CodeChat/Capabilities.spec.tsx client/src/components/CodeChat/Space.tsx client/src/components/CodeChat/Space.spec.tsx client/src/components/CodeChat/Files.tsx client/src/components/Chat/Header.tsx client/src/components/Chat/Input/ChatForm.tsx client/src/components/UnifiedSidebar/ConversationsSection.tsx && \
       (cd api && npx jest server/services/CodeChatModelKey.spec.js --runInBand --coverage=false) && \
       (cd packages/data-provider && npx tsc --noEmit) && \
       (cd packages/client && NODE_OPTIONS=--max-old-space-size=12288 npx tsc --noEmit && npx jest src/components/__tests__/dialogPlacement.spec.tsx --runInBand --coverage=false) && \
       (cd packages/api && NODE_OPTIONS=--max-old-space-size=12288 npx tsc --noEmit && npx jest src/user/codeChatIdentity.spec.ts src/user/workspace.spec.ts --runInBand --coverage=false) && \
-      (cd client && NODE_OPTIONS=--max-old-space-size=12288 npx tsc --noEmit && npx jest src/components/CodeChat/identity.spec.ts src/components/CodeChat/SpaceStatus.spec.tsx src/components/CodeChat/Files.spec.tsx src/components/CodeChat/Applications.spec.tsx --runInBand --coverage=false); \
+      (cd client && NODE_OPTIONS=--max-old-space-size=12288 npx tsc --noEmit && npx jest src/components/CodeChat/identity.spec.ts src/components/CodeChat/SpaceStatus.spec.tsx src/components/CodeChat/Files.spec.tsx src/components/CodeChat/Applications.spec.tsx src/components/CodeChat/Capabilities.spec.tsx src/components/CodeChat/Space.spec.tsx --runInBand --coverage=false); \
     fi && \
     npm prune --production && \
     npm cache clean --force

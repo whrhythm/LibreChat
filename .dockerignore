@@ -15,3 +15,5 @@ docs
 
 # Ignore all hidden files
 .*
+!.prettierrc
+!.prettierignore

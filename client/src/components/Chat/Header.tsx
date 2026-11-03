@@ -19,11 +19,11 @@ import { TraceButton, useTraceControl } from './Trace';
 import { useGetStartupConfig } from '~/data-provider';
 import ExportAndShareMenu from './ExportAndShareMenu';
 import SubagentThreadLink from './SubagentThreadLink';
+import { useHasAccess, useLocalize } from '~/hooks';
 import { PullRequestChip } from './PullRequest';
 import BookmarkMenu from './Menus/BookmarkMenu';
 import { useChatContext } from '~/Providers';
 import AddMultiConvo from './AddMultiConvo';
-import { useHasAccess } from '~/hooks';
 import { cn } from '~/utils';
 import store from '~/store';
 
@@ -38,6 +38,7 @@ function Header({
   readOnly?: boolean;
 }) {
   const { data: startupConfig } = useGetStartupConfig();
+  const localize = useLocalize();
   const navVisible = useRecoilValue(store.sidebarExpanded);
   const isSubmitting = useIsSubmitting(0);
   const isSmallScreen = useDrawerViewport();
@@ -51,6 +52,10 @@ function Header({
   /** The context conversation can still be the previous chat for a render, so it counts only
    *  once it is the routed one. Only a code conversation can have a pull request. */
   const { conversation } = useChatContext();
+  const capabilities = startupConfig?.codechat?.capabilities;
+  const capabilityMode =
+    capabilities?.enabled === true &&
+    (!conversation?.endpoint || conversation.endpoint === capabilities.endpoint);
   const showPullRequest =
     !isNewChat &&
     parentConversationId == null &&
@@ -110,10 +115,12 @@ function Header({
         {parentConversationId != null && (
           <SubagentThreadLink threadId={parentConversationId} labelClassName="hidden lg:inline" />
         )}
-        {!readOnly && <ModelSelector startupConfig={startupConfig} />}
-        {!readOnly && interfaceConfig.presets === true && interfaceConfig.modelSelect === true && (
-          <PresetsMenu />
-        )}
+        {!readOnly && !capabilityMode && <ModelSelector startupConfig={startupConfig} />}
+        {!readOnly && capabilityMode && <span>{localize('com_codechat_title')}</span>}
+        {!readOnly &&
+          !capabilityMode &&
+          interfaceConfig.presets === true &&
+          interfaceConfig.modelSelect === true && <PresetsMenu />}
         {hasAccessToBookmarks === true && (
           <div className={cn('items-center', isSmallScreen ? 'hidden' : 'flex')}>
             <BookmarkMenu />

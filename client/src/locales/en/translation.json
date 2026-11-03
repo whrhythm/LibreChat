@@ -2,7 +2,6 @@
   "com_codechat_app_cleanup_complete": "Failed release cleanup completed. Your files are retained.",
   "com_codechat_app_cleanup_pending": "Cleaning failed release resources. Retry is available after cleanup.",
   "com_codechat_app_previous_release": "Open the previous working release",
-
   "com_ui_pr_account_checking": "Checking connection",
   "com_ui_pr_account_connect": "Connect",
   "com_ui_pr_account_connect_aria": "Connect {{0}}",
@@ -3860,5 +3859,18 @@
   "com_codechat_file_keep_editing": "Keep editing",
   "com_codechat_file_content": "File content",
   "com_codechat_file_preview": "Preview {{name}}",
-  "com_codechat_app_image_failed": "The pushed image could not be verified. Ask an administrator to check the registry."
+  "com_codechat_app_image_failed": "The pushed image could not be verified. Ask an administrator to check the registry.",
+  "com_codechat_capabilities": "Chat capabilities",
+  "com_codechat_capability_chat": "Chat",
+  "com_codechat_capability_coding": "Coding",
+  "com_codechat_capability_writing": "Writing",
+  "com_codechat_capability_music": "Music",
+  "com_codechat_coming_soon": "Coming soon",
+  "com_codechat_capability_coding_hint": "Coding works in your personal disk. This conversation stays with you when you switch.",
+  "com_codechat_capability_chat_hint": "Discuss and plan here. Choose Coding to create, test or publish files in your personal disk.",
+  "com_codechat_publish_project": "Project to publish",
+  "com_codechat_choose_project": "Choose a project",
+  "com_codechat_dockerfile_required": "This folder needs a Dockerfile before publishing. Ask Coding to prepare it.",
+  "com_codechat_files_tab": "Files",
+  "com_codechat_title": "CodeChat"
 }

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { ZodError } from 'zod';
 import type { TEndpointsConfig, TModelsConfig, TConfig } from './types';
+import type { CodeChatCapabilities } from './codechatCapabilities';
 import {
   MAX_SUBAGENTS,
   MAX_SUBAGENTS_CEILING,
@@ -39,6 +40,7 @@ import {
   scheduledMCPResourceBindingSchema,
   scheduledMCPReadOnlyPolicySchema,
 } from './types/scheduleConsent';
+import { codechatCapabilitiesSchema } from './codechatCapabilities';
 import { partialWithoutDefaults } from './zod';
 
 export const AGENT_BACKGROUND_COMPLETION_RESULT_MAX_CHARS_DEFAULT = 24 * 1024;
@@ -3652,7 +3654,7 @@ export function supportsConversationTitleOwnership(config?: {
 }
 
 export type TStartupConfig = {
-  codechat?: { filePreviewMaxBytes?: number };
+  codechat?: { filePreviewMaxBytes?: number; capabilities?: CodeChatCapabilities };
   conversationTitleOwnershipVersion?: typeof CONVERSATION_TITLE_OWNERSHIP_VERSION;
   appTitle: string;
   socialLogins?: string[];
@@ -4433,6 +4435,7 @@ export const configSchema = z.object({
   version: z.string(),
   codechat: z
     .object({
+      capabilities: codechatCapabilitiesSchema.optional(),
       filePreviewMaxBytes: z
         .number()
         .int()

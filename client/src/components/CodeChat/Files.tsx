@@ -7,7 +7,6 @@ import type { PersonalSpace, PersonalUsage, WorkspaceEntry } from 'librechat-dat
 import type { FileAction } from './FileDialog';
 import { useGetStartupConfig } from '~/data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
-import Applications from './Applications';
 import FileDialog from './FileDialog';
 
 function storageSize(bytes: number): string {
@@ -21,11 +20,21 @@ function storageSize(bytes: number): string {
   return `${bytes} B`;
 }
 
-export default function PersonalFiles({ expanded }: { expanded: boolean }) {
+export default function PersonalFiles({
+  expanded,
+  path: selectedPath,
+  onPathChange,
+}: {
+  expanded: boolean;
+  path?: string;
+  onPathChange?: (path: string) => void;
+}) {
   const { user, token } = useAuthContext();
   const localize = useLocalize();
   const client = useQueryClient();
-  const [path, setPath] = useState('');
+  const [localPath, setLocalPath] = useState('');
+  const path = selectedPath ?? localPath;
+  const setPath = onPathChange ?? setLocalPath;
   const input = useRef<HTMLInputElement>(null);
   const [downloadError, setDownloadError] = useState(false);
   const [action, setAction] = useState<FileAction | null>(null);
@@ -256,15 +265,6 @@ export default function PersonalFiles({ expanded }: { expanded: boolean }) {
           onClose={() => setAction(null)}
         />
       )}
-      <Applications
-        path={path}
-        enabled={expanded && space.data?.status === 'ready'}
-        canPublish={
-          !!files.data?.entries.some(
-            (entry) => entry.name === 'Dockerfile' && entry.kind === 'file',
-          )
-        }
-      />
     </div>
   );
 }

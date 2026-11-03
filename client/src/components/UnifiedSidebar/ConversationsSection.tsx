@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState, useMemo, memo, useRef } from 'react';
 import { useAtomValue } from 'jotai';
 import { useRecoilValue } from 'recoil';
-import { FolderKanban } from 'lucide-react';
 import type { InfiniteQueryObserverResult } from '@tanstack/react-query';
 import type { ConversationListResponse } from 'librechat-data-provider';
 import type { List } from 'react-virtualized';
@@ -31,11 +30,10 @@ import PinnedSection from '~/components/Conversations/PinnedSection';
 import ProjectNamesProvider from '~/Providers/ProjectNamesContext';
 import { isCodeChatEnabled } from '~/components/CodeChat/config';
 import useDrawerViewport from '~/hooks/Nav/useDrawerViewport';
+import PersonalSpacePanel from '~/components/CodeChat/Space';
 import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
 import { Conversations } from '~/components/Conversations';
 import { cn, collectPinnedConversations } from '~/utils';
-import PersonalFiles from '~/components/CodeChat/Files';
-import ApplicationNotice from '~/components/CodeChat/ApplicationNotice';
 import SearchBar from '~/components/Nav/SearchBar';
 import store from '~/store';
 
@@ -246,26 +244,10 @@ const ConversationsSection = memo(() => {
             list still claims the space below them when there is little to show. */}
             <div ref={setScrollContent} className="flex min-h-full flex-col">
               {!search.query && isAuthenticated && isCodeChatEnabled() && (
-                <div className="mx-3">
-                  <ApplicationNotice onOpen={() => setIsSpaceExpanded(true)} />
-                  <button
-                    type="button"
-                    aria-expanded={isSpaceExpanded}
-                    aria-controls="codechat-space-panel"
-                    className="text-text-primary hover:bg-surface-hover flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm"
-                    onClick={() => setIsSpaceExpanded((expanded) => !expanded)}
-                  >
-                    <FolderKanban aria-hidden="true" className="h-4 w-4" />
-                    {localize('com_codechat_workspace')}
-                  </button>
-                  <div
-                    id="codechat-space-panel"
-                    hidden={!isSpaceExpanded}
-                    className="text-text-secondary px-3 pb-3 text-sm"
-                  >
-                    <PersonalFiles expanded={isSpaceExpanded} />
-                  </div>
-                </div>
+                <PersonalSpacePanel
+                  expanded={isSpaceExpanded}
+                  onExpandedChange={setIsSpaceExpanded}
+                />
               )}
               {!search.query && (
                 <ProjectsSection toggleNav={toggleNav} isAuthenticated={isAuthenticated} />
