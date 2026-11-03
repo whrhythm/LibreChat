@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { personalCapacityRequest, QueryKeys } from 'librechat-data-provider';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  personalCapacityRequest,
+  retryPersonalObjectStorage,
+  QueryKeys,
+} from 'librechat-data-provider';
 import type { CapacityAccount, CapacityOrder } from 'librechat-data-provider';
 import Capacity from './Capacity';
 
@@ -11,11 +15,14 @@ jest.mock('~/hooks', () => ({
     values?.capacity ? `${key}:${values.capacity}` : key,
 }));
 jest.mock('~/data-provider', () => ({
-  useGetStartupConfig: () => ({ data: { codechat: { capacity: { enabled: true } } } }),
+  useGetStartupConfig: () => ({
+    data: { codechat: { capacity: { enabled: true }, storageAccounting: { enabled: true } } },
+  }),
 }));
 jest.mock('librechat-data-provider', () => ({
   ...jest.requireActual('librechat-data-provider'),
   personalCapacityRequest: jest.fn(),
+  retryPersonalObjectStorage: jest.fn(),
 }));
 const request = personalCapacityRequest as jest.Mock;
 const basic = {
@@ -73,7 +80,63 @@ function mount() {
 
 beforeEach(() => {
   request.mockReset();
+  (retryPersonalObjectStorage as jest.Mock).mockReset();
   Object.defineProperty(global.crypto, 'randomUUID', { value: randomUUID, configurable: true });
+});
+
+it('shows a complete logical total and native unlimited image allowance without an incomplete warning', async () => {
+  const current = account();
+  current.storage.complete = true;
+  current.storage.known_used_bytes = 256;
+  current.storage.components = [
+    {
+      component: 'images',
+      status: 'ok',
+      used_bytes: 256,
+      budget_bytes: null,
+      observed_at: '2026-11-03T00:00:00Z',
+      basis: 'harbor_project_quota',
+    },
+  ];
+  current.object_storage = {
+    enabled: true,
+    status: 'ready',
+    bucket: 'synthetic-bucket',
+    budget_bytes: 1048576,
+    error_code: null,
+  };
+  request.mockResolvedValue(current);
+  mount();
+  fireEvent.click(screen.getByRole('button', { name: 'com_codechat_capacity_title' }));
+  await screen.findByText('com_codechat_storage_total');
+  expect(screen.queryByText('com_codechat_capacity_partial')).not.toBeInTheDocument();
+  expect(screen.getByText(/com_codechat_storage_unlimited/)).toBeVisible();
+  expect(screen.getByText('com_codechat_objects_ready')).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'com_codechat_retry' })).not.toBeInTheDocument();
+});
+
+it('labels partial measurements and retries the existing object storage without creating a new allocation', async () => {
+  const current = account();
+  current.storage.known_used_bytes = 128;
+  current.object_storage = {
+    enabled: true,
+    status: 'failed',
+    bucket: 'same-bucket',
+    budget_bytes: 1048576,
+    error_code: 'object_storage_provider_failed',
+  };
+  request.mockResolvedValue(current);
+  (retryPersonalObjectStorage as jest.Mock).mockImplementation(async () => {
+    current.object_storage!.status = 'preparing';
+    return current.object_storage;
+  });
+  mount();
+  fireEvent.click(screen.getByRole('button', { name: 'com_codechat_capacity_title' }));
+  await screen.findByText('com_codechat_storage_subtotal');
+  fireEvent.click(screen.getByRole('button', { name: 'com_codechat_retry' }));
+  await waitFor(() => expect(retryPersonalObjectStorage).toHaveBeenCalledWith('synthetic'));
+  await screen.findByText('com_codechat_objects_preparing');
+  expect(current.object_storage.bucket).toBe('same-bucket');
 });
 
 it('shows unknown usage explicitly and keeps the old plan after test payment until opening completes', async () => {

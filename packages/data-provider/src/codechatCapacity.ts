@@ -38,15 +38,39 @@ export type CapacityAccount = {
     pending_capacity_bytes: number;
     known_used_bytes: number | null;
     complete: boolean;
+    budget_complete?: boolean;
+    scope?: 'managed_logical_storage';
     components: {
       component: 'files' | 'database' | 'objects' | 'images' | 'app_volumes';
       budget_bytes: number | null;
       used_bytes: number | null;
       observed_at: string | null;
       status: 'ok' | 'stale' | 'unknown' | 'not_metered';
+      basis?: string | null;
+      scope_id?: string | null;
     }[];
   };
+  object_storage?: ObjectStorageState | null;
 };
+
+export type ObjectStorageState = {
+  enabled: boolean;
+  status: 'not_prepared' | 'preparing' | 'ready' | 'failed' | 'requires_review';
+  bucket: string | null;
+  budget_bytes: number | null;
+  error_code: string | null;
+};
+
+export async function retryPersonalObjectStorage(token: string): Promise<ObjectStorageState> {
+  const response = await fetch('/api/user/workspace/object-storage/retry', {
+    method: 'POST',
+    credentials: 'same-origin',
+    cache: 'no-store',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new CapacityError('object_storage_unavailable');
+  return response.json();
+}
 
 export class CapacityError extends Error {
   constructor(public readonly code: string) {

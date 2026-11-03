@@ -91,3 +91,53 @@ it('discloses only stable capacity error codes, including when the provider fail
   await bridge.account({ user } as unknown as Input, res as unknown as Response);
   expect(res.json).toHaveBeenLastCalledWith({ code: 'capacity_plan_changed' });
 });
+
+it('retries only the authenticated users storage and never forwards browser identity, endpoint or credentials', async () => {
+  const request = jest.fn().mockResolvedValue(
+    new globalThis.Response(JSON.stringify({ enabled: true, status: 'preparing' }), {
+      status: 202,
+    }),
+  );
+  const bridge = createCapacityHandlers({ ...deps, request });
+  const res = response();
+  await bridge.objectRetry(
+    {
+      user,
+      body: { subject: 'bob', url: 'https://other.test', secret: 'synthetic' },
+      headers: { 'x-codechat-subject': 'bob' },
+    } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(String(request.mock.calls[0][0])).toBe(
+    'https://platform.test/internal/v1/workspace/object-storage/retry',
+  );
+  expect(request.mock.calls[0][1]).toEqual(
+    expect.objectContaining({
+      method: 'POST',
+      body: undefined,
+      redirect: 'error',
+      headers: expect.objectContaining({ 'X-CodeChat-Subject': 'alice' }),
+    }),
+  );
+  expect(res.status).toHaveBeenCalledWith(202);
+  expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
+});
+
+it('rejects unverified storage identities and sanitizes provider failure details', async () => {
+  const request = jest.fn().mockResolvedValue(
+    new globalThis.Response(JSON.stringify({ detail: 'private storage diagnostics' }), {
+      status: 500,
+    }),
+  );
+  const bridge = createCapacityHandlers({ ...deps, request });
+  const res = response();
+  await bridge.objectRetry(
+    { user: { ...user, openidIssuer: 'https://other.test' } } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(res.status).toHaveBeenLastCalledWith(403);
+  expect(request).not.toHaveBeenCalled();
+  await bridge.objectRetry({ user } as unknown as Input, res as unknown as Response);
+  expect(res.status).toHaveBeenLastCalledWith(503);
+  expect(res.json).toHaveBeenLastCalledWith({ code: 'capacity_unavailable' });
+});

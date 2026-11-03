@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef } from 'react';
 import { atom, useAtom } from 'jotai';
 import { HardDrive } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { personalCapacityRequest, QueryKeys, CapacityError } from 'librechat-data-provider';
 import {
   Button,
   OGDialog,
@@ -10,6 +9,12 @@ import {
   OGDialogTitle,
   OGDialogDescription,
 } from '@librechat/client';
+import {
+  personalCapacityRequest,
+  retryPersonalObjectStorage,
+  QueryKeys,
+  CapacityError,
+} from 'librechat-data-provider';
 import type { CapacityPlan } from 'librechat-data-provider';
 import { useGetStartupConfig } from '~/data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
@@ -29,6 +34,13 @@ const componentKeys = {
   images: 'com_codechat_capacity_images',
   app_volumes: 'com_codechat_capacity_volumes',
 } as const;
+const objectStatusKeys = {
+  not_prepared: 'com_codechat_objects_preparing',
+  preparing: 'com_codechat_objects_preparing',
+  ready: 'com_codechat_objects_ready',
+  failed: 'com_codechat_objects_failed',
+  requires_review: 'com_codechat_objects_review',
+} as const;
 
 export default function Capacity({ expanded }: { expanded: boolean }) {
   const { user, token } = useAuthContext();
@@ -40,6 +52,7 @@ export default function Capacity({ expanded }: { expanded: boolean }) {
   const trigger = useRef<HTMLButtonElement>(null);
   const keys = useRef(new Map<string, string>());
   const enabled = startup?.codechat?.capacity?.enabled === true;
+  const accountingEnabled = startup?.codechat?.storageAccounting?.enabled === true;
   const account = useQuery({
     queryKey: [QueryKeys.codechatCapacity, user?.id],
     queryFn: () => personalCapacityRequest(token!, 'account'),
@@ -48,6 +61,10 @@ export default function Capacity({ expanded }: { expanded: boolean }) {
     retry: false,
   });
   const observedAllowance = useRef<{ storage: number; applications: number } | null>(null);
+  const objectRetry = useMutation({
+    mutationFn: () => retryPersonalObjectStorage(token!),
+    onSuccess: () => client.invalidateQueries([QueryKeys.codechatCapacity, user?.id]),
+  });
   const storage = account.data?.plan.storage_gib;
   const applications = account.data?.plan.application_limit;
   useEffect(() => {
@@ -158,7 +175,25 @@ export default function Capacity({ expanded }: { expanded: boolean }) {
                         count: data.applications.limit,
                       })}
                     </p>
-                    <p>{localize('com_codechat_capacity_partial')}</p>
+                    {accountingEnabled && (
+                      <>
+                        <p>
+                          {localize(
+                            data.storage.complete
+                              ? 'com_codechat_storage_total'
+                              : 'com_codechat_storage_subtotal',
+                            {
+                              used:
+                                data.storage.known_used_bytes === null
+                                  ? localize('com_codechat_capacity_unmetered')
+                                  : storageSize(data.storage.known_used_bytes),
+                            },
+                          )}
+                        </p>
+                        <p>{localize('com_codechat_storage_scope')}</p>
+                      </>
+                    )}
+                    {!data.storage.complete && <p>{localize('com_codechat_capacity_partial')}</p>}
                     <ul className="flex flex-col gap-1 text-sm">
                       {data.storage.components.map((component) => (
                         <li key={component.component}>
@@ -169,6 +204,15 @@ export default function Capacity({ expanded }: { expanded: boolean }) {
                             : storageSize(component.used_bytes)}
                           {component.status === 'stale' &&
                             ` · ${localize('com_codechat_capacity_stale')}`}
+                          {accountingEnabled &&
+                            component.budget_bytes !== null &&
+                            component.basis !== 'no_additional_pvc' &&
+                            ` · ${localize('com_codechat_storage_limit', { capacity: storageSize(component.budget_bytes) })}`}
+                          {accountingEnabled &&
+                            component.status === 'ok' &&
+                            component.basis === 'harbor_project_quota' &&
+                            component.budget_bytes === null &&
+                            ` · ${localize('com_codechat_storage_unlimited')}`}
                           {component.observed_at && (
                             <time className="ml-2" dateTime={component.observed_at}>
                               {new Date(component.observed_at).toLocaleTimeString()}
@@ -177,6 +221,30 @@ export default function Capacity({ expanded }: { expanded: boolean }) {
                         </li>
                       ))}
                     </ul>
+                    {accountingEnabled && data.object_storage?.enabled && (
+                      <section
+                        aria-label={localize('com_codechat_objects_title')}
+                        className="flex flex-col gap-2"
+                      >
+                        <h3>{localize('com_codechat_objects_title')}</h3>
+                        <p role="status">
+                          {localize(objectStatusKeys[data.object_storage.status])}
+                        </p>
+                        <p>{localize('com_codechat_objects_help')}</p>
+                        {data.object_storage.status === 'failed' && (
+                          <Button
+                            variant="outline"
+                            disabled={objectRetry.isLoading}
+                            onClick={() => objectRetry.mutate()}
+                          >
+                            {localize('com_codechat_retry')}
+                          </Button>
+                        )}
+                        {objectRetry.isError && (
+                          <p role="alert">{localize('com_codechat_objects_failed')}</p>
+                        )}
+                      </section>
+                    )}
                   </section>
                   {order && (
                     <section

@@ -3659,6 +3659,7 @@ export type TStartupConfig = {
     capabilities?: CodeChatCapabilities;
     capacity?: { enabled: boolean };
     databases?: { enabled: boolean };
+    storageAccounting?: { enabled: boolean };
   };
   conversationTitleOwnershipVersion?: typeof CONVERSATION_TITLE_OWNERSHIP_VERSION;
   appTitle: string;
@@ -4443,6 +4444,7 @@ export const configSchema = z.object({
       capabilities: codechatCapabilitiesSchema.optional(),
       capacity: z.object({ enabled: z.boolean().default(false) }).optional(),
       databases: z.object({ enabled: z.boolean().default(false) }).optional(),
+      storageAccounting: z.object({ enabled: z.boolean().default(false) }).optional(),
       filePreviewMaxBytes: z
         .number()
         .int()

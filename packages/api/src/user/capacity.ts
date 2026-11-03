@@ -5,7 +5,7 @@ import type { ServerRequest } from '~/types';
 type CapacityRequest = Omit<ServerRequest, 'body'> & { body?: unknown };
 type CapacityHandler = (req: CapacityRequest, res: Response) => Promise<Response>;
 type CapacityHandlers = Record<
-  'account' | 'order' | 'confirm' | 'retry' | 'cancel',
+  'account' | 'order' | 'confirm' | 'retry' | 'cancel' | 'objectRetry',
   CapacityHandler
 >;
 type Dependencies = {
@@ -19,7 +19,7 @@ type Dependencies = {
 export function createCapacityHandlers(deps: Dependencies): CapacityHandlers {
   const request = deps.request ?? fetch;
   const handler =
-    (action: 'account' | 'order' | 'confirm-test' | 'retry' | 'cancel') =>
+    (action: 'account' | 'order' | 'confirm-test' | 'retry' | 'cancel' | 'object-retry') =>
     async (req: CapacityRequest, res: Response) => {
       res.setHeader('Cache-Control', 'no-store');
       res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -37,7 +37,9 @@ export function createCapacityHandlers(deps: Dependencies): CapacityHandlers {
       let suffix = 'capacity';
       let body: string | undefined;
       let idempotency: string | undefined;
-      if (action === 'order') {
+      if (action === 'object-retry') {
+        suffix = 'object-storage/retry';
+      } else if (action === 'order') {
         const input = capacityOrderInputSchema.safeParse(req.body);
         const key = req.headers?.['idempotency-key'];
         if (!input.success || typeof key !== 'string' || !/^[a-zA-Z0-9_-]{16,128}$/.test(key))
@@ -78,7 +80,8 @@ export function createCapacityHandlers(deps: Dependencies): CapacityHandlers {
             : 503;
           const value = await upstream.json().catch(() => null);
           const code =
-            typeof value?.detail === 'string' && /^capacity_[a-z_]+$/.test(value.detail)
+            typeof value?.detail === 'string' &&
+            /^(capacity_|object_storage_)[a-z_]+$/.test(value.detail)
               ? value.detail
               : 'capacity_unavailable';
           return res.status(status).json({ code });
@@ -94,5 +97,6 @@ export function createCapacityHandlers(deps: Dependencies): CapacityHandlers {
     confirm: handler('confirm-test'),
     retry: handler('retry'),
     cancel: handler('cancel'),
+    objectRetry: handler('object-retry'),
   };
 }

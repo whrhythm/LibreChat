@@ -3905,7 +3905,7 @@
   "com_codechat_capacity_disabled": "Self-service test upgrades are currently disabled.",
   "com_codechat_capacity_error": "Unable to update the storage plan. Retry or reopen this window to check the existing order.",
   "com_codechat_capacity_changed": "The plan changed. Reopen this window and review the latest offer.",
-  "com_codechat_capacity_test_only": "Test mode only: no real charge, recurring billing or expiry. This upgrade does not add model credits. File allowance and database allowance are separate; object and image accounting remains incomplete.",
+  "com_codechat_capacity_test_only": "Test mode only: no real charge, recurring billing or expiry. This upgrade does not add model credits. File, database, object and image allowances are separate. This order upgrades file space and the application limit; it does not change object or image quotas.",
   "com_codechat_db_tab": "Databases",
   "com_codechat_db_description": "Give a project its own database on the shared PostgreSQL service. Connections are managed automatically.",
   "com_codechat_db_requested": "Waiting for database setup",
@@ -3937,5 +3937,16 @@
   "com_codechat_db_measurement_error": "The latest measurement is unavailable. The previous value is retained and may be stale.",
   "com_codechat_app_build_storage": "The image build ran out of temporary space. Your personal files and database are retained. Reduce image layers or ask your administrator to increase build capacity.",
   "com_codechat_app_build_memory": "The image build exceeded its memory limit. Your personal files and database are retained.",
-  "com_codechat_app_build_timeout": "The image build exceeded its time limit and was stopped. Your personal files and database are retained."
+  "com_codechat_app_build_timeout": "The image build exceeded its time limit and was stopped. Your personal files and database are retained.",
+  "com_codechat_storage_total": "Measured logical storage: {{used}}",
+  "com_codechat_storage_subtotal": "Measured subtotal: {{used}}. Some components are not currently measured.",
+  "com_codechat_storage_scope": "Category limits apply separately. Measurements exclude temporary builds and uploads, backups, replicas and other infrastructure overhead.",
+  "com_codechat_storage_limit": "Limit: {{capacity}}",
+  "com_codechat_storage_unlimited": "No finite provider limit",
+  "com_codechat_objects_title": "Private object storage",
+  "com_codechat_objects_preparing": "Your private object storage is being prepared automatically.",
+  "com_codechat_objects_ready": "Object storage ready",
+  "com_codechat_objects_failed": "Object storage setup could not finish. Retry to resume the same storage allocation.",
+  "com_codechat_objects_review": "An administrator needs to check the recorded storage identity. Your existing data is retained.",
+  "com_codechat_objects_help": "Ask Coding to use your private object storage for application files. Connections are automatic, and stopping an application keeps its stored data."
 }

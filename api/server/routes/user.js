@@ -60,6 +60,7 @@ router.get('/', requireJwtAuth, getUserController);
 router.get('/codechat-identity', requireJwtAuth, codeChatIdentityHandler);
 router.post('/workspace/ensure', requireJwtAuth, workspace.ensure);
 router.get('/workspace/capacity', requireJwtAuth, capacity.account);
+router.post('/workspace/object-storage/retry', requireJwtAuth, capacity.objectRetry);
 router.get('/workspace/databases', requireJwtAuth, databases.list);
 router.post('/workspace/databases', requireJwtAuth, databases.create);
 router.post('/workspace/databases/:databaseId/retry', requireJwtAuth, databases.retry);
