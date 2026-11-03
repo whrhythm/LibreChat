@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Button } from '@librechat/client';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -23,7 +24,26 @@ export default function Capabilities({
 }) {
   const localize = useLocalize();
   const client = useQueryClient();
-  if (!config?.enabled || (conversation?.endpoint && conversation.endpoint !== config.endpoint)) {
+  useEffect(() => {
+    if (
+      !config?.enabled ||
+      disabled ||
+      !conversation ||
+      (conversation.conversationId && conversation.conversationId !== Constants.NEW_CONVO) ||
+      conversation.endpoint === config.endpoint
+    )
+      return;
+    // A new chat can inherit LibreChat's empty Agents default. It must be usable
+    // without making the reader choose a technical provider first.
+    setConversation((current) =>
+      current &&
+      (!current.conversationId || current.conversationId === Constants.NEW_CONVO) &&
+      current.endpoint !== config.endpoint
+        ? withCodeChatCapability(current, 'chat', config)
+        : current,
+    );
+  }, [config, conversation, disabled, setConversation]);
+  if (!config?.enabled) {
     return null;
   }
   const selected = codechatCapability(conversation, config);

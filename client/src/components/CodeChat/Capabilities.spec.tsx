@@ -6,6 +6,7 @@ import {
   withCodeChatCapability,
   codechatCapability,
   EModelEndpoint,
+  Constants,
 } from 'librechat-data-provider';
 import type { TConversation } from 'librechat-data-provider';
 import Capabilities from './Capabilities';
@@ -25,9 +26,9 @@ const record: TConversation = {
   updatedAt: '2026-11-03T00:00:00Z',
 };
 
-function mount(disabled = false) {
+function mount(disabled = false, initial: TConversation = record) {
   function Host() {
-    const [conversation, setConversation] = useState<TConversation | null>(record);
+    const [conversation, setConversation] = useState<TConversation | null>(initial);
     return (
       <>
         <Capabilities
@@ -75,4 +76,33 @@ it('restores the coding pick from a stored route and accepts legacy OpenHands co
   expect(
     codechatCapabilitiesSchema.safeParse({ chatRoute: 'same', codingRoute: 'same' }).success,
   ).toBe(false);
+});
+
+it('makes an empty new Agents chat usable without selecting a provider', () => {
+  mount(false, {
+    ...record,
+    conversationId: String(Constants.NEW_CONVO),
+    endpoint: EModelEndpoint.agents,
+    model: undefined,
+  });
+  expect(JSON.parse(screen.getByTestId('conversation-record').textContent ?? '{}')).toEqual(
+    expect.objectContaining({
+      conversationId: Constants.NEW_CONVO,
+      endpoint: config.endpoint,
+      model: config.chatRoute,
+    }),
+  );
+  expect(screen.getByRole('button', { name: 'com_codechat_capability_coding' })).not.toBeDisabled();
+});
+
+it('offers Coding on an existing conversation from another endpoint without replacing its id', () => {
+  mount(false, { ...record, endpoint: EModelEndpoint.agents });
+  fireEvent.click(screen.getByRole('button', { name: 'com_codechat_capability_coding' }));
+  expect(JSON.parse(screen.getByTestId('conversation-record').textContent ?? '{}')).toEqual(
+    expect.objectContaining({
+      conversationId: record.conversationId,
+      model: config.codingRoute,
+      messages: record.messages,
+    }),
+  );
 });

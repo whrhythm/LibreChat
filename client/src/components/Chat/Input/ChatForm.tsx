@@ -769,7 +769,7 @@ const ChatForm = memo(function ChatForm({
               config={startupConfig?.codechat?.capabilities}
               conversation={conversation}
               setConversation={setConversation}
-              disabled={disableInputs || isSubmitting || showStopButton || routePending}
+              disabled={isSubmitting || showStopButton || routePending}
             />
           )}
           {steering.enabled && (

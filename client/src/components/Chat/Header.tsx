@@ -53,9 +53,7 @@ function Header({
    *  once it is the routed one. Only a code conversation can have a pull request. */
   const { conversation } = useChatContext();
   const capabilities = startupConfig?.codechat?.capabilities;
-  const capabilityMode =
-    capabilities?.enabled === true &&
-    (!conversation?.endpoint || conversation.endpoint === capabilities.endpoint);
+  const capabilityMode = capabilities?.enabled === true;
   const showPullRequest =
     !isNewChat &&
     parentConversationId == null &&
