@@ -3,6 +3,7 @@ const {
   createUserPreferencesHandler,
   codeChatIdentityHandler,
   createWorkspaceHandlers,
+  createCapacityHandlers,
   preAuthTenantMiddleware,
   requirePreAuthTenantContext,
 } = require('@librechat/api');
@@ -38,6 +39,11 @@ const workspace = createWorkspaceHandlers({
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
   issuer: process.env.OPENID_ISSUER,
 });
+const capacity = createCapacityHandlers({
+  baseUrl: process.env.CODECHAT_WORKSPACE_URL,
+  serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
+  issuer: process.env.OPENID_ISSUER,
+});
 
 const updateUserPreferences = createUserPreferencesHandler({
   updateStatefulCodeEnvironment: updateUserStatefulCodeEnvironment,
@@ -47,6 +53,11 @@ router.use('/settings', settings);
 router.get('/', requireJwtAuth, getUserController);
 router.get('/codechat-identity', requireJwtAuth, codeChatIdentityHandler);
 router.post('/workspace/ensure', requireJwtAuth, workspace.ensure);
+router.get('/workspace/capacity', requireJwtAuth, capacity.account);
+router.post('/workspace/capacity/orders', requireJwtAuth, capacity.order);
+router.post('/workspace/capacity/orders/:orderId/confirm-test', requireJwtAuth, capacity.confirm);
+router.post('/workspace/capacity/orders/:orderId/retry', requireJwtAuth, capacity.retry);
+router.post('/workspace/capacity/orders/:orderId/cancel', requireJwtAuth, capacity.cancel);
 router.get('/workspace/apps', requireJwtAuth, workspace.apps);
 router.post('/workspace/apps', requireJwtAuth, workspace.publish);
 router.post('/workspace/apps/:applicationId/start', requireJwtAuth, workspace.start);

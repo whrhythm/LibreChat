@@ -9,6 +9,7 @@ jest.mock('~/hooks', () => ({
   useLocalize: () => (key: string) => key,
 }));
 jest.mock('./ApplicationNotice', () => () => null);
+jest.mock('./Capacity', () => () => null);
 jest.mock(
   './Files',
   () =>

@@ -3654,7 +3654,11 @@ export function supportsConversationTitleOwnership(config?: {
 }
 
 export type TStartupConfig = {
-  codechat?: { filePreviewMaxBytes?: number; capabilities?: CodeChatCapabilities };
+  codechat?: {
+    filePreviewMaxBytes?: number;
+    capabilities?: CodeChatCapabilities;
+    capacity?: { enabled: boolean };
+  };
   conversationTitleOwnershipVersion?: typeof CONVERSATION_TITLE_OWNERSHIP_VERSION;
   appTitle: string;
   socialLogins?: string[];
@@ -4436,6 +4440,7 @@ export const configSchema = z.object({
   codechat: z
     .object({
       capabilities: codechatCapabilitiesSchema.optional(),
+      capacity: z.object({ enabled: z.boolean().default(false) }).optional(),
       filePreviewMaxBytes: z
         .number()
         .int()

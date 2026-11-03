@@ -9,6 +9,7 @@ import { useAuthContext, useLocalize } from '~/hooks';
 import ApplicationNotice from './ApplicationNotice';
 import Applications from './Applications';
 import PersonalFiles from './Files';
+import Capacity from './Capacity';
 
 /** Feature-owned navigation, scoped to the signed-in identity. */
 const navigation = atomFamily((_owner: string) => atom({ pane: 'files', path: '' }));
@@ -122,6 +123,7 @@ export default function PersonalSpacePanel({
         hidden={!expanded}
         className="text-text-secondary px-3 pb-3 text-sm"
       >
+        <Capacity expanded={expanded} />
         <Tabs
           value={view.pane}
           onValueChange={(pane) => setView((current) => ({ ...current, pane }))}
