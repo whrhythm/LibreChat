@@ -79,7 +79,7 @@ export async function personalApplicationRequest(
 
 export async function personalFileRequest(
   token: string,
-  endpoint: 'ensure' | 'directories' | 'file' | 'usage',
+  endpoint: 'ensure' | 'directories' | 'file' | 'usage' | 'archive',
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
   path = '',
   content?: Blob,

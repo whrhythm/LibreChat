@@ -110,7 +110,7 @@ it('shows a complete logical total and native unlimited image allowance without 
   fireEvent.click(screen.getByRole('button', { name: 'com_codechat_capacity_title' }));
   await screen.findByText('com_codechat_storage_total');
   expect(screen.queryByText('com_codechat_capacity_partial')).not.toBeInTheDocument();
-  expect(screen.getByText(/com_codechat_storage_unlimited/)).toBeVisible();
+  expect(screen.getByText(/com_codechat_storage_unlimited/)).toBeInTheDocument();
   expect(screen.getByText('com_codechat_objects_ready')).toBeVisible();
   expect(screen.queryByRole('button', { name: 'com_codechat_retry' })).not.toBeInTheDocument();
 });
@@ -158,6 +158,7 @@ it('shows unknown usage explicitly and keeps the old plan after test payment unt
   });
   const client = mount();
   fireEvent.click(screen.getByRole('button', { name: 'com_codechat_capacity_title' }));
+  fireEvent.click(await screen.findByText('com_codechat_member_storage_details'));
   await screen.findByText('com_codechat_capacity_partial');
   expect(screen.getAllByText(/com_codechat_capacity_unmetered/)).toHaveLength(2);
   fireEvent.click(screen.getByRole('button', { name: 'com_codechat_capacity_choose' }));
@@ -217,7 +218,5 @@ it('lets the user retry a failed paid order without creating another order or hi
       expect.objectContaining({ orderId: 'failed-order' }),
     ),
   );
-  expect(
-    screen.queryByRole('button', { name: 'com_codechat_capacity_choose' }),
-  ).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'com_codechat_capacity_choose' })).toBeDisabled();
 });

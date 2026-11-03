@@ -23,6 +23,10 @@ export type RequestBody = {
   endpoint?: string;
   endpointType?: string;
   model?: string;
+  agent_id?: string;
+  codechatCapability?: 'chat' | 'coding';
+  codechatChatModel?: string;
+  codechatCodingModel?: string;
   imageDetail?: Agents.ImageDetail;
   key?: string;
   chatProjectId?: string | null;

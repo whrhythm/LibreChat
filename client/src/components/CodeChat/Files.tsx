@@ -74,14 +74,14 @@ export default function PersonalFiles({
     try {
       const result = await personalFileRequest(
         token!,
-        'file',
+        entry.kind === 'directory' ? 'archive' : 'file',
         'GET',
         path ? `${path}/${entry.name}` : entry.name,
       );
       const url = URL.createObjectURL(await result.blob());
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = entry.name;
+      anchor.download = entry.name + (entry.kind === 'directory' ? '.zip' : '');
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
@@ -199,6 +199,17 @@ export default function PersonalFiles({
               )}
               <span className="truncate">{entry.name}</span>
             </button>
+            {entry.kind === 'directory' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={localize('com_codechat_folder_download', { name: entry.name })}
+                title={localize('com_codechat_folder_download_help')}
+                onClick={() => void download(entry)}
+              >
+                <Download aria-hidden="true" className="h-4 w-4" />
+              </Button>
+            )}
             {entry.kind === 'file' && (
               <div className="flex shrink-0">
                 {(['preview', 'download', 'edit', 'delete'] as const).map((mode) => {

@@ -224,7 +224,17 @@ export function normalizeLocale(locale?: string | null): SupportedLocale {
 export function detectInitialLanguage() {
   const cookieLang = readCookie('lang');
   const storedLang = readStoredLanguage();
-  return normalizeLocale(cookieLang || storedLang || getNavigatorLanguage());
+  // A deployment default is available before asynchronous startup config, so
+  // the first paint uses the site's language. Explicit user preferences win.
+  const deployment =
+    typeof document === 'undefined'
+      ? undefined
+      : document.querySelector('meta[name="codechat-default-language"]')?.getAttribute('content');
+  const initial =
+    deployment && supportedLocales.includes(deployment as SupportedLocale)
+      ? deployment
+      : getNavigatorLanguage();
+  return normalizeLocale(cookieLang || storedLang || initial);
 }
 
 export async function ensureLocale(locale?: string | null): Promise<SupportedLocale> {

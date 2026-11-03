@@ -16,6 +16,8 @@ type WorkspaceHandlers = {
   write: WorkspaceHandler;
   deleteFile: WorkspaceHandler;
   usage: WorkspaceHandler;
+  archive: WorkspaceHandler;
+  models: WorkspaceHandler;
   apps: WorkspaceHandler;
   publish: WorkspaceHandler;
   start: WorkspaceHandler;
@@ -69,6 +71,7 @@ export function createWorkspaceHandlers(deps: Dependencies): WorkspaceHandlers {
       if (
         endpoint !== 'ensure' &&
         endpoint !== 'usage' &&
+        endpoint !== 'models' &&
         !(endpoint === 'apps' && (method === 'GET' || action))
       ) {
         if (typeof req.query.path !== 'string' || req.query.path.length > 4096) {
@@ -110,11 +113,14 @@ export function createWorkspaceHandlers(deps: Dependencies): WorkspaceHandlers {
           if (status === 409 && endpoint === 'file') code = 'workspace_file_conflict';
           return res.status(status).json({ code });
         }
-        if (method === 'GET' && endpoint === 'file') {
+        if (method === 'GET' && (endpoint === 'file' || endpoint === 'archive')) {
           const bytes = new Uint8Array(await upstream.arrayBuffer());
-          if (bytes.length > 16 * 1024 * 1024)
+          if (bytes.length > (endpoint === 'archive' ? 32 : 16) * 1024 * 1024)
             return res.status(413).json({ code: 'workspace_file_too_large' });
-          res.setHeader('Content-Type', 'application/octet-stream');
+          res.setHeader(
+            'Content-Type',
+            endpoint === 'archive' ? 'application/zip' : 'application/octet-stream',
+          );
           const etag = upstream.headers.get('etag');
           if (etag && /^"[0-9a-f]{64}"$/.test(etag)) res.setHeader('ETag', etag);
           return res.status(200).send(Buffer.from(bytes));
@@ -132,6 +138,8 @@ export function createWorkspaceHandlers(deps: Dependencies): WorkspaceHandlers {
     write: handler('PUT', 'file'),
     deleteFile: handler('DELETE', 'file'),
     usage: handler('GET', 'usage'),
+    archive: handler('GET', 'archive'),
+    models: handler('GET', 'models'),
     apps: handler('GET', 'apps'),
     publish: handler('POST', 'apps'),
     start: handler('POST', 'apps', 'start'),

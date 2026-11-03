@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { Coins } from 'lucide-react';
 import { atom, useAtom } from 'jotai';
-import { HardDrive } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
@@ -19,6 +19,7 @@ import type { CapacityPlan } from 'librechat-data-provider';
 import { useGetStartupConfig } from '~/data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { storageSize } from './storage';
+import Membership from './Membership';
 
 const statusKeys = {
   pending_payment: 'com_codechat_capacity_pending',
@@ -116,6 +117,19 @@ export default function Capacity({ expanded }: { expanded: boolean }) {
     onError: () => void client.invalidateQueries([QueryKeys.codechatCapacity, user?.id]),
     retry: false,
   });
+  useEffect(() => {
+    const latest = account.data?.orders[0];
+    if (
+      latest &&
+      (latest.status === 'ready' || latest.status === 'cancelled') &&
+      !account.data?.active_order
+    ) {
+      keys.current.clear();
+    }
+  }, [account.data]);
+  useEffect(() => {
+    keys.current.clear();
+  }, [user?.id]);
   if (!enabled) return null;
   const data = account.data;
   const order = data?.active_order ?? data?.orders[0];
@@ -130,17 +144,17 @@ export default function Capacity({ expanded }: { expanded: boolean }) {
   return (
     <>
       <Button ref={trigger} variant="ghost" onClick={() => setOpen(true)}>
-        <HardDrive className="mr-2 h-4 w-4" aria-hidden="true" />
+        <Coins className="mr-2 h-4 w-4" aria-hidden="true" />
         {localize('com_codechat_capacity_title')}
       </Button>
       {open && (
         <OGDialog open onOpenChange={setOpen} triggerRef={trigger}>
-          <OGDialogContent className="max-w-2xl">
+          <OGDialogContent className="max-w-5xl">
             <OGDialogTitle>{localize('com_codechat_capacity_title')}</OGDialogTitle>
             <OGDialogDescription>
               {localize('com_codechat_capacity_description')}
             </OGDialogDescription>
-            <div className="flex max-h-[70vh] flex-col gap-4 overflow-auto">
+            <div className="flex max-h-[75vh] flex-col gap-6 overflow-auto">
               {account.isLoading && <p role="status">{localize('com_ui_loading')}</p>}
               {account.isError && (
                 <div role="alert">
@@ -152,123 +166,47 @@ export default function Capacity({ expanded }: { expanded: boolean }) {
               )}
               {data && (
                 <>
-                  <section
-                    aria-label={localize('com_codechat_capacity_current')}
-                    className="flex flex-col gap-1"
-                  >
-                    <h3>
-                      {localize('com_codechat_capacity_current')}
-                      {': '}
-                      {data.plan.id === 'existing'
-                        ? localize('com_codechat_capacity_existing')
-                        : data.plan.name}
-                    </h3>
-                    <p>
-                      {localize('com_codechat_capacity_rights', {
-                        capacity: data.plan.storage_gib,
-                        count: data.applications.limit,
-                      })}
-                    </p>
-                    <p>
-                      {localize('com_codechat_capacity_apps', {
-                        used: data.applications.used,
-                        count: data.applications.limit,
-                      })}
-                    </p>
-                    {accountingEnabled && (
-                      <>
-                        <p>
-                          {localize(
-                            data.storage.complete
-                              ? 'com_codechat_storage_total'
-                              : 'com_codechat_storage_subtotal',
-                            {
-                              used:
-                                data.storage.known_used_bytes === null
-                                  ? localize('com_codechat_capacity_unmetered')
-                                  : storageSize(data.storage.known_used_bytes),
-                            },
-                          )}
-                        </p>
-                        <p>{localize('com_codechat_storage_scope')}</p>
-                      </>
-                    )}
-                    {!data.storage.complete && <p>{localize('com_codechat_capacity_partial')}</p>}
-                    <ul className="flex flex-col gap-1 text-sm">
-                      {data.storage.components.map((component) => (
-                        <li key={component.component}>
-                          {localize(componentKeys[component.component])}
-                          {': '}
-                          {component.used_bytes == null
-                            ? localize('com_codechat_capacity_unmetered')
-                            : storageSize(component.used_bytes)}
-                          {component.status === 'stale' &&
-                            ` · ${localize('com_codechat_capacity_stale')}`}
-                          {accountingEnabled &&
-                            component.budget_bytes !== null &&
-                            component.basis !== 'no_additional_pvc' &&
-                            ` · ${localize('com_codechat_storage_limit', { capacity: storageSize(component.budget_bytes) })}`}
-                          {accountingEnabled &&
-                            component.status === 'ok' &&
-                            component.basis === 'harbor_project_quota' &&
-                            component.budget_bytes === null &&
-                            ` · ${localize('com_codechat_storage_unlimited')}`}
-                          {component.observed_at && (
-                            <time className="ml-2" dateTime={component.observed_at}>
-                              {new Date(component.observed_at).toLocaleTimeString()}
-                            </time>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                    {accountingEnabled && data.object_storage?.enabled && (
-                      <section
-                        aria-label={localize('com_codechat_objects_title')}
-                        className="flex flex-col gap-2"
-                      >
-                        <h3>{localize('com_codechat_objects_title')}</h3>
-                        <p role="status">
-                          {localize(objectStatusKeys[data.object_storage.status])}
-                        </p>
-                        <p>{localize('com_codechat_objects_help')}</p>
-                        {data.object_storage.status === 'failed' && (
-                          <Button
-                            variant="outline"
-                            disabled={objectRetry.isLoading}
-                            onClick={() => objectRetry.mutate()}
-                          >
-                            {localize('com_codechat_retry')}
-                          </Button>
-                        )}
-                        {objectRetry.isError && (
-                          <p role="alert">{localize('com_codechat_objects_failed')}</p>
-                        )}
-                      </section>
-                    )}
-                  </section>
+                  <Membership
+                    account={data}
+                    busy={operation.isLoading || !!data.active_order}
+                    choose={(plan) => operation.mutate({ action: 'order', plan })}
+                  />
                   {order && (
                     <section
+                      className="border-border-light rounded-2xl border p-5"
                       aria-label={localize('com_codechat_capacity_order')}
-                      className="border-border-light flex flex-col gap-2 rounded border p-3"
                     >
-                      <h3>
+                      <h3 className="font-semibold">
                         {localize('com_codechat_capacity_order')}
                         {': '}
                         {order.plan.name}
                       </h3>
-                      <p>
+                      <p className="text-text-secondary mt-2 text-sm">
                         {localize('com_codechat_capacity_target', {
                           capacity: order.plan.storage_gib,
                           count: order.plan.application_limit,
                           price: price(order.plan),
                         })}
                       </p>
-                      <p role="status">{localize(statusKeys[order.status])}</p>
+                      {!!order.plan.model_credit_usd_micros && (
+                        <p className="mt-2 text-sm">
+                          {localize(
+                            order.model_credit_status === 'applied'
+                              ? 'com_codechat_member_credit_applied'
+                              : 'com_codechat_member_credit_pending',
+                          )}
+                        </p>
+                      )}
+                      <p role="status" className="mt-3">
+                        {localize(statusKeys[order.status])}
+                      </p>
                       {order.status === 'applying' && (
-                        <p>{localize('com_codechat_capacity_wait')}</p>
+                        <p className="text-text-secondary mt-2 text-sm">
+                          {localize('com_codechat_capacity_wait')}
+                        </p>
                       )}
                       {order.status === 'failed' && (
-                        <p role="alert">
+                        <p role="alert" className="mt-2 text-sm">
                           {localize(
                             requiresReview
                               ? 'com_codechat_capacity_review'
@@ -277,7 +215,7 @@ export default function Capacity({ expanded }: { expanded: boolean }) {
                         </p>
                       )}
                       {data.mode === 'test' && (
-                        <div className="flex flex-wrap gap-2">
+                        <div className="mt-4 flex flex-wrap gap-2">
                           {order.status === 'pending_payment' && (
                             <>
                               <Button
@@ -301,6 +239,7 @@ export default function Capacity({ expanded }: { expanded: boolean }) {
                           )}
                           {order.status === 'failed' && !requiresReview && (
                             <Button
+                              variant="outline"
                               disabled={operation.isLoading}
                               onClick={() =>
                                 operation.mutate({ action: 'retry', orderId: order.id })
@@ -313,36 +252,99 @@ export default function Capacity({ expanded }: { expanded: boolean }) {
                       )}
                     </section>
                   )}
-                  {data.mode === 'test' && !data.active_order && (
+                  <details className="border-border-light rounded-2xl border p-5">
+                    <summary className="cursor-pointer font-medium">
+                      {localize('com_codechat_member_storage_details')}
+                    </summary>
                     <section
-                      aria-label={localize('com_codechat_capacity_plans')}
-                      className="flex flex-col gap-2"
+                      className="mt-4 space-y-3"
+                      aria-label={localize('com_codechat_capacity_current')}
                     >
-                      <h3>{localize('com_codechat_capacity_plans')}</h3>
-                      {data.plans.map((plan) => (
-                        <article
-                          key={`${plan.id}:${plan.version}`}
-                          className="border-border-light flex flex-col gap-2 rounded border p-3"
-                        >
-                          <h4>{plan.name}</h4>
+                      <p>
+                        {localize('com_codechat_capacity_rights', {
+                          capacity: data.plan.storage_gib,
+                          count: data.applications.limit,
+                        })}
+                      </p>
+                      <p>
+                        {localize('com_codechat_capacity_apps', {
+                          used: data.applications.used,
+                          count: data.applications.limit,
+                        })}
+                      </p>
+                      {accountingEnabled && (
+                        <>
                           <p>
-                            {localize('com_codechat_capacity_target', {
-                              capacity: plan.storage_gib,
-                              count: plan.application_limit,
-                              price: price(plan),
-                            })}
+                            {localize(
+                              data.storage.complete
+                                ? 'com_codechat_storage_total'
+                                : 'com_codechat_storage_subtotal',
+                              {
+                                used:
+                                  data.storage.known_used_bytes === null
+                                    ? localize('com_codechat_capacity_unmetered')
+                                    : storageSize(data.storage.known_used_bytes),
+                              },
+                            )}
                           </p>
-                          <Button
-                            variant="outline"
-                            disabled={operation.isLoading}
-                            onClick={() => operation.mutate({ action: 'order', plan })}
-                          >
-                            {localize('com_codechat_capacity_choose', { name: plan.name })}
-                          </Button>
-                        </article>
-                      ))}
-                      {data.plans.length === 0 && (
-                        <p>{localize('com_codechat_capacity_no_plans')}</p>
+                          <p className="text-text-secondary text-sm">
+                            {localize('com_codechat_storage_scope')}
+                          </p>
+                        </>
+                      )}
+                      {!data.storage.complete && <p>{localize('com_codechat_capacity_partial')}</p>}
+                      <ul className="space-y-2 text-sm">
+                        {data.storage.components.map((component) => (
+                          <li key={component.component}>
+                            {localize(componentKeys[component.component])}
+                            {': '}
+                            {component.used_bytes == null
+                              ? localize('com_codechat_capacity_unmetered')
+                              : storageSize(component.used_bytes)}
+                            {component.status === 'stale' &&
+                              ' · ' + localize('com_codechat_capacity_stale')}
+                            {accountingEnabled &&
+                              component.budget_bytes !== null &&
+                              component.basis !== 'no_additional_pvc' &&
+                              ' · ' +
+                                localize('com_codechat_storage_limit', {
+                                  capacity: storageSize(component.budget_bytes),
+                                })}
+                            {accountingEnabled &&
+                              component.status === 'ok' &&
+                              component.basis === 'harbor_project_quota' &&
+                              component.budget_bytes === null &&
+                              ' · ' + localize('com_codechat_storage_unlimited')}
+                            {component.observed_at && (
+                              <time
+                                className="text-text-secondary ml-2"
+                                dateTime={component.observed_at}
+                              >
+                                {new Date(component.observed_at).toLocaleTimeString()}
+                              </time>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  </details>
+                  {accountingEnabled && data.object_storage?.enabled && (
+                    <section
+                      className="text-text-secondary text-sm"
+                      aria-label={localize('com_codechat_objects_title')}
+                    >
+                      <p role="status">{localize(objectStatusKeys[data.object_storage.status])}</p>
+                      {data.object_storage.status === 'failed' && (
+                        <Button
+                          variant="outline"
+                          disabled={objectRetry.isLoading}
+                          onClick={() => objectRetry.mutate()}
+                        >
+                          {localize('com_codechat_retry')}
+                        </Button>
+                      )}
+                      {objectRetry.isError && (
+                        <p role="alert">{localize('com_codechat_objects_failed')}</p>
                       )}
                     </section>
                   )}
@@ -356,7 +358,7 @@ export default function Capacity({ expanded }: { expanded: boolean }) {
                   )}
                 </p>
               )}
-              <p className="text-text-secondary text-sm">
+              <p className="text-text-secondary text-xs leading-relaxed">
                 {localize('com_codechat_capacity_test_only')}
               </p>
               <Button variant="outline" onClick={() => setOpen(false)}>

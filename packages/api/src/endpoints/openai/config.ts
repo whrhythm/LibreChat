@@ -102,10 +102,18 @@ export function getOpenAIConfig(
     defaultQuery,
     directEndpoint,
     streaming = true,
-    modelOptions = {},
+    modelOptions: suppliedModelOptions = {},
     inferenceParameters,
     reverseProxyUrl: baseURL,
   } = options;
+  const routingMetadata = new Set([
+    'codechatCapability',
+    'codechatChatModel',
+    'codechatCodingModel',
+  ]);
+  const modelOptions = Object.fromEntries(
+    Object.entries(suppliedModelOptions).filter(([key]) => !routingMetadata.has(key)),
+  ) as typeof suppliedModelOptions;
   const shouldProtectUserBaseURL = options.baseURLIsUserProvided === true && !!baseURL;
   const ssrfAgents = shouldProtectUserBaseURL
     ? createSSRFSafeAgents(options.allowedAddresses)

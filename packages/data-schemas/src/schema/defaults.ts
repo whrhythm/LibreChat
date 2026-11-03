@@ -121,6 +121,9 @@ export const conversationPreset: {
   agent_id: {
     type: StringConstructor;
   };
+  codechatCapability: { type: StringConstructor; enum: string[] };
+  codechatChatModel: { type: StringConstructor };
+  codechatCodingModel: { type: StringConstructor };
   codeApprovalMode: {
     type: StringConstructor;
     enum: string[];
@@ -322,6 +325,9 @@ export const conversationPreset: {
   agent_id: {
     type: String,
   },
+  codechatCapability: { type: String, enum: ['chat', 'coding'] },
+  codechatChatModel: { type: String },
+  codechatCodingModel: { type: String },
   codeApprovalMode: {
     type: String,
     enum: [...CODE_APPROVAL_MODES],

@@ -764,14 +764,6 @@ const ChatForm = memo(function ChatForm({
         {/* Primary composer owns the selection popup so split-view doesn't double it. */}
         {index === 0 && quotesEnabled && <QuoteButton conversationId={conversationId} />}
         <div className="relative flex w-full flex-col">
-          {index === 0 && (
-            <Capabilities
-              config={startupConfig?.codechat?.capabilities}
-              conversation={conversation}
-              setConversation={setConversation}
-              disabled={isSubmitting || showStopButton || routePending}
-            />
-          )}
           {steering.enabled && (
             <Queue
               steering={steering}
@@ -1034,6 +1026,16 @@ const ChatForm = memo(function ChatForm({
                         />
                       )}
                     </div>
+                  }
+                  capabilitySlot={
+                    index === 0 ? (
+                      <Capabilities
+                        config={startupConfig?.codechat?.capabilities}
+                        conversation={conversation}
+                        setConversation={setConversation}
+                        disabled={isSubmitting || showStopButton || routePending}
+                      />
+                    ) : undefined
                   }
                   actionSlot={actionSlot}
                   hasAddedConversation={addedConvo != null}

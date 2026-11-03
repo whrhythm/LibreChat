@@ -1207,6 +1207,9 @@ export const tConversationSchema = z.object({
   codeDecisionListed: z.boolean().optional(),
   codeApprovalMode: z.enum(CODE_APPROVAL_MODES).optional(),
   codeEnvironmentMode: z.enum(CODE_ENVIRONMENT_MODES).optional(),
+  codechatCapability: z.enum(['chat', 'coding']).optional(),
+  codechatChatModel: z.string().optional(),
+  codechatCodingModel: z.string().optional(),
   codeWorkspaces: z
     .array(
       z
@@ -1367,6 +1370,9 @@ export const tConvoUpdateSchema = tConversationSchema.merge(
 
 export const tQueryParamsSchema = tConversationSchema
   .pick({
+    codechatCapability: true,
+    codechatChatModel: true,
+    codechatCodingModel: true,
     // librechat settings
     /** The model spec to be used */
     spec: true,
@@ -1711,6 +1717,9 @@ export const agentsSchema = agentsBaseSchema
   }));
 
 export const openAIBaseSchema = tConversationSchema.pick({
+  codechatCapability: true,
+  codechatChatModel: true,
+  codechatCodingModel: true,
   chatProjectId: true,
   model: true,
   modelLabel: true,

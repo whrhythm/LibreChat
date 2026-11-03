@@ -72,6 +72,7 @@ export enum QueryKeys {
   codechatApps = 'codechatApps',
   codechatSpace = 'codechatSpace',
   codechatCapacity = 'codechatCapacity',
+  codechatModels = 'codechatModels',
   codechatDatabases = 'codechatDatabases',
   categories = 'categories',
   randomPrompts = 'randomPrompts',

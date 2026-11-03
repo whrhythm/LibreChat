@@ -15,6 +15,13 @@ export type CapacityPlan = {
   application_limit: number;
   amount_minor: number;
   currency: string;
+  model_credit_cny_minor?: number;
+  model_credit_usd_micros?: number;
+  settlement_cny_per_usd?: string | null;
+  description?: string;
+  features?: string[];
+  estimated_tokens?: number | null;
+  reference_model?: string | null;
 };
 export type CapacityOrder = {
   id: string;
@@ -25,6 +32,7 @@ export type CapacityOrder = {
   error_code: string | null;
   attempt: number;
   created_at: string;
+  model_credit_status?: string;
 };
 export type CapacityAccount = {
   plan: CapacityPlan;
@@ -51,6 +59,25 @@ export type CapacityAccount = {
     }[];
   };
   object_storage?: ObjectStorageState | null;
+  trial?: {
+    storage_gib: number;
+    application_limit: number;
+    estimated_tokens: number | null;
+    reference_model: string | null;
+  };
+  wallet?: {
+    status: 'ok' | 'unknown' | 'stale';
+    allocated_usd_micros?: number;
+    spent_usd_micros?: number;
+    remaining_usd_micros?: number | null;
+    remaining_cny_minor?: number;
+    total_tokens?: number | null;
+    prompt_tokens?: number | null;
+    completion_tokens?: number | null;
+    estimated_tokens?: number | null;
+    reference_model?: string | null;
+    observed_at?: string | null;
+  } | null;
 };
 
 export type ObjectStorageState = {

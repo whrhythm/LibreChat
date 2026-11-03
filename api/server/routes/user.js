@@ -79,6 +79,8 @@ router.post('/workspace/directories', requireJwtAuth, workspace.mkdir);
 router.get('/workspace/file', requireJwtAuth, workspace.read);
 router.delete('/workspace/file', requireJwtAuth, workspace.deleteFile);
 router.get('/workspace/usage', requireJwtAuth, workspace.usage);
+router.get('/workspace/archive', requireJwtAuth, workspace.archive);
+router.get('/workspace/models', requireJwtAuth, workspace.models);
 router.put(
   '/workspace/file',
   requireJwtAuth,

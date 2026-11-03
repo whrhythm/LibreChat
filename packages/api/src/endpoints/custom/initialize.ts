@@ -269,7 +269,11 @@ export async function initializeCustom(
   /** The stored effort is checked against the provider's catalog, an independent read: it starts
    *  here and is awaited where the model options are built, so it overlaps token discovery below
    *  instead of following it. The no-op catch keeps an early failure from going unhandled. */
-  const requestedOptions = { ...(model_parameters ?? {}), user: userId };
+  const requestedOptions: Record<string, unknown> = { ...(model_parameters ?? {}), user: userId };
+  // Routing metadata stays in the conversation and is never a provider parameter.
+  delete requestedOptions.codechatCapability;
+  delete requestedOptions.codechatChatModel;
+  delete requestedOptions.codechatCodingModel;
   const effortCheck =
     params.reasoningCapabilityDeps == null
       ? undefined
@@ -343,6 +347,20 @@ export async function initializeCustom(
     proxy: PROXY ?? null,
     ...customOptions,
   };
+  const capabilityConfig = appConfig?.config?.codechat?.capabilities;
+  if (capabilityConfig?.enabled && endpoint === capabilityConfig.endpoint && !userProvidesURL) {
+    const nativeAgent =
+      requestBody.endpoint === EModelEndpoint.agents ||
+      requestBody.agent_id ||
+      requestBody.endpointOption?.endpoint === EModelEndpoint.agents ||
+      requestBody.endpointOption?.agent_id;
+    const selectedCapability =
+      requestBody.codechatCapability ?? requestBody.endpointOption?.codechatCapability;
+    clientOptions.headers = {
+      ...(customOptions.headers as Record<string, string> | undefined),
+      'X-CodeChat-Capability': !nativeAgent && selectedCapability === 'coding' ? 'coding' : 'chat',
+    };
+  }
 
   const modelOptions = effortCheck == null ? requestedOptions : await effortCheck;
 

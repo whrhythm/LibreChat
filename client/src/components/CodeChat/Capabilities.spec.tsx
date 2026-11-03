@@ -11,12 +11,20 @@ import {
 import type { TConversation } from 'librechat-data-provider';
 import Capabilities from './Capabilities';
 
-jest.mock('~/hooks', () => ({ useLocalize: () => (key: string) => key }));
-const config = codechatCapabilitiesSchema.parse({ enabled: true });
+jest.mock('~/hooks', () => ({
+  useLocalize: () => (key: string) => key,
+  useAuthContext: () => ({ user: null, token: null }),
+}));
+const config = codechatCapabilitiesSchema.parse({
+  enabled: true,
+  chatModel: 'chat-model',
+  codingModel: 'coding-model',
+  allowedModels: ['chat-model', 'coding-model'],
+});
 const record: TConversation = {
   conversationId: 'existing-conversation',
   endpoint: 'LiteLLM' as EModelEndpoint,
-  model: 'deepseek',
+  model: 'chat-model',
   chatProjectId: 'my-project',
   title: 'Keep this',
   codeWorkspaces: [{ environmentId: 'my-environment', workspaceId: 'my-workspace' }],
@@ -52,7 +60,12 @@ it('changes the next route while retaining conversation, project, workspace and 
   mount();
   fireEvent.click(screen.getByRole('button', { name: 'com_codechat_capability_coding' }));
   expect(JSON.parse(screen.getByTestId('conversation-record').textContent ?? '{}')).toEqual(
-    expect.objectContaining({ ...record, model: config.codingRoute, maxContextTokens: 32000 }),
+    expect.objectContaining({
+      ...record,
+      model: config.codingModel,
+      codechatCapability: 'coding',
+      maxContextTokens: 32000,
+    }),
   );
   fireEvent.click(screen.getByRole('button', { name: 'com_codechat_capability_chat' }));
   expect(screen.getByRole('button', { name: 'com_codechat_capability_chat' })).toHaveAttribute(
@@ -61,11 +74,15 @@ it('changes the next route while retaining conversation, project, workspace and 
   );
 });
 
-it('blocks mode switches during execution and marks future capabilities unavailable', () => {
+it('blocks switches during execution and keeps unimplemented capabilities out of the composer', () => {
   mount(true);
   expect(screen.getByRole('button', { name: 'com_codechat_capability_coding' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: /com_codechat_capability_writing/ })).toBeDisabled();
-  expect(screen.getByRole('button', { name: /com_codechat_capability_music/ })).toBeDisabled();
+  expect(
+    screen.queryByRole('button', { name: /com_codechat_capability_writing/ }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: /com_codechat_capability_music/ }),
+  ).not.toBeInTheDocument();
 });
 
 it('restores the coding pick from a stored route and accepts legacy OpenHands conversations', () => {
@@ -89,7 +106,7 @@ it('makes an empty new Agents chat usable without selecting a provider', () => {
     expect.objectContaining({
       conversationId: Constants.NEW_CONVO,
       endpoint: config.endpoint,
-      model: config.chatRoute,
+      model: config.chatModel,
     }),
   );
   expect(screen.getByRole('button', { name: 'com_codechat_capability_coding' })).not.toBeDisabled();
@@ -101,8 +118,27 @@ it('offers Coding on an existing conversation from another endpoint without repl
   expect(JSON.parse(screen.getByTestId('conversation-record').textContent ?? '{}')).toEqual(
     expect.objectContaining({
       conversationId: record.conversationId,
-      model: config.codingRoute,
+      model: config.codingModel,
       messages: record.messages,
     }),
+  );
+});
+
+it('retains separate selected models and preserves native agent conversations', () => {
+  const coding = withCodeChatCapability(record, 'coding', config, 'chat-model');
+  const chat = withCodeChatCapability(coding, 'chat', config);
+  expect(chat.model).toBe('chat-model');
+  expect(withCodeChatCapability(chat, 'coding', config).model).toBe('chat-model');
+  mount(false, {
+    ...record,
+    endpoint: EModelEndpoint.agents,
+    conversationId: String(Constants.NEW_CONVO),
+    agent_id: 'owned-agent',
+  });
+  expect(
+    screen.queryByRole('group', { name: 'com_codechat_capabilities' }),
+  ).not.toBeInTheDocument();
+  expect(JSON.parse(screen.getByTestId('conversation-record').textContent ?? '{}').agent_id).toBe(
+    'owned-agent',
   );
 });

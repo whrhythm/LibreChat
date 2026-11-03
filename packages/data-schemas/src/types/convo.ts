@@ -296,6 +296,9 @@ export interface IConversation extends Document {
   resendFiles?: boolean;
   imageDetail?: string;
   agent_id?: string;
+  codechatCapability?: 'chat' | 'coding';
+  codechatChatModel?: string;
+  codechatCodingModel?: string;
   codeApprovalMode?: CodeApprovalMode;
   /** Private fence advanced when an admitted generation reads its decision. */
   codeEnvironmentRevision?: number;

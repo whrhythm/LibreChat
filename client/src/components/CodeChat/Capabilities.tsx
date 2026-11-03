@@ -1,18 +1,25 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Button } from '@librechat/client';
-import { useQueryClient } from '@tanstack/react-query';
+import { Check, Code2, MessageSquare } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Constants,
+  EModelEndpoint,
   QueryKeys,
   codechatCapability,
   withCodeChatCapability,
+  personalModelSettings,
 } from 'librechat-data-provider';
-import type { CodeChatCapabilities, TConversation } from 'librechat-data-provider';
+import type {
+  CodeChatCapabilities,
+  CodeChatCapability,
+  TConversation,
+} from 'librechat-data-provider';
 import type { SetterOrUpdater } from 'recoil';
-import { useLocalize } from '~/hooks';
+import { useAuthContext, useLocalize } from '~/hooks';
 
 export default function Capabilities({
-  config,
+  config: startupConfig,
   conversation,
   setConversation,
   disabled,
@@ -24,87 +31,127 @@ export default function Capabilities({
 }) {
   const localize = useLocalize();
   const client = useQueryClient();
+  const { user, token } = useAuthContext();
+  const models = useQuery({
+    queryKey: [QueryKeys.codechatModels, user?.id],
+    queryFn: () => personalModelSettings(token!),
+    enabled: !!startupConfig?.enabled && !!token && !!user?.id,
+    staleTime: 30000,
+    refetchInterval: 30000,
+    retry: 1,
+  });
+  const config = useMemo(
+    () =>
+      startupConfig && models.data
+        ? {
+            ...startupConfig,
+            chatModel: models.data.chat_model,
+            codingModel: models.data.coding_model,
+            allowedModels: models.data.models.map((model) => model.name),
+          }
+        : startupConfig,
+    [startupConfig, models.data],
+  );
+
   useEffect(() => {
+    if (!config?.enabled || disabled || !conversation) return;
+    const isNew =
+      !conversation.conversationId || conversation.conversationId === Constants.NEW_CONVO;
     if (
-      !config?.enabled ||
-      disabled ||
-      !conversation ||
-      (conversation.conversationId && conversation.conversationId !== Constants.NEW_CONVO) ||
-      conversation.endpoint === config.endpoint
+      conversation.endpoint !== config.endpoint &&
+      (!isNew || conversation.endpoint !== EModelEndpoint.agents || conversation.agent_id)
     )
       return;
-    // A new chat can inherit LibreChat's empty Agents default. It must be usable
-    // without making the reader choose a technical provider first.
+    const legacy = [config.chatRoute, config.codingRoute, 'OpenHands'].includes(
+      conversation.model ?? '',
+    );
+    if (
+      conversation.endpoint === config.endpoint &&
+      conversation.codechatCapability &&
+      ((!legacy &&
+        (!config.allowedModels || config.allowedModels.includes(conversation.model ?? ''))) ||
+        !config.chatModel ||
+        !config.codingModel)
+    )
+      return;
     setConversation((current) =>
-      current &&
-      (!current.conversationId || current.conversationId === Constants.NEW_CONVO) &&
-      current.endpoint !== config.endpoint
-        ? withCodeChatCapability(current, 'chat', config)
+      current
+        ? withCodeChatCapability(
+            current,
+            current.endpoint === config.endpoint ? codechatCapability(current, config) : 'chat',
+            config,
+          )
         : current,
     );
   }, [config, conversation, disabled, setConversation]);
-  if (!config?.enabled) {
+
+  if (!config?.enabled || (conversation?.endpoint !== config.endpoint && conversation?.agent_id))
     return null;
-  }
   const selected = codechatCapability(conversation, config);
+  function choose(capability: CodeChatCapability, model?: string) {
+    setConversation((current) =>
+      current ? withCodeChatCapability(current, capability, config!, model) : current,
+    );
+    const id = conversation?.conversationId;
+    if (conversation && id && id !== Constants.NEW_CONVO) {
+      client.setQueryData<TConversation>([QueryKeys.conversation, id], (cached) =>
+        withCodeChatCapability(cached ?? conversation, capability, config!, model),
+      );
+    }
+  }
   return (
     <div
-      className="mb-2 flex flex-wrap items-center gap-1"
+      className="flex shrink-0 items-center gap-1"
       role="group"
       aria-label={localize('com_codechat_capabilities')}
     >
-      {(['chat', 'coding'] as const).map((capability) => (
-        <Button
-          key={capability}
-          type="button"
-          variant={selected === capability ? 'secondary' : 'ghost'}
-          size="sm"
-          aria-pressed={selected === capability}
+      {(['chat', 'coding'] as const).map((capability) => {
+        const Icon =
+          selected === capability ? Check : { chat: MessageSquare, coding: Code2 }[capability];
+        return (
+          <Button
+            key={capability}
+            type="button"
+            size="xs"
+            variant={selected === capability ? 'default' : 'ghost'}
+            aria-pressed={selected === capability}
+            disabled={disabled || conversation == null}
+            title={localize(
+              capability === 'coding'
+                ? 'com_codechat_capability_coding_hint'
+                : 'com_codechat_capability_chat_hint',
+            )}
+            onClick={() => choose(capability)}
+          >
+            <Icon className="mr-1 size-3" aria-hidden="true" />
+            {localize(
+              capability === 'coding'
+                ? 'com_codechat_capability_coding'
+                : 'com_codechat_capability_chat',
+            )}
+          </Button>
+        );
+      })}
+      {models.data && (
+        <select
+          className="border-border-light bg-surface-primary text-text-primary hidden max-w-36 min-w-0 rounded border px-2 py-1 text-xs sm:block"
+          aria-label={localize('com_codechat_model')}
+          value={conversation?.model ?? ''}
           disabled={disabled || conversation == null}
-          onClick={() => {
-            setConversation((current) =>
-              current == null ? current : withCodeChatCapability(current, capability, config),
-            );
-            const id = conversation?.conversationId;
-            if (conversation && id && id !== Constants.NEW_CONVO) {
-              client.setQueryData<TConversation>([QueryKeys.conversation, id], (cached) =>
-                withCodeChatCapability(cached ?? conversation, capability, config),
-              );
-            }
-          }}
+          onChange={(event) => choose(selected, event.target.value)}
         >
-          {localize(
-            capability === 'coding'
-              ? 'com_codechat_capability_coding'
-              : 'com_codechat_capability_chat',
-          )}
-        </Button>
-      ))}
-      {(['writing', 'music'] as const).map((capability) => (
-        <Button
-          key={capability}
-          type="button"
-          variant="ghost"
-          size="sm"
-          disabled
-          title={localize('com_codechat_coming_soon')}
-        >
-          {localize(
-            capability === 'writing'
-              ? 'com_codechat_capability_writing'
-              : 'com_codechat_capability_music',
-          )}
-          {' · '}
-          {localize('com_codechat_coming_soon')}
-        </Button>
-      ))}
-      <p className="text-text-secondary w-full text-xs" role="status">
-        {localize(
-          selected === 'coding'
-            ? 'com_codechat_capability_coding_hint'
-            : 'com_codechat_capability_chat_hint',
-        )}
-      </p>
+          {models.data.models.map((model) => (
+            <option key={model.name} value={model.name}>
+              {model.name}
+            </option>
+          ))}
+        </select>
+      )}
+      {models.isError && (
+        <span role="status" className="text-text-secondary text-xs">
+          {localize('com_codechat_model_unavailable')}
+        </span>
+      )}
     </div>
   );
 }
