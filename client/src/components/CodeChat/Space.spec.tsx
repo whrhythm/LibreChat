@@ -10,6 +10,10 @@ jest.mock('~/hooks', () => ({
 }));
 jest.mock('./ApplicationNotice', () => () => null);
 jest.mock('./Capacity', () => () => null);
+jest.mock('./Databases', () => () => null);
+jest.mock('~/data-provider', () => ({
+  useGetStartupConfig: () => ({ data: { codechat: { databases: { enabled: true } } } }),
+}));
 jest.mock(
   './Files',
   () =>

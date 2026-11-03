@@ -6,9 +6,11 @@ import { personalFileRequest, QueryKeys } from 'librechat-data-provider';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@librechat/client';
 import type { PersonalSpace, WorkspaceEntry } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
+import { useGetStartupConfig } from '~/data-provider';
 import ApplicationNotice from './ApplicationNotice';
 import Applications from './Applications';
 import PersonalFiles from './Files';
+import Databases from './Databases';
 import Capacity from './Capacity';
 
 /** Feature-owned navigation, scoped to the signed-in identity. */
@@ -97,6 +99,7 @@ export default function PersonalSpacePanel({
   onExpandedChange: (expanded: boolean) => void;
 }) {
   const { user } = useAuthContext();
+  const { data: startup } = useGetStartupConfig();
   const localize = useLocalize();
   const [view, setView] = useAtom(navigation(user?.id ?? 'anonymous'));
   const setPath = (path: string) => setView((current) => ({ ...current, path }));
@@ -131,6 +134,9 @@ export default function PersonalSpacePanel({
           <TabsList aria-label={localize('com_codechat_workspace')}>
             <TabsTrigger value="files">{localize('com_codechat_files_tab')}</TabsTrigger>
             <TabsTrigger value="apps">{localize('com_codechat_apps')}</TabsTrigger>
+            {startup?.codechat?.databases?.enabled && (
+              <TabsTrigger value="databases">{localize('com_codechat_db_tab')}</TabsTrigger>
+            )}
           </TabsList>
           <TabsContent value="files" forceMount hidden={view.pane !== 'files'} size="flush">
             <PersonalFiles
@@ -139,6 +145,20 @@ export default function PersonalSpacePanel({
               onPathChange={setPath}
             />
           </TabsContent>
+          {startup?.codechat?.databases?.enabled && (
+            <TabsContent
+              value="databases"
+              forceMount
+              hidden={view.pane !== 'databases'}
+              size="flush"
+            >
+              <Databases
+                path={view.path}
+                onPathChange={setPath}
+                enabled={expanded && view.pane === 'databases'}
+              />
+            </TabsContent>
+          )}
           <TabsContent value="apps" forceMount hidden={view.pane !== 'apps'} size="flush">
             <ApplicationProjects
               enabled={expanded && view.pane === 'apps'}
