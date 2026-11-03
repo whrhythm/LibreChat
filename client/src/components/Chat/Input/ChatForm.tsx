@@ -1131,6 +1131,11 @@ function ChatFormWrapper({
       conversation?.spec,
       conversation?.useResponsesApi,
       conversation?.model,
+      // Capability can change while both routes use the same real model.
+      // The composer must receive the new selection instead of a stale snapshot.
+      conversation?.codechatCapability,
+      conversation?.codechatChatModel,
+      conversation?.codechatCodingModel,
       conversation?.maxContextTokens,
       conversation?.codeApprovalMode,
       conversation?.codeEnvironmentMode,
