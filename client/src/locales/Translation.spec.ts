@@ -3,6 +3,7 @@ import {
   __resetLocaleForTests,
   __setLocaleLoaderForTests,
   changeLanguageSafely,
+  detectInitialLanguage,
   ensureLocale,
   initializeI18n,
   normalizeLocale,
@@ -25,6 +26,23 @@ function deferred<T>() {
 }
 
 describe('i18next translation tests', () => {
+  it('uses deployment Chinese by default while preserving an explicit language', () => {
+    const stored = localStorage.getItem('lang');
+    const meta = document.createElement('meta');
+    meta.name = 'codechat-default-language';
+    meta.content = 'zh-Hans';
+    document.head.appendChild(meta);
+    localStorage.removeItem('lang');
+    const cookie = document.cookie;
+    document.cookie = 'lang=; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    expect(detectInitialLanguage()).toBe('zh-Hans');
+    localStorage.setItem('lang', JSON.stringify('en'));
+    expect(detectInitialLanguage()).toBe('en');
+    meta.remove();
+    if (stored === null) localStorage.removeItem('lang');
+    else localStorage.setItem('lang', stored);
+    for (const part of cookie.split(';')) document.cookie = part;
+  });
   // Ensure i18next is initialized before any tests run
   beforeAll(async () => {
     await initializeI18n();
