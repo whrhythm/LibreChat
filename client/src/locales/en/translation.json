@@ -3934,5 +3934,8 @@
   "com_codechat_db_delete_warning": "This permanently deletes all database data for {{path}}. It cannot be undone. Project files remain. Type the exact project directory to confirm.",
   "com_codechat_db_confirmation": "Confirm project directory",
   "com_codechat_db_confirm_delete": "Permanently delete database",
-  "com_codechat_db_measurement_error": "The latest measurement is unavailable. The previous value is retained and may be stale."
+  "com_codechat_db_measurement_error": "The latest measurement is unavailable. The previous value is retained and may be stale.",
+  "com_codechat_app_build_storage": "The image build ran out of temporary space. Your personal files and database are retained. Reduce image layers or ask your administrator to increase build capacity.",
+  "com_codechat_app_build_memory": "The image build exceeded its memory limit. Your personal files and database are retained.",
+  "com_codechat_app_build_timeout": "The image build exceeded its time limit and was stopped. Your personal files and database are retained."
 }

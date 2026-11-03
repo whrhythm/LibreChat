@@ -29,31 +29,41 @@ function mount() {
 describe('applications in the personal space sidebar', () => {
   beforeEach(() => request.mockReset());
 
-  it('explains build failure and waits for an explicit retry instead of publishing automatically', async () => {
-    request.mockResolvedValue({
-      json: async () => ({
-        apps: [
-          {
-            id: 'failed',
-            project_path: 'demo',
-            status: 'failed',
-            desired_state: 'running',
-            error_code: 'build_failed',
-            image: null,
-            url: null,
-            observation: null,
-            cleanup: { status: 'complete' },
-          },
-        ],
-      }),
-    } as Response);
-    mount();
-    await screen.findByText('com_codechat_app_build_failed');
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
-    expect(request.mock.calls.filter((call) => call[1] === 'publish')).toHaveLength(0);
-    fireEvent.click(screen.getByRole('button', { name: 'com_codechat_app_retry_publish' }));
-    await waitFor(() => expect(request).toHaveBeenCalledWith('synthetic-token', 'publish', 'demo'));
-  });
+  it.each([
+    ['build_failed', 'com_codechat_app_build_failed'],
+    ['build_storage_exhausted', 'com_codechat_app_build_storage'],
+    ['build_memory_exhausted', 'com_codechat_app_build_memory'],
+    ['build_timed_out', 'com_codechat_app_build_timeout'],
+  ])(
+    'explains %s and waits for an explicit retry instead of publishing automatically',
+    async (code, message) => {
+      request.mockResolvedValue({
+        json: async () => ({
+          apps: [
+            {
+              id: 'failed',
+              project_path: 'demo',
+              status: 'failed',
+              desired_state: 'running',
+              error_code: code,
+              image: null,
+              url: null,
+              observation: null,
+              cleanup: { status: 'complete' },
+            },
+          ],
+        }),
+      } as Response);
+      mount();
+      await screen.findByText(message);
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+      expect(request.mock.calls.filter((call) => call[1] === 'publish')).toHaveLength(0);
+      fireEvent.click(screen.getByRole('button', { name: 'com_codechat_app_retry_publish' }));
+      await waitFor(() =>
+        expect(request).toHaveBeenCalledWith('synthetic-token', 'publish', 'demo'),
+      );
+    },
+  );
 
   it('submits publication for the currently open directory', async () => {
     request.mockResolvedValue({ json: async () => ({ apps: [] }) } as Response);

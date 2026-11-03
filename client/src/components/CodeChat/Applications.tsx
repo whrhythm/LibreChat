@@ -18,6 +18,9 @@ const statusKeys = {
 } as const;
 
 function failureKey(code: string) {
+  if (code === 'build_storage_exhausted') return 'com_codechat_app_build_storage';
+  if (code === 'build_memory_exhausted') return 'com_codechat_app_build_memory';
+  if (code === 'build_timed_out') return 'com_codechat_app_build_timeout';
   if (code === 'build_failed') return 'com_codechat_app_build_failed';
   if (code === 'application_start_failed') return 'com_codechat_app_start_failed';
   if (code === 'pushed_image_verify_failed') return 'com_codechat_app_image_failed';
