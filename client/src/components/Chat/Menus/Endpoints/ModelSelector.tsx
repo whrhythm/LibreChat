@@ -140,7 +140,6 @@ function ModelSelectorContent() {
       </Menu>
       {workspace.isCoding && (
         <Workbench
-          key={workspace.conversationId}
           conversationId={workspace.conversationId}
           model={workspace.model}
           models={workspace.allowedModels}

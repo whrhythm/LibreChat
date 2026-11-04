@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { atom, useAtom } from 'jotai';
 import { Settings2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -45,6 +45,10 @@ export default function Workbench({
   const [open, setOpen] = useAtom(openState);
   const [draft, setDraft] = useAtom(draftState);
   const [browse, setBrowse] = useAtom(browseState);
+  useEffect(() => {
+    setDraft(null);
+    setBrowse('');
+  }, [conversationId, setDraft, setBrowse]);
   const preferences = useQuery({
     queryKey: [QueryKeys.programmingPreference, user?.id, conversationId],
     queryFn: () => programmingPreference(token!, conversationId),
