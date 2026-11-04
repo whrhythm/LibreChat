@@ -359,6 +359,11 @@ export async function initializeCustom(
     clientOptions.headers = {
       ...(customOptions.headers as Record<string, string> | undefined),
       'X-CodeChat-Capability': !nativeAgent && selectedCapability === 'coding' ? 'coding' : 'chat',
+      'X-CodeChat-Conversation':
+        typeof requestBody.conversationId === 'string' &&
+        /^[a-zA-Z0-9_-]{1,64}$/.test(requestBody.conversationId)
+          ? requestBody.conversationId
+          : 'default',
     };
   }
 

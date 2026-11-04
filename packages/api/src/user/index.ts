@@ -1,6 +1,7 @@
 export * from './preferences';
 export * from './codeChatIdentity';
 export * from './workspace';
+export * from './workbench';
 export * from './capacity';
 export * from './databases';
 export * from './erasure';

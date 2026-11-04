@@ -108,6 +108,7 @@ export * from './code/worker';
 export * from './code/approval';
 export * from './code/workspace';
 export * from './codechat';
+export * from './workbench';
 
 export * from './types/scheduleConsent';
 

@@ -273,7 +273,7 @@ export default function Applications({
               {app.database && (
                 <section
                   aria-label={localize('com_codechat_app_database_usage')}
-                  className="border-border-light flex flex-col gap-1 border-t pt-2 text-xs"
+                  className="text-text-secondary flex flex-col gap-1 text-xs"
                 >
                   <h4 className="font-medium">{localize('com_codechat_app_database_usage')}</h4>
                   <p className="text-text-secondary tabular-nums">
@@ -285,6 +285,15 @@ export default function Applications({
                       reserved: storageSize(app.database.reserved_bytes),
                     })}
                   </p>
+                  {app.database.used_bytes != null && app.database.reserved_bytes > 0 && (
+                    <Progress
+                      aria-label={localize('com_codechat_app_database_usage')}
+                      value={Math.min(
+                        100,
+                        (app.database.used_bytes / app.database.reserved_bytes) * 100,
+                      )}
+                    />
+                  )}
                   {app.database.observed_at && (
                     <time className="text-text-secondary" dateTime={app.database.observed_at}>
                       {localize('com_codechat_db_observed', {

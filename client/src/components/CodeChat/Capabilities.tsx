@@ -110,5 +110,10 @@ export default function useWorkspaceCapability({
       codechatCapability(conversation, config) === 'coding',
     disabled: disabled || !conversation,
     allowedModels: config?.allowedModels,
+    conversationId:
+      conversation?.conversationId && conversation.conversationId !== Constants.NEW_CONVO
+        ? conversation.conversationId
+        : 'default',
+    model: conversation?.model,
   };
 }

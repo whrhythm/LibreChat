@@ -19,6 +19,7 @@ import type { FileAction } from './FileDialog';
 import { useGetStartupConfig } from '~/data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import FileDialog from './FileDialog';
+import NewFolder from './NewFolder';
 import { spaceDirty } from './dock';
 
 type TreeActions = {
@@ -341,6 +342,7 @@ export default function PersonalFiles({
         <Button variant="ghost" size="xs" aria-pressed={!path} onClick={() => setPath('')}>
           {localize('com_codechat_workspace_root')}
         </Button>
+        <NewFolder path={path} />
       </div>
       <p className="text-text-secondary h-4 truncate px-1 text-xs" title={path || '/'}>
         {localize('com_codechat_upload_to', { path: path || '/' })}

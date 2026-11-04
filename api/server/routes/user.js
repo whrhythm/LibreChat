@@ -3,6 +3,7 @@ const {
   createUserPreferencesHandler,
   codeChatIdentityHandler,
   createWorkspaceHandlers,
+  createProgrammingHandlers,
   createCapacityHandlers,
   createProjectDatabaseHandlers,
   preAuthTenantMiddleware,
@@ -45,6 +46,11 @@ const capacity = createCapacityHandlers({
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
   issuer: process.env.OPENID_ISSUER,
 });
+const programming = createProgrammingHandlers({
+  baseUrl: process.env.CODECHAT_WORKSPACE_URL,
+  serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
+  issuer: process.env.OPENID_ISSUER,
+});
 const databases = createProjectDatabaseHandlers({
   baseUrl: process.env.CODECHAT_WORKSPACE_URL,
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
@@ -59,6 +65,11 @@ router.use('/settings', settings);
 router.get('/', requireJwtAuth, getUserController);
 router.get('/codechat-identity', requireJwtAuth, codeChatIdentityHandler);
 router.post('/workspace/ensure', requireJwtAuth, workspace.ensure);
+router.get('/workspace/agent/preferences', requireJwtAuth, programming.preferences);
+router.put('/workspace/agent/preferences', requireJwtAuth, programming.save);
+router.get('/workspace/agent/tasks', requireJwtAuth, programming.tasks);
+router.post('/workspace/agent/tasks/:taskId/decision', requireJwtAuth, programming.decision);
+router.post('/workspace/agent/tasks/:taskId/cancel', requireJwtAuth, programming.cancel);
 router.get('/workspace/capacity', requireJwtAuth, capacity.account);
 router.post('/workspace/object-storage/retry', requireJwtAuth, capacity.objectRetry);
 router.get('/workspace/databases', requireJwtAuth, databases.list);

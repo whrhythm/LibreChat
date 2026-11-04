@@ -13,6 +13,7 @@ import { useShortcutAriaKey, useShortcutHint } from '~/hooks/useKeyboardShortcut
 import { ModelSelectorChatProvider } from './ModelSelectorChatContext';
 import { CustomMenu as Menu, CustomMenuItem } from './CustomMenu';
 import { getSelectedIcon, getDisplayValue } from './utils';
+import Workbench from '~/components/CodeChat/Workbench';
 import DialogManager from './DialogManager';
 import { useLocalize } from '~/hooks';
 
@@ -84,7 +85,9 @@ function ModelSelectorContent() {
             </div>
           )}
           <span className="truncate text-start">
-            {workspace.isCoding ? localize('com_codechat_openhands') : selectedDisplayValue}
+            {workspace.isCoding
+              ? `${localize('com_codechat_openhands')} · ${workspace.model ?? ''}`
+              : selectedDisplayValue}
           </span>
         </button>
       }
@@ -92,7 +95,7 @@ function ModelSelectorContent() {
   );
 
   return (
-    <div className="relative flex max-w-[60vw] min-w-0 flex-col items-center gap-2 sm:max-w-xs">
+    <div className="relative flex max-w-[75vw] min-w-0 flex-wrap items-center gap-1">
       <Menu
         values={selectedValues}
         onValuesChange={(values: Record<string, any>) => {
@@ -135,6 +138,16 @@ function ModelSelectorContent() {
           </>
         )}
       </Menu>
+      {workspace.isCoding && (
+        <Workbench
+          key={workspace.conversationId}
+          conversationId={workspace.conversationId}
+          model={workspace.model}
+          models={workspace.allowedModels}
+          disabled={workspace.disabled}
+          chooseModel={(model) => workspace.choose('coding', model)}
+        />
+      )}
       <DialogManager
         keyDialogOpen={keyDialogOpen}
         onOpenChange={onOpenChange}

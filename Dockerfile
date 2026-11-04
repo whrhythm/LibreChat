@@ -70,6 +70,8 @@ RUN \
     # React client build with configurable memory
     NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" npm run frontend && \
     if [ "$CODECHAT_VERIFY" = "true" ]; then \
+      npx eslint packages/api/src/user/workbench.ts packages/api/src/user/workbench.spec.ts packages/data-provider/src/workbench.ts client/src/components/CodeChat/Workbench.tsx client/src/components/CodeChat/NewFolder.tsx client/src/components/Chat/Menus/Endpoints/ModelSelector.tsx && \
+      (cd packages/api && npx jest src/user/workbench.spec.ts --runInBand --coverage=false) && \
       npx eslint client/src/components/Chat/Input/__tests__/ChatForm.attachments.spec.tsx client/src/store/language.ts client/src/locales/Translation.spec.ts client/src/components/CodeChat/Membership.tsx client/src/components/CodeChat/Membership.spec.tsx client/src/components/Chat/Input/Composer/Bar.tsx client/src/locales/i18n.ts packages/api/src/endpoints/custom/initialize.ts packages/api/src/endpoints/openai/config.ts packages/api/src/types/http.ts packages/api/src/user/workspace.ts packages/data-provider/src/codechat.ts packages/data-provider/src/schemas.ts packages/data-provider/src/types.ts packages/data-schemas/src/methods/conversation.ts packages/data-schemas/src/schema/defaults.ts packages/data-schemas/src/types/convo.ts && \
       (cd packages/data-schemas && NODE_OPTIONS=--max-old-space-size=12288 npx tsc --noEmit) && \
       npx eslint packages/api/src/user/databases.ts packages/api/src/user/databases.spec.ts packages/data-provider/src/codechatDatabases.ts client/src/components/CodeChat/Databases.tsx client/src/components/CodeChat/Databases.spec.tsx client/src/components/CodeChat/Applications.tsx client/src/components/CodeChat/Applications.spec.tsx && \
