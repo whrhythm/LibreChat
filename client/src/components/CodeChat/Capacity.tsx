@@ -202,6 +202,15 @@ export default function Capacity({
                           price: price(order.plan),
                         })}
                       </p>
+                      <p className="text-text-secondary mt-2 text-sm">
+                        {localize('com_codechat_member_compute', {
+                          cpu:
+                            order.plan.application_cpu_millicores == null
+                              ? '—'
+                              : order.plan.application_cpu_millicores / 1000,
+                          memory: order.plan.application_memory_mib ?? '—',
+                        })}
+                      </p>
                       {!!order.plan.model_credit_usd_micros && (
                         <p className="mt-2 text-sm">
                           {localize(

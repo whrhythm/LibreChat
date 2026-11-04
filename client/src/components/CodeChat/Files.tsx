@@ -342,11 +342,9 @@ export default function PersonalFiles({
           {localize('com_codechat_workspace_root')}
         </Button>
       </div>
-      {path && (
-        <p className="text-text-secondary truncate px-1 text-xs" title={path}>
-          {localize('com_codechat_upload_to', { path })}
-        </p>
-      )}
+      <p className="text-text-secondary h-4 truncate px-1 text-xs" title={path || '/'}>
+        {localize('com_codechat_upload_to', { path: path || '/' })}
+      </p>
       {upload.isError && <p role="alert">{localize('com_codechat_files_upload_error')}</p>}
       {downloadError && <p role="alert">{localize('com_codechat_files_error')}</p>}
       <div className={action?.mode === 'edit' ? 'max-h-48 overflow-auto' : ''}>

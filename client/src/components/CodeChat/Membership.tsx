@@ -23,6 +23,14 @@ export default function Membership({
   choose: (plan: CapacityPlan) => void;
 }) {
   const t = useLocalize();
+  const compute = (plan: {
+    application_cpu_millicores?: number;
+    application_memory_mib?: number;
+  }) =>
+    t('com_codechat_member_compute', {
+      cpu: plan.application_cpu_millicores == null ? '—' : plan.application_cpu_millicores / 1000,
+      memory: plan.application_memory_mib ?? '—',
+    });
   const wallet = account.wallet;
   const remaining = wallet?.remaining_usd_micros;
   const price = (amount: number, currency = 'CNY') =>
@@ -97,6 +105,7 @@ export default function Membership({
             </span>
           </p>
           <p className="text-text-secondary mt-3 text-sm">{t('com_codechat_member_apps_help')}</p>
+          <p className="mt-3 text-sm font-medium">{compute(account.plan)}</p>
         </article>
       </section>
       {wallet?.estimated_tokens != null && (
@@ -111,6 +120,9 @@ export default function Membership({
         <div className="mb-4">
           <h3 className="text-lg font-semibold">{t('com_codechat_member_pick')}</h3>
           <p className="text-text-secondary mt-1 text-sm">{t('com_codechat_member_pick_help')}</p>
+          <p className="text-text-secondary mt-2 text-sm">
+            {t('com_codechat_member_compute_help')}
+          </p>
         </div>
         <div className="grid items-stretch gap-4 md:grid-cols-3">
           {account.trial && (
@@ -137,6 +149,7 @@ export default function Membership({
                   t('com_codechat_member_gift'),
                   t('com_codechat_member_plan_disk', { count: account.trial.storage_gib }),
                   t('com_codechat_member_plan_apps', { count: account.trial.application_limit }),
+                  compute(account.trial),
                   t('com_codechat_member_shared_balance'),
                 ].map((text) => (
                   <li key={text} className="flex gap-2">
@@ -193,6 +206,7 @@ export default function Membership({
                     }),
                     t('com_codechat_member_plan_disk', { count: plan.storage_gib }),
                     t('com_codechat_member_plan_apps', { count: plan.application_limit }),
+                    compute(plan),
                     t('com_codechat_member_shared_balance'),
                     ...(plan.features ?? []),
                   ].map((text, index) => (

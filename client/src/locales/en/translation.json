@@ -4000,6 +4000,8 @@
   "com_codechat_member_gift": "US$1 model credit at registration, once only",
   "com_codechat_member_plan_disk": "{{count}} GiB personal disk",
   "com_codechat_member_plan_apps": "Up to {{count}} published applications",
+  "com_codechat_member_compute": "Per app: up to {{cpu}} CPU cores · {{memory}} MiB RAM",
+  "com_codechat_member_compute_help": "These are limits for each published application, not a shared total. CPU is throttled at its limit; exceeding memory may restart the application. Coding and image builds have separate resource limits. Activated upgrades are applied automatically to existing applications.",
   "com_codechat_member_shared_balance": "Chat and Coding share model balance",
   "com_codechat_member_trial_received": "Included at registration",
   "com_codechat_member_active": "Current plan",

@@ -13,6 +13,8 @@ export type CapacityPlan = {
   name: string;
   storage_gib: number;
   application_limit: number;
+  application_cpu_millicores?: number;
+  application_memory_mib?: number;
   amount_minor: number;
   currency: string;
   model_credit_cny_minor?: number;
@@ -62,6 +64,8 @@ export type CapacityAccount = {
   trial?: {
     storage_gib: number;
     application_limit: number;
+    application_cpu_millicores?: number;
+    application_memory_mib?: number;
     estimated_tokens: number | null;
     reference_model: string | null;
   };

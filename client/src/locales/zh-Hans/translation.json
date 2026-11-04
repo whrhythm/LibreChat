@@ -1630,6 +1630,8 @@
   "com_codechat_member_gift": "注册赠送 1 美元模型额度，仅一次",
   "com_codechat_member_plan_disk": "{{count}} GiB 个人磁盘",
   "com_codechat_member_plan_apps": "最多发布 {{count}} 个应用",
+  "com_codechat_member_compute": "单应用上限：{{cpu}} 核 CPU · {{memory}} MiB 内存",
+  "com_codechat_member_compute_help": "以上为每个发布应用的上限，不是所有应用合计。CPU 达到上限会限速，内存超限可能导致应用重启；编程与镜像构建另有资源限制。套餐升级生效后，已有应用会自动更新规格。",
   "com_codechat_member_shared_balance": "聊天与编程共用模型额度",
   "com_codechat_member_trial_received": "注册即享",
   "com_codechat_member_active": "当前套餐",
