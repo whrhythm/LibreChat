@@ -75,7 +75,6 @@ import usePastedTextEdit from '~/hooks/Files/usePastedTextEdit';
 import useAskAnswerMode from '~/hooks/Input/useAskAnswerMode';
 import AskUserQuestionPopover from './AskUserQuestionPopover';
 import useComposerItems from '~/hooks/Input/useComposerItems';
-import Capabilities from '~/components/CodeChat/Capabilities';
 import useAttachTarget from '~/hooks/Input/useAttachTarget';
 import { chatDirectionAtom } from '~/store/chatDirection';
 import ProjectLandingChip from '../ProjectLandingChip';
@@ -1026,16 +1025,6 @@ const ChatForm = memo(function ChatForm({
                         />
                       )}
                     </div>
-                  }
-                  capabilitySlot={
-                    index === 0 ? (
-                      <Capabilities
-                        config={startupConfig?.codechat?.capabilities}
-                        conversation={conversation}
-                        setConversation={setConversation}
-                        disabled={isSubmitting || showStopButton || routePending}
-                      />
-                    ) : undefined
                   }
                   actionSlot={actionSlot}
                   hasAddedConversation={addedConvo != null}

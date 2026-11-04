@@ -1,13 +1,15 @@
 import { useMemo } from 'react';
 import { useRecoilValue } from 'recoil';
-import { BarChart3, MessagesSquare } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserKeyQuery } from 'librechat-data-provider/react-query';
+import { BarChart3, FolderKanban, MessagesSquare } from 'lucide-react';
 import { getConfigDefaults, getEndpointField } from 'librechat-data-provider';
 import type { TEndpointsConfig } from 'librechat-data-provider';
 import type { NavLink } from '~/common';
 import { useGetEndpointsQuery, useGetStartupConfig, useInsightsAccessQuery } from '~/data-provider';
 import ConversationsSection from '~/components/UnifiedSidebar/ConversationsSection';
+import { isCodeChatEnabled } from '~/components/CodeChat/config';
+import PersonalSpacePanel from '~/components/CodeChat/Space';
 import useSideNavLinks from '~/hooks/Nav/useSideNavLinks';
 import { useAuthContext } from '~/hooks';
 import store from '~/store';
@@ -71,11 +73,23 @@ export default function useUnifiedSidebarLinks() {
       id: 'conversations',
       Component: ConversationsSection,
     };
+    const workspace: NavLink[] =
+      user?.id && isCodeChatEnabled()
+        ? [
+            {
+              id: 'personal-space',
+              title: 'com_codechat_workspace',
+              label: '',
+              icon: FolderKanban,
+              Component: PersonalSpacePanel,
+            },
+          ]
+        : [];
     if (
       !insightsFeatureEnabled ||
       (!isInsightsRoute && !isInsightsAccessLoading && insightsAccess?.access !== true)
     ) {
-      return [conversationLink, ...sideNavLinks];
+      return [conversationLink, ...workspace, ...sideNavLinks];
     }
 
     const insightsLink: NavLink = {
@@ -94,7 +108,7 @@ export default function useUnifiedSidebarLinks() {
     const nextLinks = [...sideNavLinks];
     nextLinks.splice(mcpIndex >= 0 ? mcpIndex + 1 : nextLinks.length, 0, insightsLink);
 
-    return [conversationLink, ...nextLinks];
+    return [conversationLink, ...workspace, ...nextLinks];
   }, [
     insightsAccess?.access,
     insightsFeatureEnabled,
@@ -103,6 +117,7 @@ export default function useUnifiedSidebarLinks() {
     location.pathname,
     navigate,
     sideNavLinks,
+    user?.id,
   ]);
 
   return links;

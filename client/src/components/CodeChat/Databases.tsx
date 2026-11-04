@@ -40,10 +40,12 @@ export default function Databases({
   path,
   onPathChange,
   enabled,
+  scoped = false,
 }: {
   path: string;
   onPathChange: (path: string) => void;
   enabled: boolean;
+  scoped?: boolean;
 }) {
   const { user, token } = useAuthContext();
   const localize = useLocalize();
@@ -63,7 +65,7 @@ export default function Databases({
   const root = useQuery<{ entries: WorkspaceEntry[] }>({
     queryKey: [QueryKeys.codechatFiles, user?.id, ''],
     queryFn: async () => (await personalFileRequest(token!, 'directories', 'GET', '')).json(),
-    enabled: active,
+    enabled: active && !scoped,
     retry: false,
     refetchInterval: active ? 5000 : false,
   });
@@ -118,20 +120,24 @@ export default function Databases({
           </p>
           <p>{localize('com_codechat_db_quota_note')}</p>
           {!data.enabled && <p>{localize('com_codechat_db_disabled')}</p>}
-          <label htmlFor="codechat-db-project">{localize('com_codechat_db_project')}</label>
-          <select
-            id="codechat-db-project"
-            value={path}
-            onChange={(event) => onPathChange(event.target.value)}
-            className="border-border-light bg-surface-primary text-text-primary w-full min-w-0 rounded border p-2"
-          >
-            <option value="">{localize('com_codechat_choose_project')}</option>
-            {projects.map((project) => (
-              <option key={project} value={project}>
-                {project}
-              </option>
-            ))}
-          </select>
+          {!scoped && (
+            <>
+              <label htmlFor="codechat-db-project">{localize('com_codechat_db_project')}</label>
+              <select
+                id="codechat-db-project"
+                value={path}
+                onChange={(event) => onPathChange(event.target.value)}
+                className="border-border-light bg-surface-primary text-text-primary w-full min-w-0 rounded border p-2"
+              >
+                <option value="">{localize('com_codechat_choose_project')}</option>
+                {projects.map((project) => (
+                  <option key={project} value={project}>
+                    {project}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <Button
             variant="outline"
             disabled={!path || !data.enabled || !!existing || mutation.isLoading || root.isError}
@@ -140,7 +146,7 @@ export default function Databases({
             {localize('com_codechat_db_create')}
           </Button>
           {data.databases
-            .filter((row) => row.status !== 'deleted')
+            .filter((row) => row.status !== 'deleted' && (!scoped || row.project_path === path))
             .map((row) => (
               <article
                 key={row.id}

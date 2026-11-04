@@ -1,6 +1,5 @@
 import { atom, useAtom } from 'jotai';
 import { atomFamily } from 'jotai/utils';
-import { FolderKanban } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { personalFileRequest, QueryKeys } from 'librechat-data-provider';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@librechat/client';
@@ -11,7 +10,6 @@ import ApplicationNotice from './ApplicationNotice';
 import Applications from './Applications';
 import PersonalFiles from './Files';
 import Databases from './Databases';
-import Capacity from './Capacity';
 
 /** Feature-owned navigation, scoped to the signed-in identity. */
 const navigation = atomFamily((_owner: string) => atom({ pane: 'files', path: '' }));
@@ -25,6 +23,7 @@ function ApplicationProjects({
   onPathChange: (path: string) => void;
   enabled: boolean;
 }) {
+  const { data: startup } = useGetStartupConfig();
   const { user, token } = useAuthContext();
   const localize = useLocalize();
   const space = useQuery<PersonalSpace>({
@@ -87,87 +86,54 @@ function ApplicationProjects({
           ) === true
         }
       />
+      {ready && path && startup?.codechat?.databases?.enabled && (
+        <details className="border-border-light rounded border p-2">
+          <summary className="cursor-pointer">{localize('com_codechat_db_tab')}</summary>
+          <Databases path={path} onPathChange={onPathChange} enabled={enabled} scoped />
+        </details>
+      )}
     </div>
   );
 }
 
-export default function PersonalSpacePanel({
-  expanded,
-  onExpandedChange,
-}: {
-  expanded: boolean;
-  onExpandedChange: (expanded: boolean) => void;
-}) {
+export default function PersonalSpacePanel() {
   const { user } = useAuthContext();
-  const { data: startup } = useGetStartupConfig();
   const localize = useLocalize();
   const [view, setView] = useAtom(navigation(user?.id ?? 'anonymous'));
   const setPath = (path: string) => setView((current) => ({ ...current, path }));
   return (
-    <div className="mx-3">
+    <section
+      id="codechat-space-panel"
+      aria-label={localize('com_codechat_workspace')}
+      className="px-2 pt-3 pb-3 text-sm"
+    >
+      <h2 className="text-text-primary px-2 pb-2 text-sm font-semibold">
+        {localize('com_codechat_workspace')}
+      </h2>
       <ApplicationNotice
         onOpen={() => {
           setView((current) => ({ ...current, pane: 'apps' }));
-          onExpandedChange(true);
         }}
       />
-      <button
-        type="button"
-        aria-expanded={expanded}
-        aria-controls="codechat-space-panel"
-        className="text-text-primary hover:bg-surface-hover flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm"
-        onClick={() => onExpandedChange(!expanded)}
+      <Tabs
+        value={view.pane}
+        onValueChange={(pane) => setView((current) => ({ ...current, pane }))}
       >
-        <FolderKanban aria-hidden="true" className="h-4 w-4" />
-        {localize('com_codechat_workspace')}
-      </button>
-      <div
-        id="codechat-space-panel"
-        hidden={!expanded}
-        className="text-text-secondary px-3 pb-3 text-sm"
-      >
-        <Capacity expanded={expanded} />
-        <Tabs
-          value={view.pane}
-          onValueChange={(pane) => setView((current) => ({ ...current, pane }))}
-        >
-          <TabsList aria-label={localize('com_codechat_workspace')}>
-            <TabsTrigger value="files">{localize('com_codechat_files_tab')}</TabsTrigger>
-            <TabsTrigger value="apps">{localize('com_codechat_apps')}</TabsTrigger>
-            {startup?.codechat?.databases?.enabled && (
-              <TabsTrigger value="databases">{localize('com_codechat_db_tab')}</TabsTrigger>
-            )}
-          </TabsList>
-          <TabsContent value="files" forceMount hidden={view.pane !== 'files'} size="flush">
-            <PersonalFiles
-              expanded={expanded && view.pane === 'files'}
-              path={view.path}
-              onPathChange={setPath}
-            />
-          </TabsContent>
-          {startup?.codechat?.databases?.enabled && (
-            <TabsContent
-              value="databases"
-              forceMount
-              hidden={view.pane !== 'databases'}
-              size="flush"
-            >
-              <Databases
-                path={view.path}
-                onPathChange={setPath}
-                enabled={expanded && view.pane === 'databases'}
-              />
-            </TabsContent>
-          )}
-          <TabsContent value="apps" forceMount hidden={view.pane !== 'apps'} size="flush">
-            <ApplicationProjects
-              enabled={expanded && view.pane === 'apps'}
-              path={view.path}
-              onPathChange={setPath}
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
+        <TabsList aria-label={localize('com_codechat_workspace')}>
+          <TabsTrigger value="files">{localize('com_codechat_files_tab')}</TabsTrigger>
+          <TabsTrigger value="apps">{localize('com_codechat_apps')}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="files" forceMount hidden={view.pane !== 'files'} size="flush">
+          <PersonalFiles expanded={view.pane === 'files'} path={view.path} onPathChange={setPath} />
+        </TabsContent>
+        <TabsContent value="apps" forceMount hidden={view.pane !== 'apps'} size="flush">
+          <ApplicationProjects
+            enabled={view.pane === 'apps'}
+            path={view.path.split('/')[0]}
+            onPathChange={setPath}
+          />
+        </TabsContent>
+      </Tabs>
+    </section>
   );
 }

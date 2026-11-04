@@ -44,6 +44,11 @@ export type PersonalApplication = {
     error_code?: string;
   } | null;
   previous_url?: string | null;
+  database?: {
+    reserved_bytes: number;
+    used_bytes: number | null;
+    observed_at: string | null;
+  } | null;
   observation: {
     observed_at: string;
     logs: string;

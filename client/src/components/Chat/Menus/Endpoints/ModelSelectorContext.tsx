@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
+import { useAtomValue } from 'jotai';
 import debounce from 'lodash/debounce';
+import { useRecoilState } from 'recoil';
+import { useParams } from 'react-router-dom';
+import { showStopButtonByIndex, useIsSubmitting } from '@librechat/chat/react';
 import {
+  Constants,
   EModelEndpoint,
   PermissionBits,
   isAgentsEndpoint,
@@ -18,8 +23,10 @@ import {
 import { useAgentsMapContext, useAssistantsMapContext, useLiveAnnouncer } from '~/Providers';
 import { useGetEndpointsQuery, useListAgentsQuery } from '~/data-provider';
 import { useModelSelectorChatContext } from './ModelSelectorChatContext';
+import useWorkspaceCapability from '~/components/CodeChat/Capabilities';
 import useSelectMention from '~/hooks/Input/useSelectMention';
 import { filterItems } from './utils';
+import store from '~/store';
 
 type ModelSelectorContextType = {
   // State
@@ -42,6 +49,7 @@ type ModelSelectorContextType = {
   handleSelectSpec: (spec: t.TModelSpec) => void;
   handleSelectEndpoint: (endpoint: Endpoint) => void;
   handleSelectModel: (endpoint: Endpoint, model: string) => void;
+  workspace: ReturnType<typeof useWorkspaceCapability>;
 } & ReturnType<typeof useKeyDialog>;
 
 const ModelSelectorContext = createContext<ModelSelectorContextType | undefined>(undefined);
@@ -67,6 +75,21 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
     useModelSelectorChatContext();
   const localize = useLocalize();
   const { announcePolite } = useLiveAnnouncer();
+  const [conversation, setConversation] = useRecoilState(store.conversationByIndex(0));
+  const { conversationId } = useParams();
+  const submitting = useIsSubmitting(0);
+  const stopping = useAtomValue(showStopButtonByIndex(0));
+  const workspace = useWorkspaceCapability({
+    config: startupConfig?.codechat?.capabilities,
+    conversation,
+    setConversation,
+    disabled:
+      submitting ||
+      stopping ||
+      (!!conversationId &&
+        conversationId !== Constants.NEW_CONVO &&
+        conversationId !== conversation?.conversationId),
+  });
   const modelSpecs = useMemo(() => {
     /** Labels are normalized at the startup-config query boundary. */
     const specs = startupConfig?.modelSpecs?.list ?? [];
@@ -111,12 +134,27 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
     { select: selectAgents },
   );
 
-  const { mappedEndpoints, endpointRequiresUserKey } = useEndpoints({
+  const { mappedEndpoints: endpoints, endpointRequiresUserKey } = useEndpoints({
     agents,
     assistantsMap,
     startupConfig,
     endpointsConfig,
   });
+  const mappedEndpoints = useMemo(
+    () =>
+      endpoints.map((item) =>
+        workspace.endpoint &&
+        workspace.endpoint === item.value &&
+        workspace.allowedModels &&
+        item.models
+          ? {
+              ...item,
+              models: item.models.filter((model) => workspace.allowedModels?.includes(model.name)),
+            }
+          : item,
+      ),
+    [endpoints, workspace.endpoint, workspace.allowedModels],
+  );
 
   const getModelDisplayName = useCallback(
     (endpoint: Endpoint, model: string): string => {
@@ -238,7 +276,9 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
 
   const handleSelectModel = useCallback(
     (endpoint: Endpoint, model: string) => {
-      if (isAgentsEndpoint(endpoint.value)) {
+      if (workspace.endpoint && endpoint.value === workspace.endpoint) {
+        if (!workspace.choose('chat', model)) return;
+      } else if (isAgentsEndpoint(endpoint.value)) {
         onSelectEndpoint?.(endpoint.value, {
           agent_id: model,
           model: agentsMap?.[model]?.model ?? '',
@@ -261,7 +301,15 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
       const announcement = localize('com_ui_model_selected', { 0: modelDisplayName });
       announcePolite({ message: announcement, isStatus: true });
     },
-    [agentsMap, announcePolite, assistantsMap, getModelDisplayName, localize, onSelectEndpoint],
+    [
+      agentsMap,
+      announcePolite,
+      assistantsMap,
+      getModelDisplayName,
+      localize,
+      onSelectEndpoint,
+      workspace,
+    ],
   );
 
   const value = useMemo(
@@ -277,6 +325,7 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
       endpointsConfig,
       handleSelectSpec,
       handleSelectModel,
+      workspace,
       setSelectedValues,
       handleSelectEndpoint,
       setEndpointSearchValue,
@@ -296,6 +345,7 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
       endpointsConfig,
       handleSelectSpec,
       handleSelectModel,
+      workspace,
       setSelectedValues,
       handleSelectEndpoint,
       setEndpointSearchValue,

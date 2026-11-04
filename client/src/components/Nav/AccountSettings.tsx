@@ -1,12 +1,13 @@
 import { useState, memo, useRef } from 'react';
-import { useSetAtom } from 'jotai';
 import { useSetRecoilState } from 'recoil';
 import * as Menu from '@ariakit/react/menu';
+import { atom, useAtom, useSetAtom } from 'jotai';
 import { GearIcon, Avatar } from '@librechat/client';
 import {
   Archive,
   ChevronRight,
   CircleHelp,
+  Coins,
   Files,
   Keyboard,
   LifeBuoy,
@@ -18,11 +19,14 @@ import { ArchivedChatsModal } from '~/components/Nav/SettingsTabs/General/Archiv
 import { filesDialogTriggerAtom, showFilesDialogAtom } from '~/store/filesDialog';
 import useDirection, { inlineSide } from '~/hooks/Nav/useDirection';
 import { useGetStartupConfig } from '~/data-provider';
+import Capacity from '~/components/CodeChat/Capacity';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { openInNewTab, policyUrls } from '~/utils';
 import { settingsOpenAtom } from './Settings';
 import { useLocalize } from '~/hooks';
 import store from '~/store';
+
+const capacityOpenAtom = atom(false);
 
 function HelpSubmenu({
   helpAndFaqURL,
@@ -108,6 +112,7 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
   const setFilesDialogTrigger = useSetAtom(filesDialogTriggerAtom);
   const setShowShortcutsDialog = useSetRecoilState(store.showShortcutsDialog);
   const [showArchived, setShowArchived] = useState(false);
+  const [showCapacity, setShowCapacity] = useAtom(capacityOpenAtom);
   const accountSettingsButtonRef = useRef<HTMLButtonElement>(null);
   /** The collapsed rail opens the menu beside it, toward the content. */
   const railSide = inlineSide(useDirection(), 'end');
@@ -174,6 +179,12 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
           <Files className="icon-md" aria-hidden="true" />
           {localize('com_nav_my_files')}
         </Menu.MenuItem>
+        {startupConfig?.codechat?.capacity?.enabled && (
+          <Menu.MenuItem onClick={() => setShowCapacity(true)} className="select-item text-sm">
+            <Coins className="icon-md" aria-hidden="true" />
+            {localize('com_codechat_capacity_title')}
+          </Menu.MenuItem>
+        )}
         <Menu.MenuItem
           onClick={() => setShowSettings(true)}
           className="select-item text-sm"
@@ -193,6 +204,14 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
           open={showArchived}
           onOpenChange={setShowArchived}
           triggerRef={accountSettingsButtonRef}
+        />
+      )}
+      {showCapacity && (
+        <Capacity
+          expanded={false}
+          visible
+          onVisibleChange={setShowCapacity}
+          returnFocus={accountSettingsButtonRef}
         />
       )}
     </Menu.MenuProvider>

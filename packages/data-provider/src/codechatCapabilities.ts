@@ -92,6 +92,7 @@ export function withCodeChatCapability(
     codechatChatModel: capability === 'chat' ? chosen : chatModel,
     codechatCodingModel: capability === 'coding' ? chosen : codingModel,
     agent_id: undefined,
+    assistant_id: undefined,
     maxContextTokens: config.maxContextTokens,
     spec: undefined,
   };

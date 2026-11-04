@@ -11,8 +11,8 @@ import {
 import { ModelSelectorProvider, useModelSelectorContext } from './ModelSelectorContext';
 import { useShortcutAriaKey, useShortcutHint } from '~/hooks/useKeyboardShortcuts';
 import { ModelSelectorChatProvider } from './ModelSelectorChatContext';
+import { CustomMenu as Menu, CustomMenuItem } from './CustomMenu';
 import { getSelectedIcon, getDisplayValue } from './utils';
-import { CustomMenu as Menu } from './CustomMenu';
 import DialogManager from './DialogManager';
 import { useLocalize } from '~/hooks';
 
@@ -40,6 +40,7 @@ function ModelSelectorContent() {
     keyDialogOpen,
     onOpenChange,
     keyDialogEndpoint,
+    workspace,
   } = useModelSelectorContext();
 
   const selectedIcon = useMemo(
@@ -72,6 +73,7 @@ function ModelSelectorContent() {
       render={
         <button
           data-testid="model-selector-button"
+          disabled={!!workspace.endpoint && workspace.disabled}
           aria-keyshortcuts={modelSelectorAriaKey}
           className="border-border-chrome bg-presentation text-text-primary hover:bg-surface-active-alt rounded-theme-control my-1 flex h-9 max-w-full items-center gap-2 border px-3 py-2 text-sm"
           aria-label={localize('com_ui_select_model')}
@@ -81,7 +83,9 @@ function ModelSelectorContent() {
               {selectedIcon}
             </div>
           )}
-          <span className="truncate text-start">{selectedDisplayValue}</span>
+          <span className="truncate text-start">
+            {workspace.isCoding ? localize('com_codechat_openhands') : selectedDisplayValue}
+          </span>
         </button>
       }
     />
@@ -103,6 +107,18 @@ function ModelSelectorContent() {
         comboboxLabel={localize('com_endpoint_search_models')}
         trigger={trigger}
       >
+        {workspace.endpoint &&
+          (!searchValue ||
+            localize('com_codechat_openhands')
+              .toLowerCase()
+              .includes(searchValue.toLowerCase().trim())) && (
+            <CustomMenuItem
+              disabled={workspace.disabled}
+              onClick={() => workspace.choose('coding')}
+            >
+              {localize('com_codechat_openhands')}
+            </CustomMenuItem>
+          )}
         {searchResults ? (
           renderSearchResults(searchResults, localize, searchValue)
         ) : (

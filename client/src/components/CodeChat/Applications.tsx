@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { personalApplicationRequest, QueryKeys } from 'librechat-data-provider';
 import type { PersonalApplication } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
+import { storageSize } from './storage';
 
 const statusKeys = {
   queued: 'com_codechat_app_queued',
@@ -155,6 +156,27 @@ export default function Applications({
                 <a className="text-sm underline" href={app.url} target="_blank" rel="noreferrer">
                   {localize('com_codechat_app_open')}
                 </a>
+              )}
+              {app.database && (
+                <div className="text-text-secondary text-xs">
+                  <p>
+                    <strong className="me-1">{localize('com_codechat_db_engine')}</strong>
+                    {localize('com_codechat_db_usage', {
+                      used:
+                        app.database.used_bytes == null
+                          ? localize('com_codechat_db_unknown')
+                          : storageSize(app.database.used_bytes),
+                      reserved: storageSize(app.database.reserved_bytes),
+                    })}
+                  </p>
+                  {app.database.observed_at && (
+                    <time dateTime={app.database.observed_at}>
+                      {localize('com_codechat_db_observed', {
+                        time: new Date(app.database.observed_at).toLocaleString(),
+                      })}
+                    </time>
+                  )}
+                </div>
               )}
               {metrics && (
                 <p className="text-xs">

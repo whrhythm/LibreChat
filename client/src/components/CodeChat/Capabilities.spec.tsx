@@ -1,3 +1,4 @@
+/* eslint-disable i18next/no-literal-string -- Synthetic route controls use test labels. */
 import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -9,7 +10,7 @@ import {
   Constants,
 } from 'librechat-data-provider';
 import type { TConversation } from 'librechat-data-provider';
-import Capabilities from './Capabilities';
+import useWorkspaceCapability from './Capabilities';
 
 jest.mock('~/hooks', () => ({
   useLocalize: () => (key: string) => key,
@@ -37,14 +38,23 @@ const record: TConversation = {
 function mount(disabled = false, initial: TConversation = record) {
   function Host() {
     const [conversation, setConversation] = useState<TConversation | null>(initial);
+    const capability = useWorkspaceCapability({ config, conversation, setConversation, disabled });
     return (
       <>
-        <Capabilities
-          config={config}
-          conversation={conversation}
-          setConversation={setConversation}
-          disabled={disabled}
-        />
+        {!conversation?.agent_id && (
+          <div role="group" aria-label="com_codechat_capabilities">
+            <button disabled={capability.disabled} onClick={() => capability.choose('coding')}>
+              com_codechat_capability_coding
+            </button>
+            <button
+              disabled={capability.disabled}
+              aria-pressed={!capability.isCoding}
+              onClick={() => capability.choose('chat')}
+            >
+              com_codechat_capability_chat
+            </button>
+          </div>
+        )}
         <output data-testid="conversation-record">{JSON.stringify(conversation)}</output>
       </>
     );

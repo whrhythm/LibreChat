@@ -43,13 +43,25 @@ const objectStatusKeys = {
   requires_review: 'com_codechat_objects_review',
 } as const;
 
-export default function Capacity({ expanded }: { expanded: boolean }) {
+export default function Capacity({
+  expanded,
+  visible,
+  onVisibleChange,
+  returnFocus,
+}: {
+  expanded: boolean;
+  visible?: boolean;
+  onVisibleChange?: (value: boolean) => void;
+  returnFocus?: React.RefObject<HTMLButtonElement | null>;
+}) {
   const { user, token } = useAuthContext();
   const { data: startup } = useGetStartupConfig();
   const localize = useLocalize();
   const client = useQueryClient();
   const openAtom = useMemo(() => atom(false), []);
-  const [open, setOpen] = useAtom(openAtom);
+  const [localOpen, setLocalOpen] = useAtom(openAtom);
+  const open = visible ?? localOpen;
+  const setOpen = onVisibleChange ?? setLocalOpen;
   const trigger = useRef<HTMLButtonElement>(null);
   const keys = useRef(new Map<string, string>());
   const enabled = startup?.codechat?.capacity?.enabled === true;
@@ -143,12 +155,14 @@ export default function Capacity({ expanded }: { expanded: boolean }) {
   }
   return (
     <>
-      <Button ref={trigger} variant="ghost" onClick={() => setOpen(true)}>
-        <Coins className="mr-2 h-4 w-4" aria-hidden="true" />
-        {localize('com_codechat_capacity_title')}
-      </Button>
+      {visible === undefined && (
+        <Button ref={trigger} variant="ghost" onClick={() => setOpen(true)}>
+          <Coins className="mr-2 h-4 w-4" aria-hidden="true" />
+          {localize('com_codechat_capacity_title')}
+        </Button>
+      )}
       {open && (
-        <OGDialog open onOpenChange={setOpen} triggerRef={trigger}>
+        <OGDialog open onOpenChange={setOpen} triggerRef={returnFocus ?? trigger}>
           <OGDialogContent className="max-w-5xl">
             <OGDialogTitle>{localize('com_codechat_capacity_title')}</OGDialogTitle>
             <OGDialogDescription>

@@ -28,9 +28,7 @@ import ProjectsSection from '~/components/Conversations/ProjectsSection';
 import ChatFilterMenu from '~/components/Conversations/ChatFilterMenu';
 import PinnedSection from '~/components/Conversations/PinnedSection';
 import ProjectNamesProvider from '~/Providers/ProjectNamesContext';
-import { isCodeChatEnabled } from '~/components/CodeChat/config';
 import useDrawerViewport from '~/hooks/Nav/useDrawerViewport';
-import PersonalSpacePanel from '~/components/CodeChat/Space';
 import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
 import { Conversations } from '~/components/Conversations';
 import { cn, collectPinnedConversations } from '~/utils';
@@ -47,7 +45,6 @@ const ConversationsSection = memo(() => {
   useTitleGeneration(isAuthenticated);
 
   const [isChatsExpanded, setIsChatsExpanded] = useLocalStorage('chatsExpanded', true);
-  const [isSpaceExpanded, setIsSpaceExpanded] = useState(false);
 
   const tags = useAtomValue(chatFilterTagsAtom);
   const sort = useAtomValue(chatSortAtom);
@@ -243,12 +240,6 @@ const ConversationsSection = memo(() => {
             {/* `min-h-full` keeps the sections filling a tall sidebar, so the chats
             list still claims the space below them when there is little to show. */}
             <div ref={setScrollContent} className="flex min-h-full flex-col">
-              {!search.query && isAuthenticated && isCodeChatEnabled() && (
-                <PersonalSpacePanel
-                  expanded={isSpaceExpanded}
-                  onExpandedChange={setIsSpaceExpanded}
-                />
-              )}
               {!search.query && (
                 <ProjectsSection toggleNav={toggleNav} isAuthenticated={isAuthenticated} />
               )}

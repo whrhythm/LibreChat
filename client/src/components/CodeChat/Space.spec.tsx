@@ -51,7 +51,7 @@ it('keeps file navigation while separating applications and selects the browsed 
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <Space expanded onExpandedChange={jest.fn()} />
+      <Space />
     </QueryClientProvider>,
   );
   expect(screen.queryByText(/Applications at/)).not.toBeVisible();
@@ -61,6 +61,7 @@ it('keeps file navigation while separating applications and selects the browsed 
     ctrlKey: false,
   });
   await screen.findByText('Applications at my-project publish available');
+  expect(screen.queryByRole('tab', { name: 'com_codechat_db_tab' })).not.toBeInTheDocument();
   expect(screen.getByLabelText('com_codechat_publish_project')).toHaveValue('my-project');
   expect(screen.getByText('Files at my-project')).not.toBeVisible();
   fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_codechat_files_tab' }), {

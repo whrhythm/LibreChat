@@ -72,18 +72,11 @@ describe('personal files in the chat sidebar', () => {
         json: async () =>
           endpoint === 'ensure'
             ? { status: 'ready', storage_gib: 2 }
-            : endpoint === 'usage'
-              ? {
-                  used_bytes: 50,
-                  quota_bytes: 2048,
-                  physical_available_bytes: 999999999,
-                  observed_at: '2026-11-02T00:00:00Z',
-                }
-              : {
-                  entries: [
-                    { name: 'hello.py', kind: 'file', size: 14, etag: '"' + 'a'.repeat(64) + '"' },
-                  ],
-                },
+            : {
+                entries: [
+                  { name: 'hello.py', kind: 'file', size: 14, etag: '"' + 'a'.repeat(64) + '"' },
+                ],
+              },
       } as Response;
     });
   }
@@ -91,7 +84,7 @@ describe('personal files in the chat sidebar', () => {
   it('previews file content in a dialog instead of downloading or replacing the chat', async () => {
     mockFile();
     mount();
-    fireEvent.click(await screen.findByRole('button', { name: 'com_codechat_file_preview' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'hello.py' }));
     expect(await screen.findByText('print("hello")')).toBeInTheDocument();
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(request).toHaveBeenCalledWith('synthetic-token', 'file', 'GET', 'hello.py');
@@ -100,7 +93,8 @@ describe('personal files in the chat sidebar', () => {
   it('guards unsaved edits and saves with the version that was actually opened', async () => {
     mockFile();
     mount();
-    fireEvent.click(await screen.findByRole('button', { name: 'com_codechat_file_edit' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'com_codechat_file_actions' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'com_codechat_file_edit' }));
     const editor = await screen.findByRole('textbox', { name: 'com_codechat_file_content' });
     await waitFor(() => expect(editor).toHaveValue('print("hello")'));
     fireEvent.change(editor, { target: { value: 'print("edited")' } });
@@ -123,7 +117,8 @@ describe('personal files in the chat sidebar', () => {
   it('requires confirmation before deleting an uploaded or generated file', async () => {
     mockFile();
     mount();
-    fireEvent.click(await screen.findByRole('button', { name: 'com_codechat_file_delete' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'com_codechat_file_actions' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'com_codechat_file_delete' }));
     expect(request.mock.calls.some((call) => call[2] === 'DELETE')).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'com_codechat_file_delete_confirm' }));
     await waitFor(() =>
@@ -147,5 +142,34 @@ describe('personal files in the chat sidebar', () => {
     expect(screen.getByRole('status')).toHaveTextContent('com_codechat_files_preparing');
     expect(screen.queryByRole('button', { name: 'com_ui_upload_files' })).not.toBeInTheDocument();
     expect(request.mock.calls.every((call) => call[1] === 'ensure')).toBe(true);
+  });
+
+  it('lazily expands a folder without replacing its siblings', async () => {
+    request.mockImplementation(
+      async (_token, endpoint, _method, path) =>
+        ({
+          json: async () =>
+            endpoint === 'ensure'
+              ? { status: 'ready', storage_gib: 2 }
+              : {
+                  entries:
+                    path === 'src'
+                      ? [{ name: 'main.py', kind: 'file' }]
+                      : [
+                          { name: 'src', kind: 'directory' },
+                          { name: 'README.md', kind: 'file' },
+                        ],
+                },
+        }) as Response,
+    );
+    mount();
+    const folder = await screen.findByRole('button', { name: 'src' });
+    expect(folder).toHaveAttribute('aria-expanded', 'false');
+    expect(request).not.toHaveBeenCalledWith('synthetic-token', 'directories', 'GET', 'src');
+    fireEvent.click(folder);
+    await screen.findByRole('button', { name: 'main.py' });
+    expect(screen.getByRole('button', { name: 'README.md' })).toBeVisible();
+    fireEvent.click(folder);
+    expect(screen.queryByRole('button', { name: 'main.py' })).not.toBeInTheDocument();
   });
 });

@@ -144,6 +144,7 @@ function ExpandedPanel({
   const { active, setActive } = useActivePanel();
   const effectiveActive = resolveActivePanel(active, links);
   const isInsightsRoute = location.pathname.startsWith('/insights');
+  const workspace = links.find((link) => link.id === 'personal-space');
 
   const toggleLabel = expanded ? 'com_nav_close_sidebar' : 'com_nav_open_sidebar';
   const toggleClick = expanded ? onCollapse : onExpand;
@@ -171,27 +172,40 @@ function ExpandedPanel({
           </Button>
         }
       />
+      {workspace && (
+        <NavIconButton
+          link={workspace}
+          isActive={!isInsightsRoute && workspace.id === effectiveActive}
+          expanded={expanded}
+          setActive={setActive}
+          onExpand={onExpand}
+          onCollapse={onCollapse}
+          onLeaveInsights={isInsightsRoute ? onLeaveInsights : undefined}
+        />
+      )}
       <NewChatButton setActive={setActive} switchToHistory={switchToHistory} />
       <AgentMarketplaceButton />
       <div className="border-border-inset mx-2 border-b" />
       <div className="flex flex-col gap-1 overflow-y-auto">
-        {links.map((link) => (
-          <NavIconButton
-            key={link.id}
-            link={link}
-            isActive={
-              link.id === 'insights'
-                ? isInsightsRoute
-                : !isInsightsRoute && link.id === effectiveActive
-            }
-            expanded={expanded ?? true}
-            setActive={setActive}
-            onExpand={onExpand}
-            onCollapse={onCollapse}
-            onNavigate={onNavigate}
-            onLeaveInsights={isInsightsRoute ? onLeaveInsights : undefined}
-          />
-        ))}
+        {links
+          .filter((link) => link.id !== 'personal-space')
+          .map((link) => (
+            <NavIconButton
+              key={link.id}
+              link={link}
+              isActive={
+                link.id === 'insights'
+                  ? isInsightsRoute
+                  : !isInsightsRoute && link.id === effectiveActive
+              }
+              expanded={expanded ?? true}
+              setActive={setActive}
+              onExpand={onExpand}
+              onCollapse={onCollapse}
+              onNavigate={onNavigate}
+              onLeaveInsights={isInsightsRoute ? onLeaveInsights : undefined}
+            />
+          ))}
       </div>
 
       <div className="mt-auto">

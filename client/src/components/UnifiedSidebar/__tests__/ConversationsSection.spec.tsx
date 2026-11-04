@@ -19,16 +19,6 @@ import type { SearchState } from '~/store/search';
 const streamTickAtom = atom<number>({ key: 'conversations-section-stream-tick', default: 0 });
 
 const TEST_TIMEOUT = 30_000;
-const mockCodeChatEnabled = jest.fn(() => true);
-
-jest.mock('~/components/CodeChat/config', () => ({
-  isCodeChatEnabled: () => mockCodeChatEnabled(),
-}));
-jest.mock('~/components/CodeChat/Files', () => ({
-  __esModule: true,
-  default: () => <div role="status">personal-files-panel</div>,
-}));
-
 const mockUseFavorites = jest.fn(() => ({
   favorites: [] as unknown[],
   reorderFavorites: jest.fn(),
@@ -254,36 +244,13 @@ const renderSection = (searchQuery = '') =>
   );
 
 describe('ConversationsSection section order', () => {
-  it('expands My space above Projects without navigating away from chat', async () => {
+  it('keeps the workspace destination outside the conversation history', () => {
     renderSection();
-    const space = screen.getByRole('button', { name: 'com_codechat_workspace' });
-    const projects = screen.getByTestId('projects-stub');
-    expect(space.compareDocumentPosition(projects) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const currentPath = window.location.pathname;
-    expect(space).toHaveAttribute('aria-expanded', 'false');
-    fireEvent.click(space);
-    expect(window.location.pathname).toBe(currentPath);
-    expect(space).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('status')).toHaveTextContent('personal-files-panel');
-    fireEvent.click(space);
-    expect(space).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByText('personal-files-panel')).not.toBeVisible();
-  });
-
-  it('hides My space when the feature is disabled or searching', () => {
-    mockCodeChatEnabled.mockReturnValue(false);
-    const { unmount } = renderSection();
     expect(
       screen.queryByRole('button', { name: 'com_codechat_workspace' }),
     ).not.toBeInTheDocument();
-    unmount();
-    mockCodeChatEnabled.mockReturnValue(true);
-    renderSection('search');
-    expect(
-      screen.queryByRole('button', { name: 'com_codechat_workspace' }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByTestId('projects-stub')).toBeInTheDocument();
   });
-
   it('renders Pinned between Projects and Chats', async () => {
     const { getByTestId } = renderSection();
     await settleRenders();

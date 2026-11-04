@@ -203,7 +203,6 @@ interface BarProps {
   hasAddedConversation: boolean;
   /** Code approval and review controls supplied by the composer shell. */
   approvalSlot?: React.ReactNode;
-  capabilitySlot?: React.ReactNode;
   /** Send, stop or the during-run split button, decided by the caller. */
   actionSlot: React.ReactNode;
   /** Owned by `ChatForm`, which also paints the trace over the textarea. */
@@ -236,7 +235,6 @@ function Bar({
   speechDisabled,
   hasAddedConversation,
   approvalSlot,
-  capabilitySlot,
   actionSlot,
   dictation,
 }: BarProps) {
@@ -420,7 +418,6 @@ function Bar({
             canAttach={canAttach}
             anchorRef={anchorRef}
           />
-          {capabilitySlot}
         </div>
         {/* A box rather than `contents` so it has something to move: the split
             only puts chips here when they all fit on this line, so wrapping as
