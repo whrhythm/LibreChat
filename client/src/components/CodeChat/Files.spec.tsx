@@ -93,10 +93,10 @@ describe('personal files in the chat sidebar', () => {
   it('guards unsaved edits and saves with the version that was actually opened', async () => {
     mockFile();
     mount();
-    fireEvent.click(await screen.findByRole('button', { name: 'com_codechat_file_actions' }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'com_codechat_file_edit' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'com_codechat_file_edit' }));
     const editor = await screen.findByRole('textbox', { name: 'com_codechat_file_content' });
     await waitFor(() => expect(editor).toHaveValue('print("hello")'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     fireEvent.change(editor, { target: { value: 'print("edited")' } });
     fireEvent.click(screen.getByRole('button', { name: 'com_ui_close' }));
     expect(screen.getByText('com_codechat_file_unsaved')).toBeInTheDocument();

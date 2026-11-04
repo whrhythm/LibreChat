@@ -99,6 +99,7 @@ jest.mock('~/data-provider', () => ({
 }));
 
 jest.mock('~/hooks', () => ({
+  useAuthContext: () => ({ user: { id: 'presentation-test' } }),
   useSetFilesToDelete: () => jest.fn(),
   useLocalize:
     () =>

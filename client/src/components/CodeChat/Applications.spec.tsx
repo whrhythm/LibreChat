@@ -84,6 +84,7 @@ describe('applications in the personal space sidebar', () => {
             image: 'registry/project/app@sha256:digest',
             url: 'https://chat.test/apps/demo/',
             observation: { logs: 'ready', metrics: null },
+            database: { used_bytes: 50, reserved_bytes: 100, observed_at: null },
           },
         ],
       }),
@@ -93,7 +94,9 @@ describe('applications in the personal space sidebar', () => {
       'href',
       'https://chat.test/apps/demo/',
     );
-    fireEvent.click(screen.getByRole('button', { name: 'com_codechat_app_remove' }));
+    expect(screen.queryByText('com_codechat_db_engine')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'com_codechat_app_actions' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'com_codechat_app_remove' }));
     expect(request).not.toHaveBeenCalledWith('synthetic-token', 'delete', 'app-identifier');
     expect(screen.getByText('com_codechat_app_delete_notice')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'com_codechat_app_delete_confirm' }));

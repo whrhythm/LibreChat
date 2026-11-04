@@ -8,16 +8,19 @@ const Tabs: React.ForwardRefExoticComponent<
 > = TabsPrimitive.Root;
 
 const TabsList: React.ForwardRefExoticComponent<
-  Omit<TabsPrimitive.TabsListProps & React.RefAttributes<HTMLDivElement>, 'ref'> &
-    React.RefAttributes<HTMLDivElement>
+  Omit<TabsPrimitive.TabsListProps & React.RefAttributes<HTMLDivElement>, 'ref'> & {
+    variant?: 'default' | 'segmented';
+  } & React.RefAttributes<HTMLDivElement>
 > = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
->(({ className = '', ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List> & { variant?: 'default' | 'segmented' }
+>(({ className = '', variant = 'default', ...props }, ref) => (
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      'bg-surface-primary inline-flex items-center justify-center rounded-md',
+      variant === 'segmented'
+        ? 'bg-surface-secondary inline-flex items-center justify-center gap-1 rounded-lg p-1'
+        : 'bg-surface-primary inline-flex items-center justify-center rounded-md',
       className,
     )}
     {...props}
@@ -26,17 +29,21 @@ const TabsList: React.ForwardRefExoticComponent<
 TabsList.displayName = TabsPrimitive.List.displayName;
 
 const TabsTrigger: React.ForwardRefExoticComponent<
-  Omit<TabsPrimitive.TabsTriggerProps & React.RefAttributes<HTMLButtonElement>, 'ref'> &
-    React.RefAttributes<HTMLButtonElement>
+  Omit<TabsPrimitive.TabsTriggerProps & React.RefAttributes<HTMLButtonElement>, 'ref'> & {
+    variant?: 'default' | 'segmented';
+  } & React.RefAttributes<HTMLButtonElement>
 > = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
->(({ className = '', ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger> & {
+    variant?: 'default' | 'segmented';
+  }
+>(({ className = '', variant = 'default', ...props }, ref) => (
   <TabsPrimitive.Trigger
     className={cn(
       'text-text-secondary data-[state=active]:bg-surface-primary data-[state=active]:text-text-primary rounded-theme-tab min-w-theme-tab inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50',
       disabledInkClasses,
       focusOutlineRole,
+      variant === 'segmented' && 'gap-2 rounded-md data-[state=active]:shadow-sm',
       className,
     )}
     {...props}

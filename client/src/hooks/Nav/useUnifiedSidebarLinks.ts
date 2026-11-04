@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useAtom } from 'jotai';
 import { useRecoilValue } from 'recoil';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserKeyQuery } from 'librechat-data-provider/react-query';
@@ -8,10 +9,10 @@ import type { TEndpointsConfig } from 'librechat-data-provider';
 import type { NavLink } from '~/common';
 import { useGetEndpointsQuery, useGetStartupConfig, useInsightsAccessQuery } from '~/data-provider';
 import ConversationsSection from '~/components/UnifiedSidebar/ConversationsSection';
+import { spaceDock, spaceDirty } from '~/components/CodeChat/dock';
 import { isCodeChatEnabled } from '~/components/CodeChat/config';
-import PersonalSpacePanel from '~/components/CodeChat/Space';
 import useSideNavLinks from '~/hooks/Nav/useSideNavLinks';
-import { useAuthContext } from '~/hooks';
+import { useAuthContext, useLocalize } from '~/hooks';
 import store from '~/store';
 
 const defaultInterface = getConfigDefaults().interface;
@@ -20,6 +21,9 @@ export default function useUnifiedSidebarLinks() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuthContext();
+  const [spaceOpen, setSpaceOpen] = useAtom(spaceDock(user?.id ?? 'anonymous'));
+  const [dirty, setDirty] = useAtom(spaceDirty(user?.id ?? 'anonymous'));
+  const t = useLocalize();
   /** Selector instead of the full conversation atom: the links only depend on
    * the endpoint, so parameter edits and other conversation writes stay out. */
   const endpoint = useRecoilValue(store.conversationEndpointByIndex(0)) ?? undefined;
@@ -81,7 +85,12 @@ export default function useUnifiedSidebarLinks() {
               title: 'com_codechat_workspace',
               label: '',
               icon: FolderKanban,
-              Component: PersonalSpacePanel,
+              onClick: () => {
+                if (spaceOpen && dirty && !window.confirm(t('com_codechat_file_unsaved'))) return;
+                if (spaceOpen) setDirty(false);
+                setSpaceOpen(!spaceOpen);
+                if (!location.pathname.startsWith('/c/')) navigate('/c/new');
+              },
             },
           ]
         : [];
@@ -118,6 +127,11 @@ export default function useUnifiedSidebarLinks() {
     navigate,
     sideNavLinks,
     user?.id,
+    spaceOpen,
+    setSpaceOpen,
+    dirty,
+    setDirty,
+    t,
   ]);
 
   return links;

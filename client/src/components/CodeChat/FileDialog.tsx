@@ -36,11 +36,15 @@ export default function FileDialog({
   onClose,
   maxBytes,
   triggerRef,
+  inline = false,
+  onDirtyChange,
 }: {
   action: FileAction;
   onClose: () => void;
   maxBytes: number;
   triggerRef: RefObject<HTMLElement | null>;
+  inline?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { token, user } = useAuthContext();
   const localize = useLocalize();
@@ -104,11 +108,25 @@ export default function FileDialog({
     onSuccess: async () => {
       await client.invalidateQueries([QueryKeys.codechatFiles, user?.id]);
       await client.invalidateQueries([QueryKeys.codechatUsage, user?.id]);
+      await client.invalidateQueries([QueryKeys.codechatCapacity, user?.id]);
       onClose();
     },
     retry: false,
   });
   const dirty = action.mode === 'edit' && text !== original;
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!dirty) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => {
+      onDirtyChange?.(false);
+      window.removeEventListener('beforeunload', warn);
+    };
+  }, [dirty, onDirtyChange]);
   const close = () => {
     if (mutation.isLoading) return;
     if (dirty) setDiscard(true);
@@ -161,6 +179,50 @@ export default function FileDialog({
     if (action.mode === 'delete') return localize('com_codechat_file_delete_confirm');
     return localize('com_ui_save');
   }
+  if (inline)
+    return (
+      <section
+        aria-label={localize(titleKeys[action.mode], { name: action.entry.name })}
+        className="border-border-light bg-surface-primary mt-3 flex flex-col gap-3 border-t pt-3"
+      >
+        <header className="flex min-w-0 items-center justify-between gap-2">
+          <h3 className="min-w-0 truncate text-sm font-semibold" title={action.path}>
+            {action.path}
+          </h3>
+          {dirty && (
+            <span className="text-text-secondary shrink-0 text-xs">
+              {localize('com_codechat_unsaved')}
+            </span>
+          )}
+        </header>
+        {fileContent()}
+        {mutation.isError && <p role="alert">{failureMessage()}</p>}
+        {conflict && <p>{localize('com_codechat_file_conflict_recovery')}</p>}
+        {discard ? (
+          <div role="alert" className="flex flex-col gap-2">
+            <p>{localize('com_codechat_file_unsaved')}</p>
+            <Button onClick={onClose}>{localize('com_codechat_file_discard')}</Button>
+            <Button variant="outline" onClick={() => setDiscard(false)}>
+              {localize('com_codechat_file_keep_editing')}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Button
+              disabled={
+                mutation.isLoading || !version || !dirty || content.isLoading || content.isError
+              }
+              onClick={() => mutation.mutate()}
+            >
+              {submitLabel()}
+            </Button>
+            <Button variant="outline" disabled={mutation.isLoading} onClick={close}>
+              {localize('com_ui_close')}
+            </Button>
+          </div>
+        )}
+      </section>
+    );
   return (
     <OGDialog
       open

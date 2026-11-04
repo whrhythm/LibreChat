@@ -12,12 +12,15 @@ import { artifactsUndocked } from '~/components/Artifacts/state';
 import { EditorProvider, ArtifactsProvider } from '~/Providers';
 import { SidePanelGroup } from '~/components/SidePanel';
 import AppChatSurface from '~/components/Chat/Surface';
+import { spaceDock } from '~/components/CodeChat/dock';
 import { useGetStartupConfig } from '~/data-provider';
 import { lazyWithRecovery } from '~/lib/assets/lazy';
 import { migrateStoredFileDeletions } from '~/utils';
+import { useAuthContext } from '~/hooks';
 import store from '~/store';
 
 const Artifacts = lazyWithRecovery(() => import('~/components/Artifacts/Artifacts'));
+const PersonalSpace = lazyWithRecovery(() => import('~/components/CodeChat/Space'));
 const SubagentThreadPanel = lazyWithRecovery(
   () => import('~/components/Chat/Subagents/SubagentThreadPanel'),
 );
@@ -30,6 +33,8 @@ export default function Presentation({
   routePending?: boolean;
 }) {
   const artifacts = useRecoilValue(store.artifactsState);
+  const { user } = useAuthContext();
+  const spaceOpen = useAtomValue(spaceDock(user?.id ?? 'anonymous'));
   const artifactsVisibility = useRecoilValue(store.artifactsVisibility);
   // Render-gating the panel on `currentArtifactId != null` (in addition
   // to visibility + non-empty artifacts) means the side panel only opens
@@ -123,7 +128,13 @@ export default function Presentation({
 
   /* Undocked, the pane renders into its own window: the side panel gives its
    * width back to the conversation instead of holding an empty column. */
-  const panelElement = (isUndocked ? null : artifactsElement) ?? subagentElement;
+  const panelElement = spaceOpen ? (
+    <Suspense fallback={null}>
+      <PersonalSpace />
+    </Suspense>
+  ) : (
+    ((isUndocked ? null : artifactsElement) ?? subagentElement)
+  );
 
   return (
     <DragDropWrapper className="bg-surface-canvas relative flex w-full grow overflow-hidden">

@@ -1,15 +1,16 @@
 import { atom, useAtom } from 'jotai';
 import { atomFamily } from 'jotai/utils';
 import { useQuery } from '@tanstack/react-query';
+import { Files, PanelsTopLeft, X } from 'lucide-react';
 import { personalFileRequest, QueryKeys } from 'librechat-data-provider';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@librechat/client';
+import { Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@librechat/client';
 import type { PersonalSpace, WorkspaceEntry } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
-import { useGetStartupConfig } from '~/data-provider';
 import ApplicationNotice from './ApplicationNotice';
+import { spaceDock, spaceDirty } from './dock';
+import StorageSummary from './StorageSummary';
 import Applications from './Applications';
 import PersonalFiles from './Files';
-import Databases from './Databases';
 
 /** Feature-owned navigation, scoped to the signed-in identity. */
 const navigation = atomFamily((_owner: string) => atom({ pane: 'files', path: '' }));
@@ -23,7 +24,6 @@ function ApplicationProjects({
   onPathChange: (path: string) => void;
   enabled: boolean;
 }) {
-  const { data: startup } = useGetStartupConfig();
   const { user, token } = useAuthContext();
   const localize = useLocalize();
   const space = useQuery<PersonalSpace>({
@@ -86,12 +86,6 @@ function ApplicationProjects({
           ) === true
         }
       />
-      {ready && path && startup?.codechat?.databases?.enabled && (
-        <details className="border-border-light rounded border p-2">
-          <summary className="cursor-pointer">{localize('com_codechat_db_tab')}</summary>
-          <Databases path={path} onPathChange={onPathChange} enabled={enabled} scoped />
-        </details>
-      )}
     </div>
   );
 }
@@ -100,33 +94,75 @@ export default function PersonalSpacePanel() {
   const { user } = useAuthContext();
   const localize = useLocalize();
   const [view, setView] = useAtom(navigation(user?.id ?? 'anonymous'));
+  const [, setOpen] = useAtom(spaceDock(user?.id ?? 'anonymous'));
+  const [dirty, setDirty] = useAtom(spaceDirty(user?.id ?? 'anonymous'));
+  const allowLeave = () => !dirty || window.confirm(localize('com_codechat_file_unsaved'));
+  const changePane = (pane: string) => {
+    if (pane === view.pane || !allowLeave()) return;
+    setDirty(false);
+    setView((current) => ({ ...current, pane }));
+  };
   const setPath = (path: string) => setView((current) => ({ ...current, path }));
   return (
     <section
       id="codechat-space-panel"
       aria-label={localize('com_codechat_workspace')}
-      className="px-2 pt-3 pb-3 text-sm"
+      className="bg-surface-primary text-text-primary border-border-light flex h-full min-w-0 flex-col border-s text-sm"
     >
-      <h2 className="text-text-primary px-2 pb-2 text-sm font-semibold">
-        {localize('com_codechat_workspace')}
-      </h2>
+      <header className="flex shrink-0 items-center justify-between px-4 py-3">
+        <h2 className="text-sm font-semibold">{localize('com_codechat_workspace')}</h2>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={localize('com_codechat_space_close')}
+          onClick={() => {
+            if (!allowLeave()) return;
+            setDirty(false);
+            setOpen(false);
+          }}
+        >
+          <X className="size-4" aria-hidden="true" />
+        </Button>
+      </header>
+      <div className="shrink-0 px-4 pb-3">
+        <StorageSummary />
+      </div>
       <ApplicationNotice
         onOpen={() => {
-          setView((current) => ({ ...current, pane: 'apps' }));
+          changePane('apps');
         }}
       />
-      <Tabs
-        value={view.pane}
-        onValueChange={(pane) => setView((current) => ({ ...current, pane }))}
-      >
-        <TabsList aria-label={localize('com_codechat_workspace')}>
-          <TabsTrigger value="files">{localize('com_codechat_files_tab')}</TabsTrigger>
-          <TabsTrigger value="apps">{localize('com_codechat_apps')}</TabsTrigger>
+      <Tabs value={view.pane} onValueChange={changePane} className="flex min-h-0 flex-1 flex-col">
+        <TabsList
+          variant="segmented"
+          className="mx-4 mb-2 grid shrink-0 grid-cols-2"
+          aria-label={localize('com_codechat_workspace')}
+        >
+          <TabsTrigger variant="segmented" value="files">
+            <Files className="size-4" aria-hidden="true" />
+            {localize('com_codechat_files_tab')}
+          </TabsTrigger>
+          <TabsTrigger variant="segmented" value="apps">
+            <PanelsTopLeft className="size-4" aria-hidden="true" />
+            {localize('com_codechat_apps')}
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="files" forceMount hidden={view.pane !== 'files'} size="flush">
+        <TabsContent
+          className="mx-4 mb-4 min-h-0 overflow-auto"
+          value="files"
+          forceMount
+          hidden={view.pane !== 'files'}
+          size="flush"
+        >
           <PersonalFiles expanded={view.pane === 'files'} path={view.path} onPathChange={setPath} />
         </TabsContent>
-        <TabsContent value="apps" forceMount hidden={view.pane !== 'apps'} size="flush">
+        <TabsContent
+          className="mx-4 mb-4 min-h-0 overflow-auto"
+          value="apps"
+          forceMount
+          hidden={view.pane !== 'apps'}
+          size="flush"
+        >
           <ApplicationProjects
             enabled={view.pane === 'apps'}
             path={view.path.split('/')[0]}

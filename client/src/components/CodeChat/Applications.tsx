@@ -1,10 +1,60 @@
-import { useState } from 'react';
-import { Button } from '@librechat/client';
+import { useId, useMemo } from 'react';
+import { atom, useAtom } from 'jotai';
+import { MenuButton } from '@ariakit/react';
+import { Ellipsis, ExternalLink, ScrollText, Rocket } from 'lucide-react';
+import { Button, Chip, DropdownPopup, Progress } from '@librechat/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { personalApplicationRequest, QueryKeys } from 'librechat-data-provider';
 import type { PersonalApplication } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
-import { storageSize } from './storage';
+
+function ApplicationMenu({
+  disabled,
+  stopped,
+  hasImage,
+  onToggle,
+  onDelete,
+}: {
+  disabled: boolean;
+  stopped: boolean;
+  hasImage: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
+  const t = useLocalize();
+  const id = useId();
+  const openAtom = useMemo(() => atom(false), []);
+  const [open, setOpen] = useAtom(openAtom);
+  return (
+    <DropdownPopup
+      portal
+      menuId={id}
+      isOpen={open}
+      setIsOpen={setOpen}
+      items={[
+        ...(hasImage
+          ? [
+              {
+                id: 'toggle',
+                label: t(stopped ? 'com_codechat_app_start' : 'com_codechat_app_stop'),
+                onClick: onToggle,
+              },
+            ]
+          : []),
+        { id: 'delete', label: t('com_codechat_app_remove'), onClick: onDelete },
+      ]}
+      trigger={
+        <MenuButton
+          aria-label={t('com_codechat_app_actions')}
+          disabled={disabled}
+          render={<Button variant="ghost" size="icon-sm" />}
+        >
+          <Ellipsis className="size-4" aria-hidden="true" />
+        </MenuButton>
+      }
+    />
+  );
+}
 
 const statusKeys = {
   queued: 'com_codechat_app_queued',
@@ -28,6 +78,12 @@ function failureKey(code: string) {
   return 'com_codechat_app_failed_detail';
 }
 
+function statusTone(status: string, busy: boolean) {
+  if (status === 'running') return 'success';
+  if (status === 'failed') return 'error';
+  return busy ? 'info' : 'neutral';
+}
+
 export default function Applications({
   path,
   canPublish,
@@ -40,8 +96,10 @@ export default function Applications({
   const { user, token } = useAuthContext();
   const localize = useLocalize();
   const client = useQueryClient();
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [logsId, setLogsId] = useState<string | null>(null);
+  const deleteAtom = useMemo(() => atom<string | null>(null), []);
+  const logsAtom = useMemo(() => atom<string | null>(null), []);
+  const [deleteId, setDeleteId] = useAtom(deleteAtom);
+  const [logsId, setLogsId] = useAtom(logsAtom);
   const apps = useQuery<{ apps: PersonalApplication[] }>({
     queryKey: [QueryKeys.codechatApps, user?.id],
     queryFn: async () => (await personalApplicationRequest(token!, 'list')).json(),
@@ -69,20 +127,22 @@ export default function Applications({
       ['queued', 'preparing', 'building', 'deploying', 'changing'].includes(app.status),
   );
   return (
-    <section
-      className="border-border-light flex flex-col gap-2 border-t pt-2"
-      aria-label={localize('com_codechat_apps')}
-    >
+    <section className="flex flex-col gap-3 pt-2" aria-label={localize('com_codechat_apps')}>
       {canPublish && path && (
         <Button
-          variant="outline"
+          variant="default"
           disabled={operation.isLoading || pending}
           onClick={() => operation.mutate({ action: 'publish', value: path })}
         >
+          <Rocket className="size-4" aria-hidden="true" />
           {localize('com_codechat_app_publish')}
         </Button>
       )}
-      <h3 className="text-sm font-medium">{localize('com_codechat_apps')}</h3>
+      {apps.isSuccess && !apps.data.apps.some((app) => app.status !== 'deleted') && (
+        <p className="text-text-secondary py-6 text-center text-sm">
+          {localize('com_codechat_apps_empty')}
+        </p>
+      )}
       {apps.isLoading && <p role="status">{localize('com_ui_loading')}</p>}
       {(apps.isError || operation.isError) && (
         <div role="alert">
@@ -102,16 +162,19 @@ export default function Applications({
           return (
             <article
               key={app.id}
-              className="border-border-light flex flex-col gap-1 rounded border p-2"
+              className="border-border-light flex min-w-0 flex-col gap-3 rounded-xl border p-3"
             >
-              <p className="truncate text-sm" title={app.project_path}>
-                {app.project_path}
-              </p>
-              <p role="status" className="text-xs">
-                {localize(
-                  statusKeys[app.status as keyof typeof statusKeys] ?? 'com_codechat_app_preparing',
-                )}
-              </p>
+              <div className="flex min-w-0 items-start justify-between gap-2">
+                <p className="min-w-0 truncate pt-1 text-sm font-semibold" title={app.project_path}>
+                  {app.project_path}
+                </p>
+                <Chip role="status" className="shrink-0" tone={statusTone(app.status, busy)}>
+                  {localize(
+                    statusKeys[app.status as keyof typeof statusKeys] ??
+                      'com_codechat_app_preparing',
+                  )}
+                </Chip>
+              </div>
               {app.error_code && (
                 <p role="alert" className="text-xs">
                   {localize(failureKey(app.error_code))}
@@ -119,7 +182,13 @@ export default function Applications({
               )}
               {app.status === 'failed' && (
                 <>
-                  <p className="text-xs">{localize('com_codechat_app_failure_retained')}</p>
+                  <p className="text-xs">
+                    {localize(
+                      app.previous_url
+                        ? 'com_codechat_app_update_failed'
+                        : 'com_codechat_app_failure_retained',
+                    )}
+                  </p>
                   {app.cleanup && (
                     <p role="status" className="text-xs">
                       {localize(
@@ -153,84 +222,96 @@ export default function Applications({
                 </>
               )}
               {app.url && app.status === 'running' && (
-                <a className="text-sm underline" href={app.url} target="_blank" rel="noreferrer">
-                  {localize('com_codechat_app_open')}
+                <a
+                  className="text-text-secondary hover:text-text-primary flex min-w-0 items-center gap-2 text-xs underline-offset-4 hover:underline"
+                  href={app.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={localize('com_codechat_app_open')}
+                  title={app.url}
+                >
+                  <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
+                  <span className="truncate">{app.url}</span>
                 </a>
               )}
-              {app.database && (
-                <div className="text-text-secondary text-xs">
-                  <p>
-                    <strong className="me-1">{localize('com_codechat_db_engine')}</strong>
-                    {localize('com_codechat_db_usage', {
-                      used:
-                        app.database.used_bytes == null
-                          ? localize('com_codechat_db_unknown')
-                          : storageSize(app.database.used_bytes),
-                      reserved: storageSize(app.database.reserved_bytes),
-                    })}
-                  </p>
-                  {app.database.observed_at && (
-                    <time dateTime={app.database.observed_at}>
-                      {localize('com_codechat_db_observed', {
-                        time: new Date(app.database.observed_at).toLocaleString(),
+              {metrics && (
+                <div className="bg-surface-secondary grid gap-3 rounded-lg p-2.5 text-xs">
+                  <div>
+                    <p className="mb-1.5 tabular-nums">
+                      {localize('com_codechat_app_cpu', {
+                        used: metrics.cpu_millicores,
+                        limit: metrics.cpu_limit_millicores,
+                        percent: metrics.cpu_percent,
                       })}
-                    </time>
-                  )}
+                    </p>
+                    <Progress
+                      aria-label={localize('com_codechat_cpu_usage')}
+                      value={Math.min(100, metrics.cpu_percent)}
+                    />
+                  </div>
+                  <div>
+                    <p className="mb-1.5 tabular-nums">
+                      {localize('com_codechat_app_memory', {
+                        used: (metrics.memory_bytes / 1048576).toFixed(1),
+                        limit: metrics.memory_limit_bytes / 1048576,
+                        percent: metrics.memory_percent,
+                      })}
+                    </p>
+                    <Progress
+                      aria-label={localize('com_codechat_memory_usage')}
+                      value={Math.min(100, metrics.memory_percent)}
+                    />
+                  </div>
                 </div>
               )}
-              {metrics && (
-                <p className="text-xs">
-                  {localize('com_codechat_app_cpu', {
-                    used: metrics.cpu_millicores,
-                    limit: metrics.cpu_limit_millicores,
-                    percent: metrics.cpu_percent,
-                  })}
-                  <br />
-                  {localize('com_codechat_app_memory', {
-                    used: (metrics.memory_bytes / 1048576).toFixed(1),
-                    limit: metrics.memory_limit_bytes / 1048576,
-                    percent: metrics.memory_percent,
-                  })}
+              {!metrics && app.status === 'running' && (
+                <p className="text-text-secondary text-xs">
+                  {localize('com_codechat_metrics_waiting')}
                 </p>
               )}
-              <div className="flex flex-wrap gap-1">
-                {app.image && (
+              <div className="flex flex-wrap items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  aria-expanded={logsId === app.id}
+                  onClick={() => setLogsId(logsId === app.id ? null : app.id)}
+                >
+                  <ScrollText className="size-3.5" aria-hidden="true" />
+                  {localize('com_codechat_app_logs')}
+                </Button>
+                {app.status !== 'failed' && (
                   <Button
                     variant="ghost"
+                    size="xs"
                     disabled={busy || operation.isLoading}
-                    onClick={() =>
+                    onClick={() => operation.mutate({ action: 'publish', value: app.project_path })}
+                  >
+                    <Rocket className="size-3.5" aria-hidden="true" />
+                    {localize('com_codechat_app_update')}
+                  </Button>
+                )}
+                <div className="ms-auto">
+                  <ApplicationMenu
+                    disabled={
+                      busy || operation.isLoading || !!app.error_code?.includes('requires_review')
+                    }
+                    stopped={app.desired_state === 'stopped'}
+                    hasImage={!!app.image}
+                    onToggle={() =>
                       operation.mutate({
                         action: app.desired_state === 'stopped' ? 'start' : 'stop',
                         value: app.id,
                       })
                     }
-                  >
-                    {localize(
-                      app.desired_state === 'stopped'
-                        ? 'com_codechat_app_start'
-                        : 'com_codechat_app_stop',
-                    )}
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  disabled={busy || operation.isLoading}
-                  onClick={() => setDeleteId(app.id)}
-                >
-                  {localize('com_codechat_app_remove')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => setLogsId(logsId === app.id ? null : app.id)}
-                >
-                  {localize('com_codechat_app_logs')}
-                </Button>
+                    onDelete={() => setDeleteId(app.id)}
+                  />
+                </div>
               </div>
               {deleteId === app.id && (
                 <div className="flex flex-col gap-1">
                   <p className="text-xs">{localize('com_codechat_app_delete_notice')}</p>
                   <Button
-                    variant="outline"
+                    variant="destructive"
                     disabled={operation.isLoading}
                     onClick={() => operation.mutate({ action: 'delete', value: app.id })}
                   >
@@ -242,7 +323,7 @@ export default function Applications({
                 </div>
               )}
               {logsId === app.id && (
-                <pre className="max-h-48 overflow-auto text-xs whitespace-pre-wrap">
+                <pre className="bg-surface-secondary max-h-64 overflow-auto rounded-lg p-3 font-mono text-xs whitespace-pre-wrap">
                   {app.observation?.logs || localize('com_codechat_app_no_logs')}
                 </pre>
               )}

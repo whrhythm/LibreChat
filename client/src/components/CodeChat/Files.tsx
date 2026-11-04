@@ -4,12 +4,22 @@ import { MenuButton } from '@ariakit/react';
 import { Button, DropdownPopup } from '@librechat/client';
 import { personalFileRequest, QueryKeys } from 'librechat-data-provider';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, Ellipsis, File, Folder, Upload } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  Download,
+  Ellipsis,
+  File,
+  Folder,
+  Pencil,
+  Upload,
+} from 'lucide-react';
 import type { PersonalSpace, WorkspaceEntry } from 'librechat-data-provider';
 import type { FileAction } from './FileDialog';
 import { useGetStartupConfig } from '~/data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import FileDialog from './FileDialog';
+import { spaceDirty } from './dock';
 
 type TreeActions = {
   selected: string;
@@ -128,7 +138,7 @@ function Directory({ path, actions }: { path: string; actions: TreeActions }) {
                 type="button"
                 aria-expanded={folder ? open : undefined}
                 title={entry.name}
-                className="text-text-primary flex h-7 min-w-0 flex-1 items-center gap-1 rounded ps-1 text-start text-xs"
+                className="text-text-primary text-1xs flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded ps-1 text-start"
                 onClick={(event) =>
                   folder
                     ? actions.toggle(child, !open)
@@ -157,6 +167,31 @@ function Directory({ path, actions }: { path: string; actions: TreeActions }) {
                 )}
                 <span className="truncate">{entry.name}</span>
               </button>
+              {!folder && (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  aria-label={localize('com_codechat_file_edit', { name: entry.name })}
+                  onClick={(event) =>
+                    actions.open({ entry, path: child, mode: 'edit' }, event.currentTarget)
+                  }
+                >
+                  <Pencil className="me-1 size-3.5" aria-hidden="true" />
+                  {localize('com_codechat_edit')}
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="size-7 shrink-0"
+                aria-label={localize(
+                  folder ? 'com_codechat_folder_download' : 'com_codechat_file_download',
+                  { name: entry.name },
+                )}
+                onClick={() => void actions.download(child, entry)}
+              >
+                <Download className="size-3.5" aria-hidden="true" />
+              </Button>
               <EntryMenu entry={entry} path={child} actions={actions} />
             </div>
             {open && <Directory path={child} actions={actions} />}
@@ -188,6 +223,7 @@ export default function PersonalFiles({
   const downloadErrorAtom = useMemo(() => atom(false), []);
   const [folders, setFolders] = useAtom(foldersAtom);
   const [action, setAction] = useAtom(actionAtom);
+  const [dirty, setDirty] = useAtom(spaceDirty(user?.id ?? 'anonymous'));
   const [downloadError, setDownloadError] = useAtom(downloadErrorAtom);
   const [localPath, setLocalPath] = useAtom(pathAtom);
   const path = selectedPath ?? localPath;
@@ -213,6 +249,7 @@ export default function PersonalFiles({
     onSuccess: async () => {
       await client.invalidateQueries([QueryKeys.codechatFiles, user?.id]);
       await client.invalidateQueries([QueryKeys.codechatUsage, user?.id]);
+      await client.invalidateQueries([QueryKeys.codechatCapacity, user?.id]);
     },
     retry: false,
   });
@@ -252,6 +289,8 @@ export default function PersonalFiles({
       }
     },
     open: (next, trigger) => {
+      if (dirty && !window.confirm(localize('com_codechat_file_unsaved'))) return;
+      setDirty(false);
       triggerRef.current = trigger;
       setAction(next);
     },
@@ -309,13 +348,17 @@ export default function PersonalFiles({
       )}
       {upload.isError && <p role="alert">{localize('com_codechat_files_upload_error')}</p>}
       {downloadError && <p role="alert">{localize('com_codechat_files_error')}</p>}
-      <Directory path="" actions={actions} />
+      <div className={action?.mode === 'edit' ? 'max-h-48 overflow-auto' : ''}>
+        <Directory path="" actions={actions} />
+      </div>
       {action && (
         <FileDialog
           key={action.path + action.mode}
           action={action}
           triggerRef={triggerRef}
           maxBytes={startup?.codechat?.filePreviewMaxBytes ?? 1024 * 1024}
+          inline={action.mode === 'edit'}
+          onDirtyChange={setDirty}
           onClose={() => setAction(null)}
         />
       )}

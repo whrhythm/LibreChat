@@ -10,6 +10,7 @@ jest.mock('~/hooks', () => ({
 }));
 jest.mock('./ApplicationNotice', () => () => null);
 jest.mock('./Capacity', () => () => null);
+jest.mock('./StorageSummary', () => () => null);
 jest.mock('./Databases', () => () => null);
 jest.mock('~/data-provider', () => ({
   useGetStartupConfig: () => ({ data: { codechat: { databases: { enabled: true } } } }),
@@ -62,6 +63,7 @@ it('keeps file navigation while separating applications and selects the browsed 
   });
   await screen.findByText('Applications at my-project publish available');
   expect(screen.queryByRole('tab', { name: 'com_codechat_db_tab' })).not.toBeInTheDocument();
+  expect(screen.queryByText('com_codechat_db_tab')).not.toBeInTheDocument();
   expect(screen.getByLabelText('com_codechat_publish_project')).toHaveValue('my-project');
   expect(screen.getByText('Files at my-project')).not.toBeVisible();
   fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_codechat_files_tab' }), {
