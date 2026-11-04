@@ -170,14 +170,15 @@ function Directory({ path, actions }: { path: string; actions: TreeActions }) {
               {!folder && (
                 <Button
                   variant="ghost"
-                  size="xs"
+                  size="icon-sm"
+                  className="size-7 shrink-0"
                   aria-label={localize('com_codechat_file_edit', { name: entry.name })}
+                  title={localize('com_codechat_file_edit', { name: entry.name })}
                   onClick={(event) =>
                     actions.open({ entry, path: child, mode: 'edit' }, event.currentTarget)
                   }
                 >
-                  <Pencil className="me-1 size-3.5" aria-hidden="true" />
-                  {localize('com_codechat_edit')}
+                  <Pencil className="size-3.5" aria-hidden="true" />
                 </Button>
               )}
               <Button

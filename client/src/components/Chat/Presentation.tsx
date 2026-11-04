@@ -147,7 +147,11 @@ export default function Presentation({
             enabled={conversationEndpoint === EModelEndpoint.agents && conversationAgentId != null}
             isSubmitting={isSubmitting}
           >
-            <SidePanelGroup panel={panelElement}>
+            <SidePanelGroup
+              panel={panelElement}
+              layoutId={spaceOpen ? 'personal-space-layout' : undefined}
+              defaultPanelSize={spaceOpen ? '360px' : undefined}
+            >
               <main className="flex h-full flex-col overflow-y-auto" role="main">
                 <MessageSurfaceContext.Provider value="bg-surface-canvas">
                   {children}

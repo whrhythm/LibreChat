@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { personalApplicationRequest, QueryKeys } from 'librechat-data-provider';
 import type { PersonalApplication } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
+import { storageSize } from './storage';
 
 function ApplicationMenu({
   disabled,
@@ -268,6 +269,30 @@ export default function Applications({
                 <p className="text-text-secondary text-xs">
                   {localize('com_codechat_metrics_waiting')}
                 </p>
+              )}
+              {app.database && (
+                <section
+                  aria-label={localize('com_codechat_app_database_usage')}
+                  className="border-border-light flex flex-col gap-1 border-t pt-2 text-xs"
+                >
+                  <h4 className="font-medium">{localize('com_codechat_app_database_usage')}</h4>
+                  <p className="text-text-secondary tabular-nums">
+                    {localize('com_codechat_db_usage', {
+                      used:
+                        app.database.used_bytes == null
+                          ? localize('com_codechat_db_unknown')
+                          : storageSize(app.database.used_bytes),
+                      reserved: storageSize(app.database.reserved_bytes),
+                    })}
+                  </p>
+                  {app.database.observed_at && (
+                    <time className="text-text-secondary" dateTime={app.database.observed_at}>
+                      {localize('com_codechat_db_observed', {
+                        time: new Date(app.database.observed_at).toLocaleString(),
+                      })}
+                    </time>
+                  )}
+                </section>
               )}
               <div className="flex flex-wrap items-center gap-1">
                 <Button

@@ -10,6 +10,7 @@ interface ArtifactsPanelProps {
   onRenderChange: (shouldRender: boolean) => void;
   /** Rendered before the messages panel (RTL), so the handle follows the panel. */
   reversed?: boolean;
+  defaultSize?: string;
 }
 
 const ArtifactsPanel = memo(function ArtifactsPanel({
@@ -18,6 +19,7 @@ const ArtifactsPanel = memo(function ArtifactsPanel({
   shouldRender,
   onRenderChange,
   reversed = false,
+  defaultSize = '50',
 }: ArtifactsPanelProps) {
   const artifactsPanelRef = usePanelRef();
   const direction = useDirection();
@@ -45,7 +47,7 @@ const ArtifactsPanel = memo(function ArtifactsPanel({
     <>
       {!reversed && handle}
       <ResizablePanel
-        defaultSize="50"
+        defaultSize={defaultSize}
         maxSize="70"
         collapsedSize="0"
         collapsible={true}

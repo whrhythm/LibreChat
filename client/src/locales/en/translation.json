@@ -1,4 +1,5 @@
 {
+  "com_codechat_app_database_usage": "Database storage",
   "com_codechat_space_usage": "Storage usage",
   "com_codechat_space_used": "Used {{used}} / {{limit}}",
   "com_codechat_space_partial": "Measured {{used}} / {{limit}} · partial",
