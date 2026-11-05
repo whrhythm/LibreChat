@@ -3,6 +3,7 @@ import { getRemarkPlugins, getRehypePlugins, getMarkdownComponents } from './mar
 import { useMessagePartsHost } from '~/Providers/MessagePartsHostContext';
 import useSmoothStreaming from '~/hooks/Messages/useSmoothStreaming';
 import MarkdownErrorBoundary from './MarkdownErrorBoundary';
+import ProgrammingTask from '~/components/CodeChat/Task';
 import { FADE_HYDRATION_THRESHOLD } from './animate';
 import MarkdownBlocks from './MarkdownBlocks';
 
@@ -37,6 +38,13 @@ const Markdown = memo(function Markdown({ content = '', isLatestMessage }: TCont
       hydratedRef.current = false;
     }
   }, [animate]);
+
+  const taskReference = content
+    .trim()
+    .match(
+      /^\[编程任务\]\(#starbridge-task-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)$/,
+    );
+  if (taskReference) return <ProgrammingTask id={taskReference[1]} />;
 
   if (isInitializing) {
     return (

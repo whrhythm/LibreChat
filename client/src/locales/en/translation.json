@@ -1,4 +1,11 @@
 {
+  "com_codechat_task_private": "Only the signed-in owner can view this programming task.",
+  "com_codechat_task_unavailable": "This task is unavailable. Check your sign-in and retry.",
+  "com_codechat_task_reconnecting": "Connection interrupted; retrying automatically. Showing the last state without replaying execution.",
+  "com_codechat_task_command": "Running a command or test…",
+  "com_codechat_task_working": "Working on the project. Progress updates here…",
+  "com_codechat_task_decided": "Your decision was received. Updating task status…",
+  "com_codechat_task_steps": "View file operations and command results",
   "com_codechat_folder_create": "New folder",
   "com_codechat_folder_name": "Folder name",
   "com_codechat_folder_parent": "Create in: {{path}}",

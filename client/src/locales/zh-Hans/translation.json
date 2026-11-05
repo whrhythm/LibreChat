@@ -1,4 +1,11 @@
 {
+  "com_codechat_task_private": "编程任务仅可由所有者登录后查看。",
+  "com_codechat_task_unavailable": "暂时无法读取这项编程任务，请确认登录状态后重试。",
+  "com_codechat_task_reconnecting": "连接暂时中断，正在自动重试；保留上次状态，不会重新执行任务。",
+  "com_codechat_task_command": "正在运行命令或测试…",
+  "com_codechat_task_working": "正在处理工程，进度会在此更新…",
+  "com_codechat_task_decided": "已收到你的决定，正在更新任务状态…",
+  "com_codechat_task_steps": "查看文件操作与命令结果",
   "com_codechat_folder_create": "新建文件夹",
   "com_codechat_folder_name": "文件夹名称",
   "com_codechat_folder_parent": "创建位置：{{path}}",

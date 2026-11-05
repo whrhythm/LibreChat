@@ -54,3 +54,27 @@ it('rejects forged task routes and maps upstream diagnostics to a safe error', a
   expect(res.status).toHaveBeenLastCalledWith(503);
   expect(res.json).toHaveBeenLastCalledWith({ code: 'agent_request_failed' });
 });
+
+it('reads an individual durable task with verified identity and no write', async () => {
+  const request = jest.fn().mockResolvedValue(new globalThis.Response('{"status":"completed"}'));
+  const handlers = createProgrammingHandlers({ ...deps, request });
+  const res = response();
+  const taskId = '12345678-1234-1234-1234-123456789abc';
+  await handlers.task(
+    { user, params: { taskId }, headers: { 'x-codechat-subject': 'bob' } } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(String(request.mock.calls[0][0])).toBe(
+    `https://platform.test/internal/v1/workspace/agent/tasks/${taskId}`,
+  );
+  expect(request.mock.calls[0][1].method).toBe('GET');
+  expect(request.mock.calls[0][1].headers['X-CodeChat-Subject']).toBe('alice');
+  expect(request.mock.calls[0][1].body).toBeUndefined();
+  expect(res.json).toHaveBeenLastCalledWith({ status: 'completed' });
+  request.mockClear();
+  await handlers.task(
+    { user, params: { taskId: '../secret' } } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(request).not.toHaveBeenCalled();
+});

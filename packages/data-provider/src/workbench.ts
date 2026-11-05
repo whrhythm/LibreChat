@@ -38,6 +38,11 @@ export type ProgrammingTask = {
   events: ProgrammingEvent[];
   pending: { id: string; expires_at: string; decision?: string | null } | null;
 };
+export class ProgrammingRequestError extends Error {
+  constructor(public status: number) {
+    super('programming_request_failed');
+  }
+}
 async function request<T>(token: string, path: string, method = 'GET', body?: unknown): Promise<T> {
   const response = await fetch('/api/user/workspace/agent/' + path, {
     method,
@@ -49,7 +54,7 @@ async function request<T>(token: string, path: string, method = 'GET', body?: un
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!response.ok) throw new Error('programming_request_failed');
+  if (!response.ok) throw new ProgrammingRequestError(response.status);
   return response.json();
 }
 export const programmingPreference = (token: string, conversation: string) =>
@@ -61,6 +66,8 @@ export const saveProgrammingPreference = (token: string, value: ProgrammingPrefe
   request<ProgrammingPreference>(token, 'preferences', 'PUT', value);
 export const programmingTasks = (token: string) =>
   request<{ tasks: ProgrammingTask[] }>(token, 'tasks');
+export const programmingTask = (token: string, id: string) =>
+  request<ProgrammingTask>(token, `tasks/${encodeURIComponent(id)}`);
 export const decideProgrammingTask = (
   token: string,
   id: string,
