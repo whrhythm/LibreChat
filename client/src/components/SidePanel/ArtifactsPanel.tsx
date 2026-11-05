@@ -11,6 +11,8 @@ interface ArtifactsPanelProps {
   /** Rendered before the messages panel (RTL), so the handle follows the panel. */
   reversed?: boolean;
   defaultSize?: string;
+  managePresence?: boolean;
+  inert?: boolean;
 }
 
 const ArtifactsPanel = memo(function ArtifactsPanel({
@@ -20,11 +22,14 @@ const ArtifactsPanel = memo(function ArtifactsPanel({
   onRenderChange,
   reversed = false,
   defaultSize = '50',
+  managePresence = true,
+  inert = false,
 }: ArtifactsPanelProps) {
   const artifactsPanelRef = usePanelRef();
   const direction = useDirection();
 
   useEffect(() => {
+    if (!managePresence) return;
     if (panel != null) {
       onRenderChange(true);
       requestAnimationFrame(() => {
@@ -35,13 +40,15 @@ const ArtifactsPanel = memo(function ArtifactsPanel({
     } else if (shouldRender) {
       onRenderChange(false);
     }
-  }, [panel, shouldRender, onRenderChange, artifactsPanelRef]);
+  }, [panel, shouldRender, onRenderChange, artifactsPanelRef, managePresence]);
 
   if (!shouldRender) {
     return null;
   }
 
-  const handle = panel != null && <ResizableHandleAlt withHandle className="text-text-primary" />;
+  const handle = panel != null && (
+    <ResizableHandleAlt disabled={inert} withHandle className="text-text-primary" />
+  );
 
   return (
     <>
@@ -56,7 +63,12 @@ const ArtifactsPanel = memo(function ArtifactsPanel({
         id="artifacts-panel"
         dir={direction}
       >
-        <div className="h-full min-w-[min(25rem,100%)] overflow-hidden">{panel}</div>
+        <div
+          inert={inert ? '' : undefined}
+          className="h-full min-w-[min(25rem,100%)] overflow-hidden"
+        >
+          {panel}
+        </div>
       </ResizablePanel>
       {reversed && handle}
     </>
