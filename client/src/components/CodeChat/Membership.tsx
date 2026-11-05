@@ -3,6 +3,7 @@ import { Check, Coins, HardDrive, Boxes } from 'lucide-react';
 import type { CapacityAccount, CapacityPlan } from 'librechat-data-provider';
 import { useLocalize } from '~/hooks';
 import i18n from '~/locales/i18n';
+import QuotaSummary from './QuotaSummary';
 
 function count(value?: number | null) {
   return value == null
@@ -50,9 +51,7 @@ export default function Membership({
       maximumFractionDigits: 2,
     }).format(amount);
   const current =
-    account.plan.id === 'existing'
-      ? t('com_codechat_member_trial')
-      : (account.plans.find((plan) => plan.id === account.plan.id)?.name ?? account.plan.name);
+    account.plan.id === 'existing' ? t('com_codechat_member_trial') : account.plan.name;
   return (
     <>
       {account.code_execution && (
@@ -135,6 +134,14 @@ export default function Membership({
           <p className="mt-3 text-sm font-medium">{compute(account.plan)}</p>
         </article>
       </section>
+      <section
+        className="border-border-light rounded-2xl border p-5"
+        aria-label={t('com_codechat_quota_effective')}
+      >
+        <h3 className="mb-2 font-semibold">{t('com_codechat_quota_effective')}</h3>
+        <p className="text-text-secondary mb-4 text-xs">{t('com_codechat_quota_activation')}</p>
+        <QuotaSummary plan={account.plan} usage={account.quota_usage} />
+      </section>
       {wallet?.estimated_tokens != null && (
         <p className="text-text-secondary text-sm">
           {t('com_codechat_member_remaining_tokens', {
@@ -186,6 +193,10 @@ export default function Membership({
                   </li>
                 ))}
               </ul>
+              <details className="mb-4 text-sm">
+                <summary className="mb-3 cursor-pointer">{t('com_codechat_quota_details')}</summary>
+                <QuotaSummary plan={account.trial} />
+              </details>
               <Button variant="outline" disabled>
                 {t('com_codechat_member_trial_received')}
               </Button>
@@ -245,6 +256,12 @@ export default function Membership({
                     </li>
                   ))}
                 </ul>
+                <details className="mb-4 text-sm">
+                  <summary className="mb-3 cursor-pointer">
+                    {t('com_codechat_quota_details')}
+                  </summary>
+                  <QuotaSummary plan={plan} />
+                </details>
                 <Button
                   variant={active ? 'default' : 'outline'}
                   disabled={busy}

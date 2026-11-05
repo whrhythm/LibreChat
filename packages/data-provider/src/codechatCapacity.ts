@@ -7,7 +7,23 @@ export const capacityOrderInputSchema = z
   })
   .strict();
 
-export type CapacityPlan = {
+export type PlanQuotas = {
+  applications_cpu_millicores?: number;
+  applications_memory_mib?: number;
+  database_budget_mib?: number;
+  database_per_instance_mib?: number;
+  database_limit?: number;
+  agent_cpu_millicores?: number;
+  agent_memory_mib?: number;
+  agent_command_seconds?: number;
+  agent_task_seconds?: number;
+  agent_concurrency?: number;
+  build_cpu_millicores?: number;
+  build_memory_mib?: number;
+  build_timeout_seconds?: number;
+  build_concurrency?: number;
+};
+export type CapacityPlan = PlanQuotas & {
   id: string;
   version: string;
   name: string;
@@ -40,6 +56,17 @@ export type CapacityOrder = {
   model_credit_status?: string;
 };
 export type CapacityAccount = {
+  quota_usage?: {
+    application_cpu_millicores: number;
+    application_memory_mib: number;
+    database_count: number;
+    database_reserved_bytes: number;
+    agent_active: number;
+    build_active: number;
+    effective_at: string;
+    database_enforcement: string;
+    storage_enforcement: string;
+  };
   code_execution?: {
     period: string;
     used_runs: number;
@@ -74,7 +101,7 @@ export type CapacityAccount = {
     }[];
   };
   object_storage?: ObjectStorageState | null;
-  trial?: {
+  trial?: PlanQuotas & {
     storage_gib: number;
     application_limit: number;
     application_cpu_millicores?: number;
