@@ -90,7 +90,8 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
     | 'com_codechat_mcp_confirm'
     | 'com_codechat_programming_approval_detail' = 'com_codechat_programming_approval_detail';
   if (pending?.decision) approvalKey = 'com_codechat_task_decided';
-  else if (approval?.operation === 'mcp_read') approvalKey = 'com_codechat_mcp_confirm';
+  else if (approval?.operation === 'mcp_read' || approval?.operation === 'mcp_write')
+    approvalKey = 'com_codechat_mcp_confirm';
   return (
     <section data-testid="programming-task" data-task-id={id} className="my-2 space-y-3">
       <div className="border-border-light space-y-3 rounded-xl border p-4">

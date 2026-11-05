@@ -3,6 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MCP from './MCP';
 
+jest.mock('./MCPCredential', () => () => <p>{'personal credential form'}</p>);
+
 jest.mock('~/hooks', () => ({
   useLocalize: () => (key: string) => key,
   useAuthContext: () => ({ token: 'synthetic', user: { id: 'owner' } }),
@@ -57,4 +59,13 @@ it('cannot select a connector disabled by the administrator', async () => {
   (programmingMCP as jest.Mock).mockResolvedValue({ servers: [{ ...connector, enabled: false }] });
   mount();
   expect(await screen.findByRole('checkbox')).toBeDisabled();
+});
+
+it('requires a current personal credential before selecting a private connection', async () => {
+  (programmingMCP as jest.Mock).mockResolvedValue({
+    servers: [{ ...connector, auth: 'user_bearer', credential_configured: false }],
+  });
+  mount();
+  expect(await screen.findByRole('checkbox')).toBeDisabled();
+  expect(screen.getByText('personal credential form')).toBeInTheDocument();
 });

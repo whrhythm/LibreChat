@@ -28,7 +28,18 @@ export type ProgrammingMCP = {
   enabled: boolean;
   tools: string[];
   data_notice: string;
+  auth?: 'none' | 'platform_bearer' | 'user_bearer';
+  permission?: 'read' | 'write';
+  credential_configured?: boolean;
+  credential_revision?: number;
+  credential_stored?: boolean;
 };
+export const programmingMCPCredentialSchema = z
+  .object({
+    revision: z.number().int().nonnegative(),
+    secret: z.string().min(1).max(4096).nullable(),
+  })
+  .strict();
 export type ProgrammingEvent = {
   sequence: number;
   kind: string;
@@ -81,6 +92,17 @@ export const programmingTasks = (token: string) =>
   request<{ tasks: ProgrammingTask[] }>(token, 'tasks');
 export const programmingMCP = (token: string) =>
   request<{ servers: ProgrammingMCP[] }>(token, 'mcp');
+export const saveProgrammingMCPCredential = (
+  token: string,
+  id: string,
+  value: z.infer<typeof programmingMCPCredentialSchema>,
+) =>
+  request<{ configured: boolean; revision: number }>(
+    token,
+    `mcp/${encodeURIComponent(id)}/credential`,
+    'PUT',
+    value,
+  );
 export const programmingTask = (token: string, id: string) =>
   request<ProgrammingTask>(token, `tasks/${encodeURIComponent(id)}`);
 export const decideProgrammingTask = (

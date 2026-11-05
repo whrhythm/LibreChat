@@ -67,6 +67,7 @@ router.get('/codechat-identity', requireJwtAuth, codeChatIdentityHandler);
 router.post('/workspace/ensure', requireJwtAuth, workspace.ensure);
 router.get('/workspace/agent/preferences', requireJwtAuth, programming.preferences);
 router.get('/workspace/agent/mcp', requireJwtAuth, programming.mcp);
+router.put('/workspace/agent/mcp/:serverId/credential', requireJwtAuth, programming.credential);
 router.put('/workspace/agent/preferences', requireJwtAuth, programming.save);
 router.get('/workspace/agent/tasks', requireJwtAuth, programming.tasks);
 router.get('/workspace/agent/tasks/:taskId', requireJwtAuth, programming.task);

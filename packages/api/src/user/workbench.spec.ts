@@ -8,6 +8,36 @@ const deps = {
   issuer: 'https://identity.test/',
 };
 
+it('binds MCP credential updates to the verified user and rejects destination injection', async () => {
+  const request = jest
+    .fn()
+    .mockResolvedValue(new globalThis.Response('{"configured":true,"revision":1}'));
+  const handlers = createProgrammingHandlers({ ...deps, request });
+  const res = response();
+  await handlers.credential(
+    {
+      user,
+      params: { serverId: 'mcp-test' },
+      body: { revision: 0, secret: 'synthetic', owner: 'bob' },
+    } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(request).not.toHaveBeenCalled();
+  await handlers.credential(
+    {
+      user,
+      params: { serverId: 'mcp-test' },
+      body: { revision: 0, secret: 'synthetic' },
+    } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(String(request.mock.calls[0][0])).toBe(
+    'https://platform.test/internal/v1/workspace/agent/mcp/mcp-test/credential',
+  );
+  expect(request.mock.calls[0][1].headers['X-CodeChat-Subject']).toBe('alice');
+  expect(request.mock.calls[0][1].method).toBe('PUT');
+});
+
 it('loads only the fixed MCP catalog using the verified identity', async () => {
   const request = jest.fn().mockResolvedValue(new globalThis.Response('{"servers":[]}'));
   const handlers = createProgrammingHandlers({ ...deps, request });

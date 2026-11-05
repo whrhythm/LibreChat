@@ -2,6 +2,7 @@ import { Button } from '@librechat/client';
 import { useQuery } from '@tanstack/react-query';
 import { QueryKeys, programmingMCP } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
+import MCPCredential from './MCPCredential';
 
 export default function MCP({
   selected,
@@ -44,7 +45,10 @@ export default function MCP({
               type="checkbox"
               className="mt-1"
               checked={selected.includes(server.id)}
-              disabled={!server.enabled && !selected.includes(server.id)}
+              disabled={
+                (!server.enabled || server.credential_configured === false) &&
+                !selected.includes(server.id)
+              }
               onChange={(event) =>
                 onChange(
                   event.target.checked
@@ -56,7 +60,13 @@ export default function MCP({
             <span>
               <span className="font-medium">{server.name}</span>
               <span className="text-text-secondary ml-2 text-xs">
-                {t(server.enabled ? 'com_codechat_mcp_readonly' : 'com_codechat_mcp_disabled')}
+                {server.enabled
+                  ? t(
+                      server.permission === 'write'
+                        ? 'com_codechat_mcp_write'
+                        : 'com_codechat_mcp_readonly',
+                    )
+                  : t('com_codechat_mcp_disabled')}
               </span>
             </span>
           </label>
@@ -69,6 +79,7 @@ export default function MCP({
               <p className="font-mono break-all">{server.tools.join(' · ')}</p>
             </div>
           </details>
+          {server.auth === 'user_bearer' && <MCPCredential server={server} />}
         </div>
       ))}
     </fieldset>
