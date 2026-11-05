@@ -9,10 +9,21 @@ import {
   ProgrammingRequestError,
 } from 'librechat-data-provider';
 import MarkdownLite from '~/components/Chat/Messages/Content/MarkdownLite';
+import { newestTask, useTaskStream } from './TaskLive';
 import { AuthContext } from '~/hooks/AuthContext';
 import { useLocalize } from '~/hooks';
 
 const active = ['queued', 'running', 'awaiting_approval', 'cancelling'];
+const commandKeys: Record<
+  string,
+  | 'com_codechat_command_preparing'
+  | 'com_codechat_command_completed'
+  | 'com_codechat_command_failed'
+> = {
+  preparing: 'com_codechat_command_preparing',
+  completed: 'com_codechat_command_completed',
+  failed: 'com_codechat_command_failed',
+};
 const statusKeys = {
   queued: 'com_codechat_run_queued',
   running: 'com_codechat_run_running',
@@ -38,7 +49,10 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
   const key = [QueryKeys.programmingTask, userId, id];
   const query = useQuery({
     queryKey: key,
-    queryFn: () => programmingTask(token, id),
+    queryFn: async () => {
+      const snapshot = await programmingTask(token, id);
+      return newestTask(client.getQueryData(key), snapshot);
+    },
     staleTime: 30000,
     retry: (count, error) =>
       count < 1 && !(error instanceof ProgrammingRequestError && error.status < 500),
@@ -78,10 +92,20 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
       : last?.operation;
   const final = task?.events.findLast((event) => event.kind === 'finished');
   const running = !!task && active.includes(task.status);
+  useTaskStream(id, userId, token, !task || running);
+  const answer = task?.events.findLast((event) => event.kind === 'assistant');
+  const command = task?.events.findLast((event) => event.kind === 'command_progress');
+  const liveCommand =
+    command &&
+    !task?.events.some(
+      (event) => event.kind === 'terminal' && event.operation_id === command.stream_id,
+    );
   const queuedAt = task?.events.find((event) => event.kind === 'queued')?.at;
   const queueDelayed = !!queuedAt && query.dataUpdatedAt - Date.parse(queuedAt) >= 30000;
   const visibleSteps = task?.events.filter(
-    (event) => event.kind !== 'finished' && (event.path || event.output),
+    (event) =>
+      !['finished', 'assistant', 'command_progress'].includes(event.kind) &&
+      (event.path || event.output),
   );
   let progressKey:
     | 'com_codechat_task_working'
@@ -127,11 +151,27 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
             )}
           </p>
         )}
-        {task?.status === 'running' && last && (
+        {task?.status === 'running' && last && !liveCommand && !answer?.text && (
           <p className="text-text-secondary text-sm">
             {t(last.kind === 'started' ? 'com_codechat_task_model_waiting' : progressKey)}
             {last.path && <span className="ml-2 font-mono">{last.path}</span>}
           </p>
+        )}
+        {liveCommand && running && (
+          <details
+            open
+            className="bg-surface-secondary rounded-lg p-3"
+            data-testid="programming-live-command"
+          >
+            <summary className="cursor-pointer text-sm">
+              {t(commandKeys[command.phase ?? ''] ?? 'com_codechat_task_command')}
+            </summary>
+            {command.output && (
+              <pre className="mt-2 max-h-48 overflow-auto text-xs break-all whitespace-pre-wrap">
+                {command.output}
+              </pre>
+            )}
+          </details>
         )}
         {task?.status === 'awaiting_approval' && pending && (
           <div className="bg-surface-secondary space-y-3 rounded-lg p-3">
@@ -194,6 +234,14 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
           </p>
         )}
       </div>
+      {answer?.text && task?.status !== 'completed' && (
+        <div data-testid="programming-task-stream" className="prose max-w-none">
+          {!running && (
+            <p className="text-text-secondary text-xs">{t('com_codechat_answer_partial')}</p>
+          )}
+          <MarkdownLite content={answer.text} codeExecution={false} />
+        </div>
+      )}
       {final?.text && !running && (
         <div data-testid="programming-task-result" className="prose max-w-none">
           <MarkdownLite content={final.text} codeExecution={false} />

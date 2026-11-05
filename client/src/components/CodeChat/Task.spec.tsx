@@ -1,12 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import {
   programmingTask,
   decideProgrammingTask,
   ProgrammingRequestError,
+  streamProgrammingTask,
 } from 'librechat-data-provider';
 import type { ProgrammingTask } from 'librechat-data-provider';
 import Task, { TaskContent } from './Task';
+import { newestTask } from './TaskLive';
 
 jest.mock('~/hooks/AuthContext', () => ({
   AuthContext: jest.requireActual<typeof import('react')>('react').createContext(undefined),
@@ -22,6 +24,7 @@ jest.mock('librechat-data-provider', () => ({
   programmingTask: jest.fn(),
   decideProgrammingTask: jest.fn(),
   cancelProgrammingTask: jest.fn(),
+  streamProgrammingTask: jest.fn(async () => {}),
 }));
 const id = '12345678-1234-1234-1234-123456789abc';
 const initial: ProgrammingTask = {
@@ -58,6 +61,70 @@ function mount(client: QueryClient) {
   );
 }
 beforeEach(() => jest.clearAllMocks());
+
+it('renders growing answers and live command output before completion, then one final answer', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const task = {
+    ...initial,
+    status: 'running',
+    pending: null,
+    events: [],
+    updated_at: '2026-11-05T09:00:00Z',
+  };
+  (programmingTask as jest.Mock).mockResolvedValue(task);
+  const view = mount(client);
+  await screen.findByText('com_codechat_run_running');
+  const update = (streamProgrammingTask as jest.Mock).mock.calls[0][3];
+  const partial = {
+    ...task,
+    updated_at: '2026-11-05T09:00:01Z',
+    events: [
+      { sequence: 1, kind: 'assistant', at: task.updated_at, text: 'First part' },
+      {
+        sequence: 2,
+        kind: 'command_progress',
+        at: task.updated_at,
+        stream_id: 'command',
+        phase: 'running',
+        output: 'step 1',
+      },
+    ],
+  };
+  act(() => update(partial));
+  expect(await screen.findByTestId('programming-task-stream')).toHaveTextContent('First part');
+  expect(screen.getByTestId('programming-live-command')).toHaveTextContent('step 1');
+  act(() =>
+    update({
+      ...partial,
+      updated_at: '2026-11-05T09:00:02Z',
+      events: [{ ...partial.events[0], text: 'First part and second part' }, partial.events[1]],
+    }),
+  );
+  await waitFor(() =>
+    expect(screen.getByTestId('programming-task-stream')).toHaveTextContent('second part'),
+  );
+  act(() =>
+    update({
+      ...partial,
+      status: 'completed',
+      updated_at: '2026-11-05T09:00:03Z',
+      events: [
+        ...partial.events,
+        { sequence: 3, kind: 'finished', at: task.updated_at, text: 'Complete answer' },
+      ],
+    }),
+  );
+  expect(await screen.findByTestId('programming-task-result')).toHaveTextContent('Complete answer');
+  expect(screen.queryByTestId('programming-task-stream')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('programming-live-command')).not.toBeInTheDocument();
+  view.unmount();
+  client.clear();
+});
+
+it('never overwrites a newer stream snapshot with a delayed older query', () => {
+  const current = { ...initial, updated_at: '2026-11-05T09:00:02Z' };
+  expect(newestTask(current, { ...initial, updated_at: '2026-11-05T09:00:01Z' })).toBe(current);
+});
 
 it('explains a delayed queue and then shows model progress without empty tool records', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

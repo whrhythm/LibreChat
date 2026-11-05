@@ -71,7 +71,7 @@ RUN \
     NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" npm run frontend && \
     if [ "$CODECHAT_VERIFY" = "true" ]; then \
       npx eslint packages/api/src/user/workbench.ts packages/api/src/user/workbench.spec.ts packages/data-provider/src/workbench.ts client/src/components/CodeChat/Workbench.tsx client/src/components/CodeChat/NewFolder.tsx client/src/components/Chat/Menus/Endpoints/ModelSelector.tsx && \
-      (cd packages/api && npx jest src/user/workbench.spec.ts src/user/accountAccess.spec.ts src/auth/codeapi.spec.ts --runInBand --coverage=false) && \
+      (cd packages/api && npx jest src/user/workbench.spec.ts src/user/taskStream.spec.ts src/user/accountAccess.spec.ts src/auth/codeapi.spec.ts --runInBand --coverage=false) && \
       npx eslint client/src/components/CodeChat/Task.tsx client/src/components/CodeChat/Task.spec.tsx client/src/components/Chat/Messages/Content/Markdown.tsx && \
       npx eslint client/src/components/CodeChat/MCP.tsx client/src/components/CodeChat/MCP.spec.tsx client/src/components/CodeChat/MCPCredential.tsx && \
       (cd client && npx jest src/components/CodeChat/Task.spec.tsx src/components/CodeChat/MCP.spec.tsx --runInBand --coverage=false) && \

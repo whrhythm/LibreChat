@@ -71,6 +71,7 @@ router.put('/workspace/agent/mcp/:serverId/credential', requireJwtAuth, programm
 router.put('/workspace/agent/preferences', requireJwtAuth, programming.save);
 router.get('/workspace/agent/tasks', requireJwtAuth, programming.tasks);
 router.get('/workspace/agent/tasks/:taskId', requireJwtAuth, programming.task);
+router.get('/workspace/agent/tasks/:taskId/stream', requireJwtAuth, programming.stream);
 router.post('/workspace/agent/tasks/:taskId/decision', requireJwtAuth, programming.decision);
 router.post('/workspace/agent/tasks/:taskId/cancel', requireJwtAuth, programming.cancel);
 router.get('/workspace/capacity', requireJwtAuth, capacity.account);

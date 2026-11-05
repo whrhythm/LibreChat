@@ -5,6 +5,7 @@ import {
 } from 'librechat-data-provider';
 import type { Response } from 'express';
 import type { ServerRequest } from '~/types';
+import { relayTaskStream } from './taskStream';
 
 type Dependencies = {
   baseUrl?: string;
@@ -15,7 +16,15 @@ type Dependencies = {
 type WorkbenchRequest = Omit<ServerRequest, 'body'> & { body?: unknown };
 type WorkbenchHandler = (req: WorkbenchRequest, res: Response) => Promise<Response>;
 type WorkbenchHandlers = Record<
-  'preferences' | 'save' | 'tasks' | 'task' | 'decision' | 'cancel' | 'mcp' | 'credential',
+  | 'preferences'
+  | 'save'
+  | 'tasks'
+  | 'task'
+  | 'stream'
+  | 'decision'
+  | 'cancel'
+  | 'mcp'
+  | 'credential',
   WorkbenchHandler
 >;
 
@@ -28,6 +37,7 @@ export function createProgrammingHandlers(deps: Dependencies): WorkbenchHandlers
         | 'save'
         | 'tasks'
         | 'task'
+        | 'stream'
         | 'decision'
         | 'cancel'
         | 'mcp'
@@ -72,19 +82,34 @@ export function createProgrammingHandlers(deps: Dependencies): WorkbenchHandlers
           return res.status(400).json({ code: 'agent_invalid_input' });
         suffix += '?conversation_id=' + encodeURIComponent(conversation);
       }
-      if (action === 'decision' || action === 'cancel' || action === 'task') {
+      if (
+        action === 'decision' ||
+        action === 'cancel' ||
+        action === 'task' ||
+        action === 'stream'
+      ) {
         const id =
           req.params && typeof req.params === 'object' && 'taskId' in req.params
             ? req.params.taskId
             : null;
         if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/.test(id))
           return res.status(400).json({ code: 'agent_invalid_input' });
-        suffix = `tasks/${encodeURIComponent(id)}${action === 'task' ? '' : '/' + action}`;
+        suffix = `tasks/${encodeURIComponent(id)}${action === 'task' || action === 'stream' ? '' : '/' + action}`;
       }
       try {
         const url = new URL('agent/' + suffix, deps.baseUrl.replace(/\/?$/, '/'));
         if (url.protocol !== 'https:' || url.username || url.password)
           throw new Error('configuration');
+        if (action === 'stream')
+          return relayTaskStream(
+            url,
+            {
+              'X-CodeChat-Service-Token': deps.serviceToken,
+              'X-CodeChat-Subject': user.openidId,
+            },
+            res,
+            deps.request ?? fetch,
+          );
         const response = await (deps.request ?? fetch)(url, {
           method: {
             save: 'PUT',
@@ -121,6 +146,7 @@ export function createProgrammingHandlers(deps: Dependencies): WorkbenchHandlers
     save: handler('save'),
     tasks: handler('tasks'),
     task: handler('task'),
+    stream: handler('stream'),
     decision: handler('decision'),
     cancel: handler('cancel'),
   };

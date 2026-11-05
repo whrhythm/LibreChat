@@ -52,6 +52,8 @@ export type ProgrammingEvent = {
   path?: string;
   exit_code?: number | null;
   error_code?: string | null;
+  stream_id?: string;
+  phase?: string;
 };
 export type ProgrammingTask = {
   id: string;
@@ -61,7 +63,54 @@ export type ProgrammingTask = {
   error_code: string | null;
   events: ProgrammingEvent[];
   pending: { id: string; expires_at: string; decision?: string | null } | null;
+  updated_at?: string;
 };
+
+/** A stream is a replaceable projection of one task, not a command channel. */
+export async function streamProgrammingTask(
+  token: string,
+  id: string,
+  signal: AbortSignal,
+  update: (task: ProgrammingTask) => void,
+): Promise<void> {
+  const response = await fetch(
+    '/api/user/workspace/agent/tasks/' + encodeURIComponent(id) + '/stream',
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'same-origin',
+      cache: 'no-store',
+      signal,
+    },
+  );
+  if (!response.ok) throw new ProgrammingRequestError(response.status);
+  if (!response.body || !response.headers.get('content-type')?.includes('text/event-stream'))
+    throw new ProgrammingRequestError(503);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  try {
+    while (!signal.aborted) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      if (buffer.length > 8 * 1024 * 1024) throw new ProgrammingRequestError(503);
+      let end: number;
+      while ((end = buffer.indexOf('\n\n')) >= 0) {
+        const frame = buffer.slice(0, end);
+        buffer = buffer.slice(end + 2);
+        if (!frame.startsWith('event: snapshot\n')) continue;
+        const line = frame.split('\n').find((part) => part.startsWith('data: '));
+        if (!line) continue;
+        const task: ProgrammingTask = JSON.parse(line.slice(6));
+        if (task.id !== id || !Array.isArray(task.events)) throw new ProgrammingRequestError(503);
+        update(task);
+      }
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
 export class ProgrammingRequestError extends Error {
   constructor(public status: number) {
     super('programming_request_failed');
