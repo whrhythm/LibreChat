@@ -78,6 +78,11 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
       : last?.operation;
   const final = task?.events.findLast((event) => event.kind === 'finished');
   const running = !!task && active.includes(task.status);
+  const queuedAt = task?.events.find((event) => event.kind === 'queued')?.at;
+  const queueDelayed = !!queuedAt && query.dataUpdatedAt - Date.parse(queuedAt) >= 30000;
+  const visibleSteps = task?.events.filter(
+    (event) => event.kind !== 'finished' && (event.path || event.output),
+  );
   let progressKey:
     | 'com_codechat_task_working'
     | 'com_codechat_mcp_running'
@@ -115,9 +120,16 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
             </Button>
           </p>
         )}
+        {task?.status === 'queued' && (
+          <p className="text-text-secondary text-sm" aria-live="polite">
+            {t(
+              queueDelayed ? 'com_codechat_task_queue_delayed' : 'com_codechat_task_queue_waiting',
+            )}
+          </p>
+        )}
         {task?.status === 'running' && last && (
           <p className="text-text-secondary text-sm">
-            {t(progressKey)}
+            {t(last.kind === 'started' ? 'com_codechat_task_model_waiting' : progressKey)}
             {last.path && <span className="ml-2 font-mono">{last.path}</span>}
           </p>
         )}
@@ -146,25 +158,23 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
             </div>
           </div>
         )}
-        {task && (
+        {!!visibleSteps?.length && (
           <details>
             <summary className="cursor-pointer text-sm">{t('com_codechat_task_steps')}</summary>
             <div className="mt-3 max-h-72 space-y-3 overflow-auto text-xs">
-              {task.events
-                .filter((event) => event.kind !== 'finished' && (event.path || event.output))
-                .map((event) => (
-                  <div key={event.sequence}>
-                    <time className="text-text-secondary">
-                      {new Date(event.at).toLocaleTimeString()}
-                    </time>
-                    <pre className="break-words whitespace-pre-wrap">
-                      {event.path || event.output}
-                    </pre>
-                    {event.exit_code != null && (
-                      <p>{t('com_codechat_programming_exit', { code: event.exit_code })}</p>
-                    )}
-                  </div>
-                ))}
+              {visibleSteps.map((event) => (
+                <div key={event.sequence}>
+                  <time className="text-text-secondary">
+                    {new Date(event.at).toLocaleTimeString()}
+                  </time>
+                  <pre className="break-words whitespace-pre-wrap">
+                    {event.path || event.output}
+                  </pre>
+                  {event.exit_code != null && (
+                    <p>{t('com_codechat_programming_exit', { code: event.exit_code })}</p>
+                  )}
+                </div>
+              ))}
             </div>
           </details>
         )}

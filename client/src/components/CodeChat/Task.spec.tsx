@@ -59,6 +59,30 @@ function mount(client: QueryClient) {
 }
 beforeEach(() => jest.clearAllMocks());
 
+it('explains a delayed queue and then shows model progress without empty tool records', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const task = {
+    ...initial,
+    status: 'queued',
+    pending: null,
+    events: [{ sequence: 1, kind: 'queued', at: new Date(Date.now() - 60000).toISOString() }],
+  };
+  (programmingTask as jest.Mock).mockResolvedValue(task);
+  const view = mount(client);
+  expect(await screen.findByText('com_codechat_task_queue_delayed')).toBeVisible();
+  expect(screen.queryByText('com_codechat_task_steps')).not.toBeInTheDocument();
+  (programmingTask as jest.Mock).mockResolvedValue({
+    ...task,
+    status: 'running',
+    events: [...task.events, { sequence: 2, kind: 'started', at: new Date().toISOString() }],
+  });
+  await client.invalidateQueries();
+  expect(await screen.findByText('com_codechat_task_model_waiting')).toBeVisible();
+  expect(screen.queryByText('com_codechat_task_queue_delayed')).not.toBeInTheDocument();
+  view.unmount();
+  client.clear();
+});
+
 it('keeps one reply across approval, final result and a remount without another decision', async () => {
   let task = initial;
   (programmingTask as jest.Mock).mockImplementation(async () => task);
