@@ -349,7 +349,7 @@ export default function PersonalFiles({
       </p>
       {upload.isError && <p role="alert">{localize('com_codechat_files_upload_error')}</p>}
       {downloadError && <p role="alert">{localize('com_codechat_files_error')}</p>}
-      <div className={action?.mode === 'edit' ? 'max-h-48 overflow-auto' : ''}>
+      <div>
         <Directory path="" actions={actions} />
       </div>
       {action && (
@@ -358,7 +358,6 @@ export default function PersonalFiles({
           action={action}
           triggerRef={triggerRef}
           maxBytes={startup?.codechat?.filePreviewMaxBytes ?? 1024 * 1024}
-          inline={action.mode === 'edit'}
           onDirtyChange={setDirty}
           onClose={() => setAction(null)}
         />

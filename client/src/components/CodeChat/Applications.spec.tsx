@@ -96,7 +96,7 @@ describe('applications in the personal space sidebar', () => {
     );
     expect(screen.queryByText('com_codechat_db_engine')).not.toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'com_codechat_app_database_usage' })).toBeVisible();
-    expect(screen.getByText('com_codechat_db_usage')).toBeVisible();
+    expect(screen.getByText('com_codechat_app_database_metric')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'com_codechat_app_actions' }));
     fireEvent.click(await screen.findByRole('menuitem', { name: 'com_codechat_app_remove' }));
     expect(request).not.toHaveBeenCalledWith('synthetic-token', 'delete', 'app-identifier');

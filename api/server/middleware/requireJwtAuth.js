@@ -5,6 +5,7 @@ const {
   isEnabled,
   isTokenRetired,
   createRequiredTwoFactorGate,
+  createManagedAccountGate,
   clearCloudFrontCookies,
   tenantContextMiddleware,
   getAuthFailureReasonCategory,
@@ -26,6 +27,13 @@ const hasPassportStrategy = (strategy) =>
 const getAuthenticatedUserId = (user) => user?.id?.toString?.() ?? user?._id?.toString?.();
 const refreshCloudFrontCookies =
   maybeRefreshCloudFrontAuthCookiesMiddleware ?? ((_req, _res, next) => next());
+const managedAccountGate = createManagedAccountGate({
+  baseUrl: process.env.CODECHAT_WORKSPACE_URL,
+  issuer: process.env.OPENID_ISSUER,
+  serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
+  getConfig: getAppConfig,
+  onAllowed: refreshCloudFrontCookies,
+});
 const ACCOUNT_DELETION_CODE = 'ACCOUNT_DELETION_IN_PROGRESS';
 
 const getAuthTokenSource = (req) => {
@@ -212,7 +220,7 @@ const requireJwtAuth = (req, res, next) => {
           if (tenantErr) {
             return next(tenantErr);
           }
-          afterTermsGate(requireJwtTermsAcceptance, refreshCloudFrontCookies)(req, res, next);
+          afterTermsGate(requireJwtTermsAcceptance, managedAccountGate)(req, res, next);
         });
       });
     })(req, res, next);

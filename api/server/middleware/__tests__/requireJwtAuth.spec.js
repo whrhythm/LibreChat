@@ -82,6 +82,7 @@ jest.mock('@librechat/api', () => {
   return {
     isEnabled: jest.fn(() => false),
     createRequiredTwoFactorGate: actualApi.createRequiredTwoFactorGate,
+    createManagedAccountGate: actualApi.createManagedAccountGate,
     createTermsAcceptanceGate: actualApi.createTermsAcceptanceGate,
     afterTermsGate: actualApi.afterTermsGate,
     clearCloudFrontCookies: jest.fn(),

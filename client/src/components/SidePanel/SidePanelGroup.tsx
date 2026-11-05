@@ -169,8 +169,8 @@ const SidePanelGroup = memo(
         <div ref={host} className="relative min-w-0 flex-1">
           <ResizablePanelGroup
             orientation="horizontal"
-            defaultLayout={defaultLayout}
-            onLayoutChanged={onLayoutChanged}
+            defaultLayout={animateSpace ? undefined : defaultLayout}
+            onLayoutChanged={animateSpace ? undefined : onLayoutChanged}
             dir="ltr"
           >
             {reversed ? panels.reverse() : panels}

@@ -13,9 +13,6 @@ import {
   QueryKeys,
   programmingPreference,
   saveProgrammingPreference,
-  programmingTasks,
-  decideProgrammingTask,
-  cancelProgrammingTask,
   personalFileRequest,
 } from 'librechat-data-provider';
 import type { ProgrammingPreference, WorkspaceEntry } from 'librechat-data-provider';
@@ -56,13 +53,6 @@ export default function Workbench({
     enabled: !!token,
     retry: 1,
   });
-  const tasks = useQuery({
-    queryKey: [QueryKeys.programmingTasks, user?.id],
-    queryFn: () => programmingTasks(token!),
-    enabled: !!token,
-    refetchInterval: open ? 2000 : 10000,
-    retry: 1,
-  });
   const directories = useQuery<{ entries: WorkspaceEntry[] }>({
     queryKey: [QueryKeys.codechatFiles, user?.id, browse],
     queryFn: async () => (await personalFileRequest(token!, 'directories', 'GET', browse)).json(),
@@ -80,27 +70,8 @@ export default function Workbench({
     },
     retry: false,
   });
-  const action = useMutation({
-    mutationFn: (value: { task: string; operation?: string; decision?: 'approve' | 'reject' }) =>
-      value.operation && value.decision
-        ? decideProgrammingTask(token!, value.task, value.operation, value.decision)
-        : cancelProgrammingTask(token!, value.task),
-    onSettled: () => query.invalidateQueries([QueryKeys.programmingTasks, user?.id]),
-    retry: false,
-  });
-  const pending = tasks.data?.tasks.some((task) => task.status === 'awaiting_approval');
   const selectStyle =
     'border-border-light bg-surface-primary text-text-primary rounded-theme-control w-full border px-3 py-2 text-sm';
-  const statusKeys = {
-    queued: 'com_codechat_run_queued',
-    running: 'com_codechat_run_running',
-    awaiting_approval: 'com_codechat_run_approval',
-    cancelling: 'com_codechat_run_cancelling',
-    cancelled: 'com_codechat_run_cancelled',
-    completed: 'com_codechat_run_completed',
-    failed: 'com_codechat_run_failed',
-    interrupted: 'com_codechat_run_interrupted',
-  } as const;
   return (
     <>
       <Button
@@ -111,7 +82,7 @@ export default function Workbench({
         aria-label={t('com_codechat_programming_settings')}
       >
         <Settings2 className="size-4" aria-hidden="true" />
-        {t(pending ? 'com_codechat_run_approval' : 'com_codechat_programming_settings')}
+        {t('com_codechat_programming_settings')}
       </Button>
       <OGDialog open={open} onOpenChange={setOpen} triggerRef={trigger}>
         <OGDialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
@@ -253,113 +224,6 @@ export default function Workbench({
               )}
             </section>
           )}
-          <section
-            className="border-border-light space-y-3 border-t pt-4"
-            aria-label={t('com_codechat_programming_runs')}
-          >
-            <h3 className="text-sm font-semibold">{t('com_codechat_programming_runs')}</h3>
-            {tasks.isError && <p role="alert">{t('com_codechat_programming_error')}</p>}
-            {tasks.data?.tasks.length === 0 && (
-              <p className="text-text-secondary text-sm">{t('com_codechat_programming_no_runs')}</p>
-            )}
-            {tasks.data?.tasks.map((task) => (
-              <article
-                key={task.id}
-                className="border-border-light space-y-2 rounded-lg border p-3 text-xs"
-              >
-                <div className="flex justify-between gap-2">
-                  <span className="truncate font-mono">{task.config.project_path}</span>
-                  <strong>
-                    {t(
-                      statusKeys[task.status as keyof typeof statusKeys] ??
-                        'com_codechat_run_failed',
-                    )}
-                  </strong>
-                </div>
-                <p className="text-text-secondary">{task.config.model}</p>
-                {task.status === 'awaiting_approval' && task.pending && (
-                  <div className="bg-surface-secondary space-y-2 rounded-lg p-3">
-                    <p>{t('com_codechat_programming_approval_detail')}</p>
-                    <pre className="max-h-52 overflow-auto break-all whitespace-pre-wrap">
-                      {JSON.stringify(
-                        task.events.find(
-                          (event) =>
-                            event.kind === 'approval' && event.operation_id === task.pending?.id,
-                        )?.arguments ?? {},
-                        null,
-                        2,
-                      )}
-                    </pre>
-                    <div className="flex gap-2">
-                      <Button
-                        size="xs"
-                        disabled={action.isLoading || !!task.pending.decision}
-                        onClick={() =>
-                          action.mutate({
-                            task: task.id,
-                            operation: task.pending!.id,
-                            decision: 'approve',
-                          })
-                        }
-                      >
-                        {t('com_codechat_programming_approve')}
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        disabled={action.isLoading || !!task.pending.decision}
-                        onClick={() =>
-                          action.mutate({
-                            task: task.id,
-                            operation: task.pending!.id,
-                            decision: 'reject',
-                          })
-                        }
-                      >
-                        {t('com_codechat_programming_reject')}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                <details>
-                  <summary className="cursor-pointer">{t('com_codechat_programming_log')}</summary>
-                  <div className="mt-2 max-h-64 space-y-2 overflow-auto">
-                    {task.events
-                      .filter((event) => event.text || event.output || event.path)
-                      .map((event) => (
-                        <div key={event.sequence}>
-                          <time className="text-text-secondary">
-                            {new Date(event.at).toLocaleTimeString()}
-                          </time>
-                          <pre className="font-mono break-words whitespace-pre-wrap">
-                            {event.text || event.output || event.path}
-                          </pre>
-                          {event.exit_code != null && (
-                            <p>{t('com_codechat_programming_exit', { code: event.exit_code })}</p>
-                          )}
-                        </div>
-                      ))}
-                  </div>
-                </details>
-                {task.error_code && (
-                  <p role="alert">
-                    {t('com_codechat_programming_failed')} <code>{task.error_code}</code>
-                  </p>
-                )}
-                {['queued', 'running', 'awaiting_approval'].includes(task.status) && (
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    disabled={action.isLoading}
-                    onClick={() => action.mutate({ task: task.id })}
-                  >
-                    {t('com_codechat_programming_stop')}
-                  </Button>
-                )}
-              </article>
-            ))}
-            {action.isError && <p role="alert">{t('com_codechat_programming_error')}</p>}
-          </section>
         </OGDialogContent>
       </OGDialog>
     </>

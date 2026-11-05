@@ -273,16 +273,21 @@ export default function Applications({
               {app.database && (
                 <section
                   aria-label={localize('com_codechat_app_database_usage')}
-                  className="text-text-secondary flex flex-col gap-1 text-xs"
+                  className="bg-surface-secondary rounded-lg p-2.5 text-xs"
                 >
-                  <h4 className="font-medium">{localize('com_codechat_app_database_usage')}</h4>
-                  <p className="text-text-secondary tabular-nums">
-                    {localize('com_codechat_db_usage', {
+                  <p className="mb-1.5 tabular-nums">
+                    {localize('com_codechat_app_database_metric', {
                       used:
                         app.database.used_bytes == null
                           ? localize('com_codechat_db_unknown')
                           : storageSize(app.database.used_bytes),
                       reserved: storageSize(app.database.reserved_bytes),
+                      percent:
+                        app.database.used_bytes != null && app.database.reserved_bytes > 0
+                          ? ((app.database.used_bytes / app.database.reserved_bytes) * 100).toFixed(
+                              1,
+                            )
+                          : '—',
                     })}
                   </p>
                   {app.database.used_bytes != null && app.database.reserved_bytes > 0 && (
@@ -295,7 +300,10 @@ export default function Applications({
                     />
                   )}
                   {app.database.observed_at && (
-                    <time className="text-text-secondary" dateTime={app.database.observed_at}>
+                    <time
+                      className="text-text-secondary mt-3 block"
+                      dateTime={app.database.observed_at}
+                    >
                       {localize('com_codechat_db_observed', {
                         time: new Date(app.database.observed_at).toLocaleString(),
                       })}

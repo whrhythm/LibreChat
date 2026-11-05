@@ -1,4 +1,5 @@
 export * from './preferences';
+export * from './accountAccess';
 export * from './codeChatIdentity';
 export * from './workspace';
 export * from './workbench';

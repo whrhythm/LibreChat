@@ -4441,6 +4441,7 @@ export const configSchema = z.object({
   version: z.string(),
   codechat: z
     .object({
+      accountStatusCacheMs: z.number().int().min(0).max(30000).default(15000),
       capabilities: codechatCapabilitiesSchema.optional(),
       capacity: z.object({ enabled: z.boolean().default(false) }).optional(),
       databases: z.object({ enabled: z.boolean().default(false) }).optional(),

@@ -1,4 +1,5 @@
 {
+  "com_codechat_app_database_metric": "Database {{used}}/{{reserved}} ({{percent}}%)",
   "com_codechat_task_private": "Only the signed-in owner can view this programming task.",
   "com_codechat_task_unavailable": "This task is unavailable. Check your sign-in and retry.",
   "com_codechat_task_reconnecting": "Connection interrupted; retrying automatically. Showing the last state without replaying execution.",

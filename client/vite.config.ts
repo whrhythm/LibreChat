@@ -120,6 +120,10 @@ export default defineConfig(({ command }) => ({
           'assets/rum.*.js',
           'assets/locale-*.js',
           'assets/query-devtools*.js',
+          // The file editor is loaded only when opening a file; do not download
+          // its language services on every chat visit through PWA precaching.
+          'assets/code-editor*.js',
+          'assets/*.worker-*.js',
         ],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         /**

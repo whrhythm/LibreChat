@@ -4,6 +4,28 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import PersonalFiles from './Files';
 
+jest.mock('./CodeEditor', () => ({
+  __esModule: true,
+  default: ({
+    value,
+    readOnly,
+    onChange,
+    label,
+  }: {
+    value: string;
+    readOnly: boolean;
+    onChange: (value: string) => void;
+    label: string;
+  }) => (
+    <textarea
+      aria-label={label}
+      value={value}
+      readOnly={readOnly}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  ),
+}));
+
 jest.mock('~/hooks', () => ({
   useAuthContext: () => ({ user: { id: 'alice' }, token: 'synthetic-token' }),
   useLocalize: () => (key: string) => key,
@@ -96,7 +118,7 @@ describe('personal files in the chat sidebar', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'com_codechat_file_edit' }));
     const editor = await screen.findByRole('textbox', { name: 'com_codechat_file_content' });
     await waitFor(() => expect(editor).toHaveValue('print("hello")'));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
     fireEvent.change(editor, { target: { value: 'print("edited")' } });
     fireEvent.click(screen.getByRole('button', { name: 'com_ui_close' }));
     expect(screen.getByText('com_codechat_file_unsaved')).toBeInTheDocument();

@@ -1,4 +1,5 @@
 {
+  "com_codechat_app_database_metric": "数据库 {{used}}/{{reserved}}（{{percent}}%）",
   "com_codechat_task_private": "编程任务仅可由所有者登录后查看。",
   "com_codechat_task_unavailable": "暂时无法读取这项编程任务，请确认登录状态后重试。",
   "com_codechat_task_reconnecting": "连接暂时中断，正在自动重试；保留上次状态，不会重新执行任务。",
