@@ -6,6 +6,7 @@ import ResultSwitcher from '~/components/Messages/Content/ResultSwitcher';
 import { useToolCallsMapContext, useMessageContext } from '~/Providers';
 import { LogContent } from '~/components/Chat/Messages/Content/Parts';
 import CodeBar from '~/components/Messages/Content/CodeBar';
+import SaveToSpace from '~/components/CodeChat/SaveToSpace';
 import { useLocalize } from '~/hooks';
 import cn from '~/utils/cn';
 
@@ -160,6 +161,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
               onNext={next}
             />
           )}
+          <SaveToSpace files={currentToolCall?.attachments ?? []} />
         </>
       )}
     </div>

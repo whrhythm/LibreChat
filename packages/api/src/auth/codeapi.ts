@@ -13,6 +13,8 @@ interface CodeApiUserContext {
   role?: string;
   tenantId?: string | { toString(): string };
   provider?: string;
+  openidId?: string;
+  openidIssuer?: string;
   orgId?: string;
   serviceId?: string;
   chcUserId?: string;
@@ -40,6 +42,8 @@ interface CodeApiClaims {
   plan_id?: string;
   code_worker_id?: string;
   auth_context_hash: string;
+  platform_subject?: string;
+  platform_issuer?: string;
 }
 
 interface SigningConfig {
@@ -341,6 +345,9 @@ function buildClaims(
     ...(planId ? { plan_id: planId } : {}),
     ...(codeWorkerId != null && codeWorkerId !== '' ? { code_worker_id: codeWorkerId } : {}),
     auth_context_hash: authContextHash,
+    ...(user.provider === 'openid' && user.openidId && user.openidIssuer
+      ? { platform_subject: user.openidId, platform_issuer: user.openidIssuer }
+      : {}),
   };
 }
 
@@ -373,6 +380,8 @@ function cacheKey(config: SigningConfig, claims: CodeApiClaims): string {
     claims.plan_id ?? '',
     claims.code_worker_id ?? '',
     claims.auth_context_hash,
+    claims.platform_subject ?? '',
+    claims.platform_issuer ?? '',
   ]);
 }
 

@@ -23,6 +23,7 @@ import {
 import { useLocalize, useAttachmentPreviewSync, useExpandCollapse } from '~/hooks';
 import { fileToArtifact, TOOL_ARTIFACT_TYPES } from '~/utils/artifacts';
 import Image from '~/components/Chat/Messages/Content/Image';
+import SaveToSpace from '~/components/CodeChat/SaveToSpace';
 import ToolMermaidArtifact from './ToolMermaidArtifact';
 import ToolArtifactCard from './ToolArtifactCard';
 import { useAttachmentLink } from './LogLink';
@@ -637,6 +638,7 @@ export function AttachmentGroup({ attachments }: { attachments?: TAttachment[] }
           ))}
         </div>
       )}
+      <SaveToSpace files={attachments} />
     </>
   );
 }

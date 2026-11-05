@@ -170,6 +170,24 @@ describe('Code API JWT minting', () => {
     expect(decoded.claims).not.toHaveProperty('openid_token');
   });
 
+  it('signs the verified OpenID identity and does not reuse a token after identity changes', async () => {
+    const req = baseRequest();
+    Object.assign(req.user!, {
+      provider: 'openid',
+      openidId: 'oidc-alice',
+      openidIssuer: 'https://identity.test/',
+    });
+    const first = await mintCodeApiToken(req);
+    expect(decodeToken(first).claims).toMatchObject({
+      platform_subject: 'oidc-alice',
+      platform_issuer: 'https://identity.test/',
+    });
+    Object.assign(req.user!, { openidId: 'oidc-bob' });
+    const second = await mintCodeApiToken(req);
+    expect(second).not.toEqual(first);
+    expect(decodeToken(second).claims.platform_subject).toBe('oidc-bob');
+  });
+
   it('validates that the configured signing key is usable by the selected algorithm', () => {
     expect(() => assertCodeApiJwtSigningReady()).not.toThrow();
 

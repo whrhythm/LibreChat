@@ -14,9 +14,15 @@ jest.mock('librechat-data-provider', () => {
   return { ...actual, dataService: { ...actual.dataService, callTool: jest.fn() } };
 });
 
-jest.mock('~/hooks', () => ({ useLocalize: () => (key: string) => key }));
+jest.mock('~/hooks', () => ({
+  useLocalize: () => (key: string) => key,
+  useAuthContext: () => ({}),
+}));
 jest.mock('~/Providers', () => jest.requireActual('~/Providers/MessageContext'));
-jest.mock('~/data-provider', () => jest.requireActual('~/data-provider/Tools/mutations'));
+jest.mock('~/data-provider', () => ({
+  ...jest.requireActual('~/data-provider/Tools/mutations'),
+  useGetStartupConfig: () => ({ data: {} }),
+}));
 
 describe('RunCode animation lifecycle', () => {
   beforeEach(() => jest.useFakeTimers());

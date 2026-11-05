@@ -15,6 +15,9 @@ export type CapacityPlan = {
   application_limit: number;
   application_cpu_millicores?: number;
   application_memory_mib?: number;
+  code_runs_monthly?: number;
+  code_timeout_seconds?: number;
+  code_concurrency?: number;
   amount_minor: number;
   currency: string;
   model_credit_cny_minor?: number;
@@ -37,6 +40,16 @@ export type CapacityOrder = {
   model_credit_status?: string;
 };
 export type CapacityAccount = {
+  code_execution?: {
+    period: string;
+    used_runs: number;
+    remaining_runs: number;
+    active_runs: number;
+    code_runs_monthly: number;
+    code_timeout_seconds: number;
+    code_concurrency: number;
+    memory_mib: number;
+  };
   plan: CapacityPlan;
   mode: 'test' | 'disabled';
   plans: CapacityPlan[];
@@ -66,6 +79,9 @@ export type CapacityAccount = {
     application_limit: number;
     application_cpu_millicores?: number;
     application_memory_mib?: number;
+    code_runs_monthly?: number;
+    code_timeout_seconds?: number;
+    code_concurrency?: number;
     estimated_tokens: number | null;
     reference_model: string | null;
   };

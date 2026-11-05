@@ -71,7 +71,7 @@ RUN \
     NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" npm run frontend && \
     if [ "$CODECHAT_VERIFY" = "true" ]; then \
       npx eslint packages/api/src/user/workbench.ts packages/api/src/user/workbench.spec.ts packages/data-provider/src/workbench.ts client/src/components/CodeChat/Workbench.tsx client/src/components/CodeChat/NewFolder.tsx client/src/components/Chat/Menus/Endpoints/ModelSelector.tsx && \
-      (cd packages/api && npx jest src/user/workbench.spec.ts src/user/accountAccess.spec.ts --runInBand --coverage=false) && \
+      (cd packages/api && npx jest src/user/workbench.spec.ts src/user/accountAccess.spec.ts src/auth/codeapi.spec.ts --runInBand --coverage=false) && \
       npx eslint client/src/components/CodeChat/Task.tsx client/src/components/CodeChat/Task.spec.tsx client/src/components/Chat/Messages/Content/Markdown.tsx && \
       npx eslint client/src/components/CodeChat/MCP.tsx client/src/components/CodeChat/MCP.spec.tsx client/src/components/CodeChat/MCPCredential.tsx && \
       (cd client && npx jest src/components/CodeChat/Task.spec.tsx src/components/CodeChat/MCP.spec.tsx --runInBand --coverage=false) && \
@@ -84,7 +84,7 @@ RUN \
       (cd client && npx jest src/components/CodeChat/StorageSummary.spec.tsx src/components/Chat/Presentation.test.tsx --runInBand --coverage=false) && \
       (cd packages/client && NODE_OPTIONS=--max-old-space-size=12288 npx tsc --noEmit && npx jest src/components/__tests__/dialogPlacement.spec.tsx --runInBand --coverage=false) && \
       (cd packages/api && NODE_OPTIONS=--max-old-space-size=12288 npx tsc --noEmit && npx jest src/user/codeChatIdentity.spec.ts src/user/workspace.spec.ts src/user/capacity.spec.ts src/user/databases.spec.ts --runInBand --coverage=false) && \
-      (cd client && NODE_OPTIONS=--max-old-space-size=12288 npx tsc --noEmit && npx jest src/components/Chat/Input/__tests__/ChatForm.attachments.spec.tsx src/locales/Translation.spec.ts src/components/CodeChat/identity.spec.ts src/components/CodeChat/SpaceStatus.spec.tsx src/components/CodeChat/Files.spec.tsx src/components/CodeChat/Applications.spec.tsx src/components/CodeChat/Capabilities.spec.tsx src/components/CodeChat/Space.spec.tsx src/components/CodeChat/Capacity.spec.tsx src/components/CodeChat/Membership.spec.tsx src/components/CodeChat/Databases.spec.tsx --runInBand --coverage=false); \
+      (cd client && NODE_OPTIONS=--max-old-space-size=12288 npx tsc --noEmit && npx jest src/components/Chat/Input/__tests__/ChatForm.attachments.spec.tsx src/locales/Translation.spec.ts src/components/CodeChat/identity.spec.ts src/components/CodeChat/SpaceStatus.spec.tsx src/components/CodeChat/Files.spec.tsx src/components/CodeChat/Applications.spec.tsx src/components/CodeChat/Capabilities.spec.tsx src/components/CodeChat/Space.spec.tsx src/components/CodeChat/Capacity.spec.tsx src/components/CodeChat/Membership.spec.tsx src/components/CodeChat/Databases.spec.tsx src/components/CodeChat/SaveToSpace.spec.tsx src/components/Messages/Content/__tests__/RunCode.test.tsx --runInBand --coverage=false); \
     fi && \
     npm prune --production && \
     npm cache clean --force

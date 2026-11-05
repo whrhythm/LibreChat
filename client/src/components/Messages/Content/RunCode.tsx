@@ -1,15 +1,17 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import debounce from 'lodash/debounce';
-import { Tools } from 'librechat-data-provider';
 import { SquareTerminal, Check, X } from 'lucide';
+import { useQueryClient } from '@tanstack/react-query';
+import { Tools, QueryKeys, personalCapacityRequest } from 'librechat-data-provider';
 import { MorphIcon, Spinner, TooltipAnchor, useToastContext } from '@librechat/client';
 import type { IconNode } from '@librechat/client';
 import type { CodeBarProps } from '~/common';
 import { useChatSettings } from '~/Providers/ChatSettingsContext';
 import { useToolCallMutation } from '~/data-provider';
+import { useAuthContext, useLocalize } from '~/hooks';
+import { useGetStartupConfig } from '~/data-provider';
 import { cn, normalizeLanguage } from '~/utils';
 import { useMessageContext } from '~/Providers';
-import { useLocalize } from '~/hooks';
 
 type RunState = 'idle' | 'loading' | 'success' | 'error';
 
@@ -24,9 +26,15 @@ const RunCode: React.FC<CodeBarProps & { iconOnly?: boolean }> = React.memo(
   ({ lang, codeRef, blockIndex, iconOnly = false }) => {
     const localize = useLocalize();
     const { showToast } = useToastContext();
+    const { token, user } = useAuthContext();
+    const queryClient = useQueryClient();
+    const { data: startup } = useGetStartupConfig();
     const execute = useToolCallMutation(Tools.execute_code, {
       onError: () => {
         showToast({ message: localize('com_ui_run_code_error'), status: 'error' });
+      },
+      onSettled: () => {
+        void queryClient.invalidateQueries([QueryKeys.codechatCapacity, user?.id]);
       },
     });
 
@@ -39,6 +47,24 @@ const RunCode: React.FC<CodeBarProps & { iconOnly?: boolean }> = React.memo(
     isTemporaryRef.current = isTemporary;
 
     const handleExecute = useCallback(async () => {
+      if (startup?.codechat?.capacity?.enabled && token) {
+        try {
+          const account = await personalCapacityRequest(token, 'account');
+          const quota = account.code_execution;
+          if (quota && (quota.remaining_runs < 1 || quota.active_runs >= quota.code_concurrency)) {
+            showToast({
+              message: localize(
+                quota.remaining_runs < 1 ? 'com_codechat_code_exhausted' : 'com_codechat_code_busy',
+              ),
+              status: 'error',
+            });
+            return;
+          }
+        } catch {
+          showToast({ message: localize('com_ui_run_code_error'), status: 'error' });
+          return;
+        }
+      }
       const codeString: string = codeRef.current?.textContent ?? '';
       if (
         typeof codeString !== 'string' ||
@@ -58,7 +84,19 @@ const RunCode: React.FC<CodeBarProps & { iconOnly?: boolean }> = React.memo(
         code: codeString,
         isTemporary: isTemporaryRef.current,
       });
-    }, [codeRef, execute, partIndex, messageId, blockIndex, conversationId, normalizedLang]);
+    }, [
+      codeRef,
+      execute,
+      partIndex,
+      messageId,
+      blockIndex,
+      conversationId,
+      normalizedLang,
+      startup?.codechat?.capacity?.enabled,
+      token,
+      showToast,
+      localize,
+    ]);
 
     const debouncedExecute = useMemo(
       () => debounce(handleExecute, 1000, { leading: true }),

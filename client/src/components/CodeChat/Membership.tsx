@@ -32,6 +32,16 @@ export default function Membership({
       memory: plan.application_memory_mib ?? '—',
     });
   const wallet = account.wallet;
+  const codePlan = (plan: {
+    code_runs_monthly?: number;
+    code_timeout_seconds?: number;
+    code_concurrency?: number;
+  }) =>
+    t('com_codechat_code_plan', {
+      runs: plan.code_runs_monthly ?? '—',
+      seconds: plan.code_timeout_seconds ?? '—',
+      concurrent: plan.code_concurrency ?? '—',
+    });
   const remaining = wallet?.remaining_usd_micros;
   const price = (amount: number, currency = 'CNY') =>
     new Intl.NumberFormat(i18n.language || undefined, {
@@ -45,6 +55,23 @@ export default function Membership({
       : (account.plans.find((plan) => plan.id === account.plan.id)?.name ?? account.plan.name);
   return (
     <>
+      {account.code_execution && (
+        <section
+          aria-label={t('com_codechat_code_usage_title')}
+          className="border-border-light bg-surface-secondary rounded-2xl border p-4"
+        >
+          <h3 className="font-medium">{t('com_codechat_code_usage_title')}</h3>
+          <p className="mt-2 text-sm">
+            {t('com_codechat_code_usage', {
+              period: account.code_execution.period,
+              used: account.code_execution.used_runs,
+              total: account.code_execution.code_runs_monthly,
+            })}
+          </p>
+          <p className="mt-2 text-sm">{codePlan(account.code_execution)}</p>
+          <p className="text-text-secondary mt-2 text-xs">{t('com_codechat_code_accounting')}</p>
+        </section>
+      )}
       <section className="grid gap-3 sm:grid-cols-3" aria-label={t('com_codechat_member_overview')}>
         <article className="border-border-light bg-surface-secondary rounded-2xl border p-5">
           <p className="text-text-secondary flex items-center gap-2 text-sm">
@@ -150,6 +177,7 @@ export default function Membership({
                   t('com_codechat_member_plan_disk', { count: account.trial.storage_gib }),
                   t('com_codechat_member_plan_apps', { count: account.trial.application_limit }),
                   compute(account.trial),
+                  codePlan(account.trial),
                   t('com_codechat_member_shared_balance'),
                 ].map((text) => (
                   <li key={text} className="flex gap-2">
@@ -207,6 +235,7 @@ export default function Membership({
                     t('com_codechat_member_plan_disk', { count: plan.storage_gib }),
                     t('com_codechat_member_plan_apps', { count: plan.application_limit }),
                     compute(plan),
+                    codePlan(plan),
                     t('com_codechat_member_shared_balance'),
                     ...(plan.features ?? []),
                   ].map((text, index) => (
