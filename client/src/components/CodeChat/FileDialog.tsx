@@ -14,6 +14,7 @@ import type { WorkspaceEntry } from 'librechat-data-provider';
 import type { RefObject } from 'react';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { lazyWithRecovery } from '~/lib/assets/lazy';
+import EditorLoading from './EditorLoading';
 
 const CodeEditor = lazyWithRecovery(() => import('./CodeEditor'));
 
@@ -51,7 +52,7 @@ export default function FileDialog({
   const { token, user } = useAuthContext();
   const localize = useLocalize();
   const client = useQueryClient();
-  const [text, setText] = useAtom(useMemo(() => atom(''), []));
+  const [text, setText] = useAtom(useMemo(() => atom<string | null>(null), []));
   const [original, setOriginal] = useAtom(useMemo(() => atom(''), []));
   const [version, setVersion] = useAtom(
     useMemo(() => atom(action.entry.etag || ''), [action.entry.etag]),
@@ -102,7 +103,7 @@ export default function FileDialog({
       if (action.mode === 'delete') {
         await personalFileRequest(token!, 'file', 'DELETE', action.path, undefined, { version });
       } else {
-        const body = new Blob([text], { type: 'application/octet-stream' });
+        const body = new Blob([text ?? ''], { type: 'application/octet-stream' });
         if (body.size > maxBytes) throw new Error('unsupported');
         await personalFileRequest(token!, 'file', 'PUT', action.path, body, {
           version,
@@ -118,7 +119,7 @@ export default function FileDialog({
     },
     retry: false,
   });
-  const dirty = text !== original;
+  const dirty = text !== null && text !== original;
   useEffect(() => {
     onDirtyChange?.(dirty);
     const warn = (event: BeforeUnloadEvent) => {
@@ -142,23 +143,22 @@ export default function FileDialog({
   const full = mutation.error instanceof PersonalFileError && mutation.error.code === 'full';
   function fileContent() {
     if (action.mode === 'delete') return <p>{localize('com_codechat_file_delete_notice')}</p>;
-    if (content.isLoading) return <p role="status">{localize('com_ui_loading')}</p>;
+    if (content.isLoading) return <EditorLoading />;
     if (content.isError)
       return (
         <p role="alert">
           {localize('com_codechat_file_unsupported', { limit: Math.floor(maxBytes / 1024) })}
         </p>
       );
-    if (imageUrl)
-      return (
-        <img
-          src={imageUrl}
-          alt={action.entry.name}
-          className="max-h-96 max-w-full object-contain"
-        />
+    if (imageType)
+      return imageUrl ? (
+        <img src={imageUrl} alt={action.entry.name} className="h-full w-full object-contain" />
+      ) : (
+        <EditorLoading />
       );
+    if (text === null) return <EditorLoading />;
     return (
-      <Suspense fallback={<p role="status">{localize('com_ui_loading')}</p>}>
+      <Suspense fallback={<EditorLoading />}>
         <CodeEditor
           name={'personal://' + user?.id + '/' + action.path}
           value={text}
@@ -220,7 +220,16 @@ export default function FileDialog({
             )}
           </div>
         )}
-        {fileContent()}
+        {action.mode === 'delete' ? (
+          fileContent()
+        ) : (
+          <div
+            className="border-border-light bg-surface-secondary h-[min(55vh,36rem)] min-h-64 overflow-hidden rounded-lg border"
+            data-testid="personal-file-viewport"
+          >
+            {fileContent()}
+          </div>
+        )}
         {mutation.isError && <p role="alert">{failureMessage()}</p>}
         {conflict && <p>{localize('com_codechat_file_conflict_recovery')}</p>}
         {discard ? (

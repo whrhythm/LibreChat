@@ -7,6 +7,7 @@ import CssWorker from 'monaco-editor/language/css/css.worker.js?worker';
 import JsonWorker from 'monaco-editor/language/json/json.worker.js?worker';
 import HtmlWorker from 'monaco-editor/language/html/html.worker.js?worker';
 import TsWorker from 'monaco-editor/language/typescript/ts.worker.js?worker';
+import EditorLoading from './EditorLoading';
 
 // Bundle workers locally: private source never depends on a public editor CDN.
 self.MonacoEnvironment = {
@@ -37,14 +38,13 @@ export default function CodeEditor({
   let theme = resolvedMode === 'dark' ? 'vs-dark' : 'vs';
   if (highContrast) theme = resolvedMode === 'dark' ? 'hc-black' : 'hc-light';
   return (
-    <div
-      className="border-border-light h-[min(55vh,36rem)] min-h-64 overflow-hidden rounded-lg border"
-      data-testid="personal-code-editor"
-    >
+    <div className="h-full overflow-hidden" data-testid="personal-code-editor">
       <Editor
         path={name}
         value={value}
         theme={theme}
+        loading={<EditorLoading />}
+        beforeMount={(editor) => editor.editor.setTheme(theme)}
         onChange={(next) => onChange(next ?? '')}
         keepCurrentModel={false}
         options={{
