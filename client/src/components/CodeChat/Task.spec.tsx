@@ -33,6 +33,7 @@ const initial: ProgrammingTask = {
     project_path: 'demo',
     strategy: 'implement',
     approval: 'strict',
+    mcp_servers: [],
     model: 'model',
   },
   status: 'awaiting_approval',

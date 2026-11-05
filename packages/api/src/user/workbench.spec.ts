@@ -7,6 +7,20 @@ const deps = {
   serviceToken: 's'.repeat(40),
   issuer: 'https://identity.test/',
 };
+
+it('loads only the fixed MCP catalog using the verified identity', async () => {
+  const request = jest.fn().mockResolvedValue(new globalThis.Response('{"servers":[]}'));
+  const handlers = createProgrammingHandlers({ ...deps, request });
+  const res = response();
+  await handlers.mcp(
+    { user, query: { url: 'http://localhost' } } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(String(request.mock.calls[0][0])).toBe(
+    'https://platform.test/internal/v1/workspace/agent/mcp',
+  );
+  expect(request.mock.calls[0][1].headers['X-CodeChat-Subject']).toBe('alice');
+});
 type Input = Parameters<ReturnType<typeof createProgrammingHandlers>['save']>[0];
 function response() {
   const res = { status: jest.fn(), json: jest.fn(), setHeader: jest.fn() };

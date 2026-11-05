@@ -21,6 +21,7 @@ import {
 import type { ProgrammingPreference, WorkspaceEntry } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import NewFolder from './NewFolder';
+import MCP from './MCP';
 
 export default function Workbench({
   conversationId,
@@ -228,6 +229,12 @@ export default function Workbench({
                 </label>
               </div>
               <p className="text-text-secondary text-xs">{t('com_codechat_programming_safety')}</p>
+              {open && (
+                <MCP
+                  selected={config.mcp_servers ?? []}
+                  onChange={(mcp_servers) => change({ mcp_servers })}
+                />
+              )}
               <Button
                 disabled={save.isLoading || !config.project_path || !draft}
                 onClick={() => save.mutate()}

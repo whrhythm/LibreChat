@@ -78,6 +78,19 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
       : last?.operation;
   const final = task?.events.findLast((event) => event.kind === 'finished');
   const running = !!task && active.includes(task.status);
+  let progressKey:
+    | 'com_codechat_task_working'
+    | 'com_codechat_mcp_running'
+    | 'com_codechat_task_command' = 'com_codechat_task_working';
+  if (last?.kind === 'mcp_started') progressKey = 'com_codechat_mcp_running';
+  else if (last && ['authorized', 'decision'].includes(last.kind) && operation === 'command')
+    progressKey = 'com_codechat_task_command';
+  let approvalKey:
+    | 'com_codechat_task_decided'
+    | 'com_codechat_mcp_confirm'
+    | 'com_codechat_programming_approval_detail' = 'com_codechat_programming_approval_detail';
+  if (pending?.decision) approvalKey = 'com_codechat_task_decided';
+  else if (approval?.operation === 'mcp_read') approvalKey = 'com_codechat_mcp_confirm';
   return (
     <section data-testid="programming-task" data-task-id={id} className="my-2 space-y-3">
       <div className="border-border-light space-y-3 rounded-xl border p-4">
@@ -103,23 +116,13 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
         )}
         {task?.status === 'running' && last && (
           <p className="text-text-secondary text-sm">
-            {t(
-              ['authorized', 'decision'].includes(last.kind) && operation === 'command'
-                ? 'com_codechat_task_command'
-                : 'com_codechat_task_working',
-            )}
+            {t(progressKey)}
             {last.path && <span className="ml-2 font-mono">{last.path}</span>}
           </p>
         )}
         {task?.status === 'awaiting_approval' && pending && (
           <div className="bg-surface-secondary space-y-3 rounded-lg p-3">
-            <p className="text-sm">
-              {t(
-                pending.decision
-                  ? 'com_codechat_task_decided'
-                  : 'com_codechat_programming_approval_detail',
-              )}
-            </p>
+            <p className="text-sm">{t(approvalKey)}</p>
             <pre className="max-h-52 overflow-auto text-xs break-all whitespace-pre-wrap">
               {JSON.stringify(approval?.arguments ?? {}, null, 2)}
             </pre>

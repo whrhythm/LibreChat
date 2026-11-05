@@ -7,6 +7,10 @@ export const programmingPreferenceSchema = z
     project_path: z.string().max(255),
     strategy: z.enum(['implement', 'plan', 'review']),
     approval: z.enum(['strict', 'workspace_auto']),
+    mcp_servers: z
+      .array(z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/))
+      .max(10)
+      .default([]),
   })
   .strict();
 export const programmingDecisionSchema = z
@@ -16,6 +20,15 @@ export const programmingDecisionSchema = z
   })
   .strict();
 export type ProgrammingPreference = z.infer<typeof programmingPreferenceSchema>;
+export type ProgrammingMCP = {
+  id: string;
+  name: string;
+  description: string;
+  url: string;
+  enabled: boolean;
+  tools: string[];
+  data_notice: string;
+};
 export type ProgrammingEvent = {
   sequence: number;
   kind: string;
@@ -66,6 +79,8 @@ export const saveProgrammingPreference = (token: string, value: ProgrammingPrefe
   request<ProgrammingPreference>(token, 'preferences', 'PUT', value);
 export const programmingTasks = (token: string) =>
   request<{ tasks: ProgrammingTask[] }>(token, 'tasks');
+export const programmingMCP = (token: string) =>
+  request<{ servers: ProgrammingMCP[] }>(token, 'mcp');
 export const programmingTask = (token: string, id: string) =>
   request<ProgrammingTask>(token, `tasks/${encodeURIComponent(id)}`);
 export const decideProgrammingTask = (

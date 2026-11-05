@@ -11,14 +11,14 @@ type Dependencies = {
 type WorkbenchRequest = Omit<ServerRequest, 'body'> & { body?: unknown };
 type WorkbenchHandler = (req: WorkbenchRequest, res: Response) => Promise<Response>;
 type WorkbenchHandlers = Record<
-  'preferences' | 'save' | 'tasks' | 'task' | 'decision' | 'cancel',
+  'preferences' | 'save' | 'tasks' | 'task' | 'decision' | 'cancel' | 'mcp',
   WorkbenchHandler
 >;
 
 /** Fixed routes and verified identity only; the browser never chooses a destination or user. */
 export function createProgrammingHandlers(deps: Dependencies): WorkbenchHandlers {
   const handler =
-    (action: 'preferences' | 'save' | 'tasks' | 'task' | 'decision' | 'cancel') =>
+    (action: 'preferences' | 'save' | 'tasks' | 'task' | 'decision' | 'cancel' | 'mcp') =>
     async (req: WorkbenchRequest, res: Response) => {
       res.setHeader('Cache-Control', 'no-store');
       const user = req.user;
@@ -68,6 +68,7 @@ export function createProgrammingHandlers(deps: Dependencies): WorkbenchHandlers
             preferences: 'GET',
             tasks: 'GET',
             task: 'GET',
+            mcp: 'GET',
           }[action],
           headers: {
             'X-CodeChat-Service-Token': deps.serviceToken,
@@ -89,6 +90,7 @@ export function createProgrammingHandlers(deps: Dependencies): WorkbenchHandlers
     };
   return {
     preferences: handler('preferences'),
+    mcp: handler('mcp'),
     save: handler('save'),
     tasks: handler('tasks'),
     task: handler('task'),

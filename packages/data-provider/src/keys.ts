@@ -74,6 +74,7 @@ export enum QueryKeys {
   codechatCapacity = 'codechatCapacity',
   codechatModels = 'codechatModels',
   programmingPreference = 'programmingPreference',
+  programmingMCP = 'programmingMCP',
   programmingTasks = 'programmingTasks',
   programmingTask = 'programmingTask',
   codechatDatabases = 'codechatDatabases',
