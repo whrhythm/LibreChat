@@ -1,6 +1,6 @@
+import { businessTemplateRequest } from 'librechat-data-provider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { businessTemplateRequest } from 'librechat-data-provider';
 import { TemplateProject } from './Templates';
 jest.mock('~/hooks', () => ({
   useAuthContext: () => ({ user: { id: 'owner' }, token: 'synthetic' }),

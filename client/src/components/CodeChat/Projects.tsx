@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { atom, useAtom } from 'jotai';
+import { Button } from '@librechat/client';
 import { FolderOpen, Pencil, Plus, RefreshCw } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button } from '@librechat/client';
 import {
   QueryKeys,
   workspaceProjects,
@@ -12,10 +12,10 @@ import {
   ProjectRequestError,
 } from 'librechat-data-provider';
 import type { WorkspaceProjectInput } from 'librechat-data-provider';
-import { useAuthContext, useLocalize } from '~/hooks';
-import Delivery from './Delivery';
-import { deliveryState } from './delivery';
 import { TemplateCreate, TemplateProject } from './Templates';
+import { useAuthContext, useLocalize } from '~/hooks';
+import { deliveryState } from './delivery';
+import Delivery from './Delivery';
 
 type Props = {
   enabled: boolean;
