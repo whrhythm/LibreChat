@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef } from 'react';
+import { useEffect, useId, useMemo, useRef } from 'react';
 import { atom, useAtom } from 'jotai';
 import { MenuButton } from '@ariakit/react';
 import { Button, DropdownPopup } from '@librechat/client';
@@ -231,6 +231,15 @@ export default function PersonalFiles({
   const [localPath, setLocalPath] = useAtom(pathAtom);
   const path = selectedPath ?? localPath;
   const setPath = onPathChange ?? setLocalPath;
+  useEffect(() => {
+    if (!expanded || !selectedPath) return;
+    const parts = selectedPath.split('/');
+    setFolders((current) => {
+      const next = new Set(current);
+      parts.forEach((_part, index) => next.add(parts.slice(0, index + 1).join('/')));
+      return next.size === current.size ? current : next;
+    });
+  }, [expanded, selectedPath, setFolders]);
   const space = useQuery<PersonalSpace>({
     queryKey: [QueryKeys.codechatSpace, user?.id],
     queryFn: async () => (await personalFileRequest(token!, 'ensure', 'POST')).json(),

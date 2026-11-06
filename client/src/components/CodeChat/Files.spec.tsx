@@ -38,6 +38,40 @@ jest.mock('librechat-data-provider', () => ({
 }));
 const request = personalFileRequest as jest.MockedFunction<typeof personalFileRequest>;
 
+it('reveals a selected nested project directory without writing files', async () => {
+  request.mockImplementation(
+    async (_token, endpoint, _method, path) =>
+      ({
+        json: async () =>
+          endpoint === 'ensure'
+            ? { status: 'ready', storage_gib: 2 }
+            : {
+                entries:
+                  path === 'old/nested'
+                    ? [{ name: 'main.py', kind: 'file', size: 4 }]
+                    : [{ name: path ? 'nested' : 'old', kind: 'directory', size: null }],
+              },
+      }) as Response,
+  );
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <PersonalFiles expanded path="old/nested" onPathChange={jest.fn()} />
+    </QueryClientProvider>,
+  );
+  await screen.findByRole('button', { name: 'main.py', exact: true });
+  expect(screen.getByRole('button', { name: 'old', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  expect(screen.getByRole('button', { name: 'nested', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  expect(request.mock.calls.every((call) => call[2] === 'GET' || call[1] === 'ensure')).toBe(true);
+});
+
 function mount() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
