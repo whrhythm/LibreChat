@@ -117,4 +117,5 @@ export * from './approval';
 export * from './codeSetup';
 export * from './codechatCapabilities';
 export * from './codechatCapacity';
+export * from './codechatVersions';
 export * from './codechatDatabases';

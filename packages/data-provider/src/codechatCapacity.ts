@@ -91,7 +91,7 @@ export type CapacityAccount = {
     budget_complete?: boolean;
     scope?: 'managed_logical_storage';
     components: {
-      component: 'files' | 'database' | 'objects' | 'images' | 'app_volumes';
+      component: 'files' | 'database' | 'objects' | 'images' | 'app_volumes' | 'versions';
       budget_bytes: number | null;
       used_bytes: number | null;
       observed_at: string | null;

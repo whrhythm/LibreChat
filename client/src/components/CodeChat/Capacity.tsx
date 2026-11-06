@@ -34,6 +34,7 @@ const componentKeys = {
   objects: 'com_codechat_capacity_objects',
   images: 'com_codechat_capacity_images',
   app_volumes: 'com_codechat_capacity_volumes',
+  versions: 'com_codechat_versions_title',
 } as const;
 const objectStatusKeys = {
   not_prepared: 'com_codechat_objects_preparing',
