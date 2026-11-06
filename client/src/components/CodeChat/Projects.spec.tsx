@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import {
@@ -6,6 +7,7 @@ import {
   workspaceProjectSource,
   saveWorkspaceProject,
   ProjectRequestError,
+  aiProjects,
 } from 'librechat-data-provider';
 import Projects from './Projects';
 
@@ -21,6 +23,7 @@ jest.mock('librechat-data-provider', () => ({
   workspaceProject: jest.fn(),
   workspaceProjectSource: jest.fn(),
   saveWorkspaceProject: jest.fn(),
+  aiProjects: jest.fn(),
 }));
 const project = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -54,13 +57,16 @@ function show() {
         })
       }
     >
-      <Projects enabled path="old/folder" onOpen={onOpen} />
+      <MemoryRouter>
+        <Projects enabled path="old/folder" onOpen={onOpen} />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
   return onOpen;
 }
 beforeEach(() => {
   jest.clearAllMocks();
+  (aiProjects as jest.Mock).mockResolvedValue({ enabled: false, projects: [] });
   (workspaceProjects as jest.Mock).mockResolvedValue({ projects: [project] });
   (workspaceProject as jest.Mock).mockResolvedValue(detail);
 });
