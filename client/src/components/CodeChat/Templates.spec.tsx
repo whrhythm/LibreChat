@@ -40,7 +40,7 @@ it('previews in an opaque iframe and binds manual checks to the observed source'
   mount();
   fireEvent.click(await screen.findByRole('button', { name: 'com_codechat_template_preview' }));
   const frame = await screen.findByTitle('com_codechat_template_frame');
-  expect(frame).toHaveAttribute('sandbox', 'allow-scripts');
+  expect(frame).toHaveAttribute('sandbox', 'allow-scripts allow-forms');
   expect(frame).not.toHaveAttribute('src');
   const save = screen.getByRole('button', { name: 'com_codechat_template_accept' });
   expect(save).toBeDisabled();

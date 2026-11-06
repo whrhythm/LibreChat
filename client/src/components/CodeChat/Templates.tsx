@@ -290,7 +290,7 @@ export function TemplateProject({
             <div className="max-h-[78vh] space-y-3 overflow-auto">
               <iframe
                 title={t('com_codechat_template_frame')}
-                sandbox="allow-scripts"
+                sandbox="allow-scripts allow-forms"
                 referrerPolicy="no-referrer"
                 srcDoc={preview.data.html}
                 className="border-border-light h-[50vh] w-full rounded-lg border"
