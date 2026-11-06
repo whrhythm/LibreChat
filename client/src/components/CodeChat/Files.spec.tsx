@@ -112,6 +112,25 @@ describe('personal files in the chat sidebar', () => {
     expect(request).toHaveBeenCalledWith('synthetic-token', 'file', 'GET', 'hello.py');
   });
 
+  it('closes a confirmed save even when background refresh requests never return', async () => {
+    mockFile();
+    const original = request.getMockImplementation()!;
+    let saved = false;
+    request.mockImplementation((...args) => {
+      if (saved && args[2] === 'GET') return new Promise<Response>(() => {});
+      if (args[1] === 'file' && args[2] === 'PUT') saved = true;
+      return original(...args);
+    });
+    mount();
+    fireEvent.click(await screen.findByRole('button', { name: 'com_codechat_file_edit' }));
+    const editor = await screen.findByRole('textbox', { name: 'com_codechat_file_content' });
+    await waitFor(() => expect(editor).toHaveValue('print("hello")'));
+    fireEvent.change(editor, { target: { value: 'print("saved")' } });
+    fireEvent.click(screen.getByRole('button', { name: 'com_ui_save' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(saved).toBe(true);
+  });
+
   it('guards unsaved edits and saves with the version that was actually opened', async () => {
     mockFile();
     mount();

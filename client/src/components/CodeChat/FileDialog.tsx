@@ -111,11 +111,11 @@ export default function FileDialog({
         });
       }
     },
-    onSuccess: async () => {
-      await client.invalidateQueries([QueryKeys.codechatFiles, user?.id]);
-      await client.invalidateQueries([QueryKeys.codechatUsage, user?.id]);
-      await client.invalidateQueries([QueryKeys.codechatCapacity, user?.id]);
+    onSuccess: () => {
       onClose();
+      void client.invalidateQueries([QueryKeys.codechatFiles, user?.id]);
+      void client.invalidateQueries([QueryKeys.codechatUsage, user?.id]);
+      void client.invalidateQueries([QueryKeys.codechatCapacity, user?.id]);
     },
     retry: false,
   });
