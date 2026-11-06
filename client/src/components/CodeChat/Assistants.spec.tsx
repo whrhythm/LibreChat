@@ -64,3 +64,22 @@ it('offers explicit recovery for a persisted unfinished project without claiming
   fireEvent.click(screen.getByRole('button', { name: 'com_ai_projects_resume' }));
   await waitFor(() => expect(resumeAIProject).toHaveBeenCalledWith('test', 'project'));
 });
+
+it('opens the native assistant entry in a fresh page so prior chat configuration cannot win', async () => {
+  (aiProjects as jest.Mock).mockResolvedValue({
+    enabled: true,
+    projects: [
+      {
+        project: { id: 'project', name: 'Support', path: 'assistant-test' },
+        agent_id: 'agent-test',
+        state: 'ready',
+        knowledge_state: 'not_configured',
+      },
+    ],
+  });
+  mount();
+  expect(await screen.findByRole('link', { name: 'com_ai_projects_try' })).toHaveAttribute(
+    'href',
+    '/c/new?endpoint=agents&agent_id=agent-test',
+  );
+});

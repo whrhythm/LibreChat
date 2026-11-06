@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { atom, useAtom } from 'jotai';
 import { Button } from '@librechat/client';
-import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { aiProjects, createAIProject, resumeAIProject, QueryKeys } from 'librechat-data-provider';
 import type { AIProjectCreateInput } from 'librechat-data-provider';
@@ -16,7 +15,6 @@ export default function Assistants({
 }) {
   const t = useLocalize();
   const { user, token } = useAuthContext();
-  const navigate = useNavigate();
   const client = useQueryClient();
   const state = useMemo(() => atom<AIProjectCreateInput | null>(null), []);
   const [draft, setDraft] = useAtom(state);
@@ -140,14 +138,10 @@ export default function Assistants({
           <p className="text-text-secondary text-xs">{t('com_ai_projects_knowledge_pending')}</p>
           <div className="flex flex-wrap gap-2">
             {value.state === 'ready' ? (
-              <Button
-                size="xs"
-                variant="outline"
-                onClick={() =>
-                  navigate('/c/new?endpoint=agents&agent_id=' + encodeURIComponent(value.agent_id))
-                }
-              >
-                {t('com_ai_projects_try')}
+              <Button size="xs" variant="outline" asChild>
+                <a href={'/c/new?endpoint=agents&agent_id=' + encodeURIComponent(value.agent_id)}>
+                  {t('com_ai_projects_try')}
+                </a>
               </Button>
             ) : (
               <Button
