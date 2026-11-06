@@ -94,6 +94,7 @@ export const acceptanceSchema = z
   .refine((value) => new Set(value.criteria.map((item) => item.id)).size === value.criteria.length);
 export type AcceptanceInput = z.infer<typeof acceptanceSchema>;
 export type TaskAcceptance = AcceptanceInput & {
+  source_sha256?: string | null;
   task_id: string;
   project_path: string;
   task_status: string;

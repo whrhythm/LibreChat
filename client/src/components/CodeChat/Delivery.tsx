@@ -10,6 +10,7 @@ import {
 } from '@librechat/client';
 import type { PersonalApplication } from 'librechat-data-provider';
 import { deliveryAddress, deliveryState } from './delivery';
+import Provenance, { acceptanceLabel } from './Provenance';
 import { useLocalize } from '~/hooks';
 
 /** A handoff describes observed delivery facts, never invents business test results. */
@@ -25,7 +26,21 @@ export default function Delivery({ app, stale }: { app: PersonalApplication; sta
     t(deliveryState(app)),
     ...(stale ? [t('com_codechat_delivery_stale')] : []),
     ...(address ? [t('com_codechat_delivery_address', { url: address })] : []),
-    t('com_codechat_delivery_business'),
+    ...(app.release
+      ? [
+          t('com_codechat_provenance_version', { version: app.release.revision.slice(0, 8) }),
+          t(acceptanceLabel(app.release)),
+          ...(app.release.acceptance_state === 'matched' && app.release.acceptance
+            ? [
+                t('com_codechat_acceptance_summary', {
+                  passed: app.release.acceptance.counts.passed,
+                  total: app.release.acceptance.counts.total,
+                  changes: app.release.acceptance.counts.changes_requested,
+                }),
+              ]
+            : []),
+        ]
+      : [t('com_codechat_delivery_business')]),
     t('com_codechat_delivery_access'),
     t('com_codechat_delivery_checklist'),
   ].join('\n\n');
@@ -66,12 +81,19 @@ export default function Delivery({ app, stale }: { app: PersonalApplication; sta
                 {address}
               </a>
             )}
-            <div className="bg-surface-secondary space-y-2 rounded-lg p-3">
-              <p className="font-medium">{t('com_codechat_delivery_business')}</p>
-              <p className="text-text-secondary whitespace-pre-line">
-                {t('com_codechat_delivery_checklist')}
-              </p>
-            </div>
+            <Provenance record={app.release} />
+            {app.attempt && app.attempt.revision !== app.release?.revision && (
+              <Provenance record={app.attempt} attempt />
+            )}
+            <p className="text-text-secondary text-xs">{t('com_codechat_provenance_boundary')}</p>
+            {!app.release && (
+              <div className="bg-surface-secondary space-y-2 rounded-lg p-3">
+                <p className="font-medium">{t('com_codechat_delivery_business')}</p>
+                <p className="text-text-secondary whitespace-pre-line">
+                  {t('com_codechat_delivery_checklist')}
+                </p>
+              </div>
+            )}
             <p className="text-text-secondary">{t('com_codechat_delivery_access')}</p>
             <details>
               <summary className="cursor-pointer">

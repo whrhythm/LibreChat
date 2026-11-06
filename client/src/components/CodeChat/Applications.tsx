@@ -214,6 +214,11 @@ export default function Applications({
                 </Chip>
               </div>
               <p className="text-text-secondary text-xs">{localize(deliveryState(app))}</p>
+              {app.release && (
+                <p className="text-text-secondary text-xs">
+                  {localize('com_codechat_provenance_release')} · {app.release.revision.slice(0, 8)}
+                </p>
+              )}
               {app.error_code && (
                 <p role="alert" className="text-xs">
                   {localize(failureKey(app.error_code))}

@@ -176,6 +176,26 @@ export default function Acceptance({
                 </div>
                 <div className="space-y-2">
                   <p className="font-medium">{t('com_codechat_acceptance_criteria')}</p>
+                  <p className="text-text-secondary text-xs">
+                    {current.source_sha256
+                      ? t('com_codechat_acceptance_source', {
+                          hash: current.source_sha256.slice(0, 12),
+                        })
+                      : t('com_codechat_acceptance_unbound')}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!form.criteria.some((item) => item.result !== 'pending')}
+                    onClick={() =>
+                      update({
+                        ...form,
+                        criteria: form.criteria.map((item) => ({ ...item, result: 'pending' })),
+                      })
+                    }
+                  >
+                    {t('com_codechat_acceptance_reset')}
+                  </Button>
                   {(active || requirementsChanged) && (
                     <p className="text-text-secondary text-xs">
                       {t(

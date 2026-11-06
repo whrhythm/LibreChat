@@ -30,7 +30,26 @@ export type PersonalUsage = {
   scope: 'personal_volume';
 };
 
+export type ReleaseProvenance = {
+  revision: string;
+  source_sha256: string | null;
+  image_digest: string | null;
+  requested_at: string;
+  confirmed_at: string | null;
+  acceptance_state: 'pending' | 'none' | 'unbound' | 'matched' | 'changed';
+  acceptance: {
+    task_id: string;
+    conversation_id: string;
+    revision: number;
+    counts: { total: number; passed: number; pending: number; changes_requested: number };
+    goal?: string;
+    criteria?: { id: string; text: string; result: 'pending' | 'passed' | 'changes_requested' }[];
+  } | null;
+};
+
 export type PersonalApplication = {
+  attempt?: ReleaseProvenance | null;
+  release?: ReleaseProvenance | null;
   id: string;
   project_path: string;
   status: string;
