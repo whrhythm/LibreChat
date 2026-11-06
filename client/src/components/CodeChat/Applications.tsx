@@ -1,4 +1,4 @@
-import { useId, useMemo } from 'react';
+import { useId, useMemo, useRef } from 'react';
 import { atom, useAtom } from 'jotai';
 import { MenuButton } from '@ariakit/react';
 import { Ellipsis, ExternalLink, ScrollText, Rocket } from 'lucide-react';
@@ -6,8 +6,11 @@ import { Button, Chip, DropdownPopup, Progress } from '@librechat/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { personalApplicationRequest, QueryKeys } from 'librechat-data-provider';
 import type { PersonalApplication } from 'librechat-data-provider';
+import { canRepublish, deliveryAddress, deliveryReview, deliveryState } from './delivery';
 import { useAuthContext, useLocalize } from '~/hooks';
+import Publication from './Publication';
 import { storageSize } from './storage';
+import Delivery from './Delivery';
 
 function ApplicationMenu({
   disabled,
@@ -101,6 +104,10 @@ export default function Applications({
   const logsAtom = useMemo(() => atom<string | null>(null), []);
   const [deleteId, setDeleteId] = useAtom(deleteAtom);
   const [logsId, setLogsId] = useAtom(logsAtom);
+  const publicationAtom = useMemo(() => atom<string | null>(null), []);
+  const [publicationPath, setPublicationPath] = useAtom(publicationAtom);
+  const submitting = useRef(false);
+  const publicationTrigger = useRef<HTMLButtonElement | null>(null);
   const apps = useQuery<{ apps: PersonalApplication[] }>({
     queryKey: [QueryKeys.codechatApps, user?.id],
     queryFn: async () => (await personalApplicationRequest(token!, 'list')).json(),
@@ -118,6 +125,11 @@ export default function Applications({
     }) => personalApplicationRequest(token!, action, value),
     onSuccess: () => {
       setDeleteId(null);
+      setPublicationPath(null);
+      void client.invalidateQueries([QueryKeys.codechatApps, user?.id]);
+    },
+    onSettled: () => {
+      submitting.current = false;
       void client.invalidateQueries([QueryKeys.codechatApps, user?.id]);
     },
     retry: false,
@@ -127,18 +139,40 @@ export default function Applications({
       app.project_path === path &&
       ['queued', 'preparing', 'building', 'deploying', 'changing'].includes(app.status),
   );
+  const publicationApp = apps.data?.apps.find((app) => app.project_path === publicationPath);
+  const publicationBlocked = !apps.isSuccess || !!(publicationApp && !canRepublish(publicationApp));
+  const preparePublication = (projectPath: string, trigger: HTMLButtonElement) => {
+    publicationTrigger.current = trigger;
+    operation.reset();
+    setPublicationPath(projectPath);
+  };
   return (
     <section className="flex flex-col gap-3 pt-2" aria-label={localize('com_codechat_apps')}>
       {canPublish && path && (
         <Button
           variant="default"
-          disabled={operation.isLoading || pending}
-          onClick={() => operation.mutate({ action: 'publish', value: path })}
+          disabled={operation.isLoading || pending || !apps.isSuccess}
+          onClick={(event) => preparePublication(path, event.currentTarget)}
         >
           <Rocket className="size-4" aria-hidden="true" />
           {localize('com_codechat_app_publish')}
         </Button>
       )}
+      <Publication
+        triggerRef={publicationTrigger}
+        path={publicationPath ?? ''}
+        open={publicationPath !== null}
+        pending={operation.isLoading}
+        blocked={publicationBlocked}
+        error={operation.isError}
+        onClose={() => setPublicationPath(null)}
+        onConfirm={() => {
+          if (!publicationPath || publicationBlocked || submitting.current || operation.isError)
+            return;
+          submitting.current = true;
+          operation.mutate({ action: 'publish', value: publicationPath });
+        }}
+      />
       {apps.isSuccess && !apps.data.apps.some((app) => app.status !== 'deleted') && (
         <p className="text-text-secondary py-6 text-center text-sm">
           {localize('com_codechat_apps_empty')}
@@ -160,6 +194,7 @@ export default function Applications({
             app.status,
           );
           const metrics = app.observation?.metrics;
+          const address = deliveryAddress(app);
           return (
             <article
               key={app.id}
@@ -170,12 +205,15 @@ export default function Applications({
                   {app.project_path}
                 </p>
                 <Chip role="status" className="shrink-0" tone={statusTone(app.status, busy)}>
-                  {localize(
-                    statusKeys[app.status as keyof typeof statusKeys] ??
-                      'com_codechat_app_preparing',
-                  )}
+                  {deliveryReview(app)
+                    ? localize('com_codechat_delivery_review_short')
+                    : localize(
+                        statusKeys[app.status as keyof typeof statusKeys] ??
+                          'com_codechat_app_preparing',
+                      )}
                 </Chip>
               </div>
+              <p className="text-text-secondary text-xs">{localize(deliveryState(app))}</p>
               {app.error_code && (
                 <p role="alert" className="text-xs">
                   {localize(failureKey(app.error_code))}
@@ -185,7 +223,7 @@ export default function Applications({
                 <>
                   <p className="text-xs">
                     {localize(
-                      app.previous_url
+                      address
                         ? 'com_codechat_app_update_failed'
                         : 'com_codechat_app_failure_retained',
                     )}
@@ -199,10 +237,10 @@ export default function Applications({
                       )}
                     </p>
                   )}
-                  {app.previous_url && (
+                  {address && (
                     <a
                       className="text-sm underline"
-                      href={app.previous_url}
+                      href={address}
                       target="_blank"
                       rel="noreferrer"
                     >
@@ -211,28 +249,24 @@ export default function Applications({
                   )}
                   <Button
                     variant="outline"
-                    disabled={
-                      operation.isLoading ||
-                      app.cleanup?.status !== 'complete' ||
-                      !!app.error_code?.includes('requires_review')
-                    }
-                    onClick={() => operation.mutate({ action: 'publish', value: app.project_path })}
+                    disabled={operation.isLoading || !apps.isSuccess || !canRepublish(app)}
+                    onClick={(event) => preparePublication(app.project_path, event.currentTarget)}
                   >
                     {localize('com_codechat_app_retry_publish')}
                   </Button>
                 </>
               )}
-              {app.url && app.status === 'running' && (
+              {address && app.status === 'running' && (
                 <a
                   className="text-text-secondary hover:text-text-primary flex min-w-0 items-center gap-2 text-xs underline-offset-4 hover:underline"
-                  href={app.url}
+                  href={address}
                   target="_blank"
                   rel="noreferrer"
                   aria-label={localize('com_codechat_app_open')}
-                  title={app.url}
+                  title={address}
                 >
                   <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">{app.url}</span>
+                  <span className="truncate">{address}</span>
                 </a>
               )}
               {metrics && (
@@ -312,6 +346,7 @@ export default function Applications({
                 </section>
               )}
               <div className="flex flex-wrap items-center gap-1">
+                <Delivery app={app} stale={apps.isError} />
                 <Button
                   variant="ghost"
                   size="xs"
@@ -325,8 +360,8 @@ export default function Applications({
                   <Button
                     variant="ghost"
                     size="xs"
-                    disabled={busy || operation.isLoading}
-                    onClick={() => operation.mutate({ action: 'publish', value: app.project_path })}
+                    disabled={!canRepublish(app) || operation.isLoading || !apps.isSuccess}
+                    onClick={(event) => preparePublication(app.project_path, event.currentTarget)}
                   >
                     <Rocket className="size-3.5" aria-hidden="true" />
                     {localize('com_codechat_app_update')}
