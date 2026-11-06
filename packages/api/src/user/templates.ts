@@ -7,7 +7,7 @@ type Dependencies = {
   baseUrl?: string;
   serviceToken?: string;
   issuer?: string;
-  request?: typeof fetch;
+  request?: (url: URL, init: RequestInit) => Promise<globalThis.Response>;
 };
 
 export function createBusinessTemplateHandlers(
