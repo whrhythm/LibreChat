@@ -10,7 +10,12 @@ type Dependencies = {
   request?: (url: URL, init: RequestInit) => Promise<globalThis.Response>;
 };
 
-export function createWorkspaceProjectHandlers(deps: Dependencies) {
+export function createWorkspaceProjectHandlers(
+  deps: Dependencies,
+): Record<
+  'list' | 'save' | 'context' | 'source',
+  (req: Request, res: Response) => Promise<Response>
+> {
   const handler =
     (action: 'list' | 'save' | 'context' | 'source') => async (req: Request, res: Response) => {
       res.setHeader('Cache-Control', 'no-store');
