@@ -76,8 +76,22 @@ const getActions = jest.fn().mockResolvedValue([]);
 const externalSkillIds = new Set<string>();
 
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
-  const mongoUri = mongoServer.getUri();
+  let mongoUri = process.env.LIBRECHAT_TEST_MONGO_URL;
+  if (mongoUri) {
+    const target = new URL(mongoUri);
+    if (
+      target.protocol !== 'mongodb:' ||
+      !['localhost', '127.0.0.1'].includes(target.hostname) ||
+      !/^\/librechat_test_[a-z0-9_]+$/.test(target.pathname) ||
+      target.username ||
+      target.password
+    ) {
+      throw new Error('Refusing a non-local disposable MongoDB');
+    }
+  } else {
+    mongoServer = await MongoMemoryServer.create();
+    mongoUri = mongoServer.getUri();
+  }
 
   const models = createModels(mongoose);
   modelsToCleanup = Object.keys(models);
@@ -148,7 +162,7 @@ afterAll(async () => {
     }
   }
   await mongoose.disconnect();
-  await mongoServer.stop();
+  if (mongoServer) await mongoServer.stop();
 });
 
 describe('Agent Methods', () => {
