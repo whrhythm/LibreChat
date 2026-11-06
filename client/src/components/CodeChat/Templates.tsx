@@ -204,9 +204,7 @@ export function TemplateProject({
     >
       <h3 className="font-medium">{t('com_codechat_template_title')}</h3>
       <p className="text-text-secondary">{t('com_codechat_template_steps')}</p>
-      <p role="status">
-        {t(statusLabel())}
-      </p>
+      <p role="status">{t(statusLabel())}</p>
       {(!prepared || !data.database) && (
         <Button size="sm" disabled={prepare.isLoading} onClick={() => prepare.mutate()}>
           {t('com_codechat_template_prepare')}
