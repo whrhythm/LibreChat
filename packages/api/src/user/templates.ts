@@ -51,13 +51,11 @@ export function createBusinessTemplateHandlers(
       const url = new URL(suffix, deps.baseUrl.endsWith('/') ? deps.baseUrl : deps.baseUrl + '/');
       if (url.protocol !== 'https:' || url.username || url.password)
         return res.status(503).json({ code: 'templates_unavailable' });
+      let method = 'GET';
+      if (['create', 'prepare', 'access'].includes(action)) method = 'POST';
+      if (action === 'acceptance') method = 'PUT';
       const upstream = await (deps.request ?? fetch)(url, {
-        method:
-          action === 'acceptance'
-            ? 'PUT'
-            : ['create', 'prepare', 'access'].includes(action)
-              ? 'POST'
-              : 'GET',
+        method,
         headers: {
           'X-CodeChat-Service-Token': deps.serviceToken,
           'X-CodeChat-Subject': user.openidId,

@@ -187,6 +187,12 @@ export function TemplateProject({
   if (!data) return null;
   const prepared = data.state === 'files_ready';
   const ready = data.database?.status === 'ready';
+  function statusLabel() {
+    if (!prepared) return 'com_codechat_template_unprepared';
+    if (ready) return 'com_codechat_template_ready';
+    if (data?.database?.status === 'failed') return 'com_codechat_template_database_failed';
+    return 'com_codechat_template_database_wait';
+  }
   const error = prepare.error ?? preview.error ?? access.error;
   const matched =
     data.release_acceptance?.source_sha256 &&
@@ -199,15 +205,7 @@ export function TemplateProject({
       <h3 className="font-medium">{t('com_codechat_template_title')}</h3>
       <p className="text-text-secondary">{t('com_codechat_template_steps')}</p>
       <p role="status">
-        {t(
-          !prepared
-            ? 'com_codechat_template_unprepared'
-            : ready
-              ? 'com_codechat_template_ready'
-              : data.database?.status === 'failed'
-                ? 'com_codechat_template_database_failed'
-                : 'com_codechat_template_database_wait',
-        )}
+        {t(statusLabel())}
       </p>
       {(!prepared || !data.database) && (
         <Button size="sm" disabled={prepare.isLoading} onClick={() => prepare.mutate()}>
