@@ -238,7 +238,7 @@ export function TemplateProject({
           )}
         </p>
       )}
-      {error && (
+      {!!error && (
         <p role="alert">
           {t(
             error instanceof TemplateError && error.code === 'templates_database_allowance'
