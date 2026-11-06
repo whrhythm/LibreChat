@@ -1,7 +1,7 @@
 import { atom, useAtom } from 'jotai';
 import { atomFamily } from 'jotai/utils';
 import { useQuery } from '@tanstack/react-query';
-import { Files, PanelsTopLeft, X } from 'lucide-react';
+import { Files, PanelsTopLeft, FolderOpen, X } from 'lucide-react';
 import { personalFileRequest, QueryKeys } from 'librechat-data-provider';
 import { Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@librechat/client';
 import type { PersonalSpace, WorkspaceEntry } from 'librechat-data-provider';
@@ -11,6 +11,7 @@ import { spaceDock, spaceDirty } from './dock';
 import StorageSummary from './StorageSummary';
 import Applications from './Applications';
 import PersonalFiles from './Files';
+import Projects from './Projects';
 
 /** Feature-owned navigation, scoped to the signed-in identity. */
 const navigation = atomFamily((_owner: string) => atom({ pane: 'files', path: '' }));
@@ -135,9 +136,13 @@ export default function PersonalSpacePanel() {
       <Tabs value={view.pane} onValueChange={changePane} className="flex min-h-0 flex-1 flex-col">
         <TabsList
           variant="segmented"
-          className="mx-4 mb-2 grid shrink-0 grid-cols-2"
+          className="mx-4 mb-2 grid shrink-0 grid-cols-3"
           aria-label={localize('com_codechat_workspace')}
         >
+          <TabsTrigger variant="segmented" value="projects">
+            <FolderOpen className="size-4" aria-hidden="true" />
+            {localize('com_codechat_projects_tab')}
+          </TabsTrigger>
           <TabsTrigger variant="segmented" value="files">
             <Files className="size-4" aria-hidden="true" />
             {localize('com_codechat_files_tab')}
@@ -147,6 +152,24 @@ export default function PersonalSpacePanel() {
             {localize('com_codechat_apps')}
           </TabsTrigger>
         </TabsList>
+        <TabsContent
+          className="mx-4 mb-4 min-h-0 overflow-auto"
+          value="projects"
+          forceMount
+          hidden={view.pane !== 'projects'}
+          size="flush"
+        >
+          <Projects
+            key={user?.id}
+            enabled={view.pane === 'projects'}
+            path={view.path}
+            onOpen={(pane, path) => {
+              if (!allowLeave()) return;
+              setDirty(false);
+              setView({ pane, path });
+            }}
+          />
+        </TabsContent>
         <TabsContent
           className="mx-4 mb-4 min-h-0 overflow-auto"
           value="files"
@@ -165,7 +188,7 @@ export default function PersonalSpacePanel() {
         >
           <ApplicationProjects
             enabled={view.pane === 'apps'}
-            path={view.path.split('/')[0]}
+            path={view.path}
             onPathChange={setPath}
           />
         </TabsContent>

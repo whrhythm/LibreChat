@@ -5,6 +5,7 @@ export * from './workspace';
 export * from './workbench';
 export * from './capacity';
 export * from './versions';
+export * from './projects';
 export * from './databases';
 export * from './erasure';
 export * from './generations';

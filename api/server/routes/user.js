@@ -6,6 +6,7 @@ const {
   createProgrammingHandlers,
   createCapacityHandlers,
   createVersionHandlers,
+  createWorkspaceProjectHandlers,
   createProjectDatabaseHandlers,
   preAuthTenantMiddleware,
   requirePreAuthTenantContext,
@@ -37,6 +38,15 @@ const settings = require('./settings');
 const { updateUserStatefulCodeEnvironment } = require('~/models');
 
 const router = express.Router();
+const projects = createWorkspaceProjectHandlers({
+  baseUrl: process.env.CODECHAT_WORKSPACE_URL,
+  serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
+  issuer: process.env.OPENID_ISSUER,
+});
+router.get('/workspace/projects', requireJwtAuth, projects.list);
+router.put('/workspace/projects', requireJwtAuth, projects.save);
+router.get('/workspace/projects/:projectId', requireJwtAuth, projects.context);
+router.get('/workspace/projects/:projectId/source', requireJwtAuth, projects.source);
 const versions = createVersionHandlers({
   baseUrl: process.env.CODECHAT_WORKSPACE_URL,
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,

@@ -14,6 +14,7 @@ import {
   programmingPreference,
   saveProgrammingPreference,
   personalFileRequest,
+  workspaceProjects,
 } from 'librechat-data-provider';
 import type { ProgrammingPreference, WorkspaceEntry } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
@@ -60,6 +61,12 @@ export default function Workbench({
     retry: 1,
   });
   const config = draft ?? preferences.data;
+  const projects = useQuery({
+    queryKey: [QueryKeys.workspaceProjects, user?.id],
+    queryFn: () => workspaceProjects(token!),
+    enabled: open && !!token,
+    retry: false,
+  });
   const change = (patch: Partial<ProgrammingPreference>) =>
     config && setDraft({ ...config, ...patch });
   const save = useMutation({
@@ -115,6 +122,36 @@ export default function Workbench({
                 </select>
               </label>
               <div className="border-border-light space-y-2 rounded-lg border p-3">
+                {!!projects.data?.projects.length && (
+                  <label className="block space-y-1 text-sm">
+                    {t('com_codechat_project_choose_coding')}
+                    <select
+                      className={selectStyle}
+                      value={
+                        projects.data.projects.find(
+                          (project) => project.path === config.project_path,
+                        )?.id ?? ''
+                      }
+                      disabled={disabled || save.isLoading}
+                      onChange={(event) => {
+                        const project = projects.data.projects.find(
+                          (item) => item.id === event.target.value,
+                        );
+                        if (project) {
+                          change({ project_path: project.path });
+                          setBrowse(project.path);
+                        }
+                      }}
+                    >
+                      <option value="">{t('com_codechat_programming_choose')}</option>
+                      {projects.data.projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name} · {project.path}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <p className="text-sm font-medium">
                   {t('com_codechat_programming_project')}:{' '}
                   <span className="font-mono break-all">
