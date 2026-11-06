@@ -60,12 +60,12 @@ it('reveals a selected nested project directory without writing files', async ()
       <PersonalFiles expanded path="old/nested" onPathChange={jest.fn()} />
     </QueryClientProvider>,
   );
-  await screen.findByRole('button', { name: 'main.py', exact: true });
-  expect(screen.getByRole('button', { name: 'old', exact: true })).toHaveAttribute(
+  await screen.findByRole('button', { name: 'main.py' });
+  expect(screen.getByRole('button', { name: 'old' })).toHaveAttribute(
     'aria-expanded',
     'true',
   );
-  expect(screen.getByRole('button', { name: 'nested', exact: true })).toHaveAttribute(
+  expect(screen.getByRole('button', { name: 'nested' })).toHaveAttribute(
     'aria-expanded',
     'true',
   );
