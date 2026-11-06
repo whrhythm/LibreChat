@@ -8,7 +8,7 @@ const active = new Set(['queued', 'running', 'awaiting_approval', 'cancelling'])
 export async function relayTaskStream(
   url: URL,
   headers: Record<string, string>,
-  res: Response,
+  res: Response & { flush?: () => void },
   request: (url: URL, init: RequestInit) => Promise<globalThis.Response>,
 ): Promise<Response> {
   const controller = new AbortController();
@@ -41,6 +41,7 @@ export async function relayTaskStream(
       if (snapshot !== previous) {
         if (!res.write('event: snapshot\ndata: ' + snapshot + '\n\n'))
           await once(res, 'drain', { signal: controller.signal });
+        res.flush?.();
         previous = snapshot;
       }
       if (!active.has(task.status)) break;

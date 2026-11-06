@@ -54,6 +54,7 @@ export type ProgrammingEvent = {
   error_code?: string | null;
   stream_id?: string;
   phase?: string;
+  characters?: number;
 };
 export type ProgrammingTask = {
   id: string;

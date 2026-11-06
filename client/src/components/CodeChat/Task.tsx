@@ -11,6 +11,7 @@ import {
 import MarkdownLite from '~/components/Chat/Messages/Content/MarkdownLite';
 import { newestTask, useTaskStream } from './TaskLive';
 import { AuthContext } from '~/hooks/AuthContext';
+import TaskActivity from './TaskActivity';
 import { useLocalize } from '~/hooks';
 import Acceptance from './Acceptance';
 
@@ -84,37 +85,24 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
   const approval = task?.events.find(
     (event) => event.kind === 'approval' && event.operation_id === pending?.id,
   );
-  const last = task?.events.at(-1);
-  const operation =
-    last?.kind === 'decision'
-      ? task?.events.find(
-          (event) => event.kind === 'approval' && event.operation_id === last.operation_id,
-        )?.operation
-      : last?.operation;
   const final = task?.events.findLast((event) => event.kind === 'finished');
   const running = !!task && active.includes(task.status);
   useTaskStream(id, userId, token, !task || running);
-  const answer = task?.events.findLast((event) => event.kind === 'assistant');
+  const answers = task?.events.filter((event) => event.kind === 'assistant' && event.text) ?? [];
+  const answer = answers.at(-1);
+  const preservePartial =
+    !running && task?.status !== 'completed' && final?.text && answer?.text !== final.text;
   const command = task?.events.findLast((event) => event.kind === 'command_progress');
   const liveCommand =
     command &&
     !task?.events.some(
       (event) => event.kind === 'terminal' && event.operation_id === command.stream_id,
     );
-  const queuedAt = task?.events.find((event) => event.kind === 'queued')?.at;
-  const queueDelayed = !!queuedAt && query.dataUpdatedAt - Date.parse(queuedAt) >= 30000;
   const visibleSteps = task?.events.filter(
     (event) =>
-      !['finished', 'assistant', 'command_progress'].includes(event.kind) &&
+      !['finished', 'assistant', 'command_progress', 'model_progress'].includes(event.kind) &&
       (event.path || event.output),
   );
-  let progressKey:
-    | 'com_codechat_task_working'
-    | 'com_codechat_mcp_running'
-    | 'com_codechat_task_command' = 'com_codechat_task_working';
-  if (last?.kind === 'mcp_started') progressKey = 'com_codechat_mcp_running';
-  else if (last && ['authorized', 'decision'].includes(last.kind) && operation === 'command')
-    progressKey = 'com_codechat_task_command';
   let approvalKey:
     | 'com_codechat_task_decided'
     | 'com_codechat_mcp_confirm'
@@ -124,15 +112,46 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
     approvalKey = 'com_codechat_mcp_confirm';
   return (
     <section data-testid="programming-task" data-task-id={id} className="my-2 space-y-3">
-      <div className="border-border-light space-y-3 rounded-xl border p-4">
+      {(preservePartial ? answers : answers.slice(0, -1)).map((event) => (
+        <div
+          key={event.sequence}
+          className="prose max-w-none"
+          data-testid="programming-task-update"
+        >
+          {preservePartial && event === answer && (
+            <p className="text-text-secondary text-xs">{t('com_codechat_answer_partial')}</p>
+          )}
+          <MarkdownLite content={event.text} codeExecution={false} />
+        </div>
+      ))}
+      {(answer?.text || final?.text) && (
+        <div
+          data-testid={
+            !running && final?.text ? 'programming-task-result' : 'programming-task-stream'
+          }
+          className="prose max-w-none"
+        >
+          <MarkdownLite
+            content={(!running && final?.text) || answer?.text || ''}
+            codeExecution={false}
+          />
+          {running && (
+            <span className="submitting inline-block" aria-hidden="true">
+              <span className="result-thinking block after:!static" />
+            </span>
+          )}
+        </div>
+      )}
+      <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-text-secondary truncate text-sm">{task?.config.project_path}</span>
-          <p role="status" aria-live="polite" className="text-sm font-medium">
+          <span className="text-text-secondary truncate text-xs">{task?.config.project_path}</span>
+          <p role="status" aria-live="polite" className="text-text-secondary text-xs">
             {task
               ? t(statusKeys[task.status as keyof typeof statusKeys] ?? 'com_codechat_run_failed')
               : t(query.isError ? 'com_codechat_task_unavailable' : 'com_ui_loading')}
           </p>
         </div>
+        {(!task || running) && <TaskActivity task={task} />}
         {query.isError && (
           <p role="status" className="text-text-secondary text-sm">
             {t(
@@ -145,22 +164,8 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
             </Button>
           </p>
         )}
-        {task?.status === 'queued' && (
-          <p className="text-text-secondary text-sm" aria-live="polite">
-            {t(
-              queueDelayed ? 'com_codechat_task_queue_delayed' : 'com_codechat_task_queue_waiting',
-            )}
-          </p>
-        )}
-        {task?.status === 'running' && last && !liveCommand && !answer?.text && (
-          <p className="text-text-secondary text-sm">
-            {t(last.kind === 'started' ? 'com_codechat_task_model_waiting' : progressKey)}
-            {last.path && <span className="ml-2 font-mono">{last.path}</span>}
-          </p>
-        )}
         {liveCommand && running && (
           <details
-            open
             className="bg-surface-secondary rounded-lg p-3"
             data-testid="programming-live-command"
           >
@@ -229,26 +234,13 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
             {t('com_codechat_programming_stop')}
           </Button>
         )}
-        {task && <Acceptance key={task.id} task={task} token={token} userId={userId} />}
+        {task && !running && <Acceptance key={task.id} task={task} token={token} userId={userId} />}
         {action.isError && (
           <p role="alert" className="text-sm">
             {t('com_codechat_programming_error')}
           </p>
         )}
       </div>
-      {answer?.text && task?.status !== 'completed' && (
-        <div data-testid="programming-task-stream" className="prose max-w-none">
-          {!running && (
-            <p className="text-text-secondary text-xs">{t('com_codechat_answer_partial')}</p>
-          )}
-          <MarkdownLite content={answer.text} codeExecution={false} />
-        </div>
-      )}
-      {final?.text && !running && (
-        <div data-testid="programming-task-result" className="prose max-w-none">
-          <MarkdownLite content={final.text} codeExecution={false} />
-        </div>
-      )}
       {task?.error_code && (
         <p role="alert" className="text-sm">
           {t('com_codechat_programming_failed')} <code>{task.error_code}</code>

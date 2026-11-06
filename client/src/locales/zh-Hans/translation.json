@@ -1,4 +1,13 @@
 {
+  "com_codechat_activity_connecting": "正在连接编程助手…",
+  "com_codechat_activity_thinking": "思考中…",
+  "com_codechat_activity_answering": "正在回复…",
+  "com_codechat_activity_generating": "正在生成代码或操作…",
+  "com_codechat_activity_characters": "已接收 {{count}} 字符的生成内容，尚未执行",
+  "com_codechat_activity_quiet": "已 {{seconds}} 秒没有新的执行反馈，仍在等待模型或工具响应。你可以停止任务。",
+  "com_codechat_activity_cancelling": "正在停止执行，已保存的文件会保留…",
+  "com_codechat_activity_approval": "下一步需要你确认，确认后将继续执行。",
+  "com_codechat_activity_saved": "已保存：{{path}}",
   "com_codechat_template_start": "从售后工单样板开始",
   "com_codechat_template_default_name": "我的售后工单",
   "com_codechat_template_create_help": "为你创建独立工程。下一步准备源码和项目数据库，再用示例数据预览；不会移动现有文件或自动发布。数据库与应用占用现有套餐额度。",

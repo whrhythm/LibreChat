@@ -1,4 +1,13 @@
 {
+  "com_codechat_activity_connecting": "Connecting to your coding assistant…",
+  "com_codechat_activity_thinking": "Thinking…",
+  "com_codechat_activity_answering": "Responding…",
+  "com_codechat_activity_generating": "Generating code or an action…",
+  "com_codechat_activity_characters": "Received {{count}} generated characters; not executed yet",
+  "com_codechat_activity_quiet": "No new execution feedback for {{seconds}} seconds. Waiting for the model or tool; you can stop this task.",
+  "com_codechat_activity_cancelling": "Stopping execution; saved files will be retained…",
+  "com_codechat_activity_approval": "Your confirmation is needed before the next action.",
+  "com_codechat_activity_saved": "Saved: {{path}}",
   "com_codechat_template_start": "Start with a support desk",
   "com_codechat_template_default_name": "My support desk",
   "com_codechat_template_create_help": "Create a separate project, then prepare source and a project database. Preview sample data before publishing. Existing files are preserved; database and application quotas apply.",

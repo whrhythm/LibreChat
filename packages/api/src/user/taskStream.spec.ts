@@ -9,6 +9,7 @@ function output() {
     status: jest.fn(),
     json: jest.fn(),
     setHeader: jest.fn(),
+    flush: jest.fn(),
     flushHeaders() {
       this.headersSent = true;
     },
@@ -38,6 +39,7 @@ it('forwards partial snapshots before the final answer, with read-only owner hea
     request,
   );
   expect(res.frames).toHaveLength(2);
+  expect(res.flush).toHaveBeenCalledTimes(2);
   expect(res.frames[1]).toContain('final');
   expect(request.mock.calls.every(([, init]) => !init.body && !init.method)).toBe(true);
   expect(request.mock.calls[0][1].headers['X-CodeChat-Subject']).toBe('alice');

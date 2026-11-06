@@ -93,6 +93,7 @@ it('renders growing answers and live command output before completion, then one 
   act(() => update(partial));
   expect(await screen.findByTestId('programming-task-stream')).toHaveTextContent('First part');
   expect(screen.getByTestId('programming-live-command')).toHaveTextContent('step 1');
+  expect(screen.getByTestId('programming-live-command')).not.toHaveAttribute('open');
   act(() =>
     update({
       ...partial,
@@ -121,9 +122,73 @@ it('renders growing answers and live command output before completion, then one 
   client.clear();
 });
 
+it('keeps partial text and a clear outcome after cancellation, with no active indicator', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  (programmingTask as jest.Mock).mockResolvedValue({
+    ...initial,
+    status: 'cancelled',
+    pending: null,
+    events: [
+      { sequence: 1, kind: 'assistant', at: '2026-11-05T09:00:00Z', text: 'The file was saved.' },
+      { sequence: 2, kind: 'finished', at: '2026-11-05T09:00:01Z', text: 'Execution stopped.' },
+    ],
+  });
+  const view = mount(client);
+  expect(await screen.findByTestId('programming-task-result')).toHaveTextContent(
+    'Execution stopped.',
+  );
+  expect(screen.getByTestId('programming-task-update')).toHaveTextContent('The file was saved.');
+  expect(screen.getByText('com_codechat_answer_partial')).toBeVisible();
+  expect(screen.queryByTestId('programming-activity')).not.toBeInTheDocument();
+  view.unmount();
+  client.clear();
+});
+
 it('never overwrites a newer stream snapshot with a delayed older query', () => {
   const current = { ...initial, updated_at: '2026-11-05T09:00:02Z' };
   expect(newestTask(current, { ...initial, updated_at: '2026-11-05T09:00:01Z' })).toBe(current);
+});
+
+it('shows live model activity after text, preserves earlier updates, and explains silence', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const at = new Date(Date.now() - 60000).toISOString();
+  const task = {
+    ...initial,
+    status: 'running',
+    pending: null,
+    events: [
+      { sequence: 1, kind: 'queued', at },
+      { sequence: 2, kind: 'assistant', at, text: 'I will make a playable first version.' },
+      { sequence: 3, kind: 'model_progress', at, phase: 'thinking', characters: 0 },
+    ],
+  };
+  (programmingTask as jest.Mock).mockResolvedValue(task);
+  const view = mount(client);
+  expect(await screen.findByText('com_codechat_activity_thinking')).toBeVisible();
+  expect(screen.getByTestId('programming-quiet')).toBeVisible();
+  expect(screen.getByTestId('programming-task-stream')).toHaveTextContent('playable first version');
+  const update = (streamProgrammingTask as jest.Mock).mock.calls[0][3];
+  act(() =>
+    update({
+      ...task,
+      events: [
+        ...task.events.slice(0, 2),
+        {
+          ...task.events[2],
+          at: new Date().toISOString(),
+          phase: 'preparing_action',
+          characters: 800,
+        },
+        { sequence: 4, kind: 'assistant', at, text: 'The first file is ready.' },
+      ],
+    }),
+  );
+  expect(await screen.findByText('com_codechat_activity_generating')).toBeVisible();
+  expect(screen.getByTestId('programming-task-update')).toHaveTextContent('playable first version');
+  expect(screen.getByTestId('programming-task-stream')).toHaveTextContent('first file is ready');
+  expect(screen.queryByTestId('programming-quiet')).not.toBeInTheDocument();
+  view.unmount();
+  client.clear();
 });
 
 it('explains a delayed queue and then shows model progress without empty tool records', async () => {
