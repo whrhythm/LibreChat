@@ -35,11 +35,9 @@ function setup() {
   const requests: { url: string; init: RequestInit }[] = [];
   const request = jest.fn(async (url: URL, init: RequestInit) => {
     requests.push({ url: String(url), init });
-    const value = url.pathname.endsWith('/prepare')
-      ? { ...binding, initial_agent: initial }
-      : url.pathname.endsWith('/confirm')
-        ? { ...binding, state: 'ready' }
-        : binding;
+    let value: object = binding;
+    if (url.pathname.endsWith('/prepare')) value = { ...binding, initial_agent: initial };
+    else if (url.pathname.endsWith('/confirm')) value = { ...binding, state: 'ready' };
     return new globalThis.Response(JSON.stringify(value));
   });
   const ensurePrivateProjectAgent = jest

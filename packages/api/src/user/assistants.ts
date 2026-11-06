@@ -67,10 +67,9 @@ class UpstreamFailure extends Error {
 
 /** Authentication and Agent CREATE/USE middleware must precede these handlers.
  * The control-plane service token and native owner identity never come from the browser. */
-export function createAIProjectHandlers(deps: Dependencies): Record<
-  'list' | 'create' | 'resume',
-  (req: Request, res: Response) => Promise<Response>
-> {
+export function createAIProjectHandlers(
+  deps: Dependencies,
+): Record<'list' | 'create' | 'resume', (req: Request, res: Response) => Promise<Response>> {
   const handler = (action: 'list' | 'create' | 'resume') => async (req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-store');
     const user = req.user;

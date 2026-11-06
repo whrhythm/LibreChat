@@ -40,6 +40,9 @@ export default function Assistants({
   if (!enabled || (!list.data?.enabled && !list.isError)) return null;
   const inputClass =
     'border-border-light bg-surface-primary text-text-primary w-full rounded border px-2 py-1.5 text-sm';
+  let submitLabel = t('com_ai_projects_create');
+  if (save.isLoading) submitLabel = t('com_ai_projects_preparing');
+  else if (save.isError) submitLabel = t('com_codechat_retry');
   return (
     <section
       className="border-border-light space-y-3 rounded-lg border p-3"
@@ -114,13 +117,7 @@ export default function Assistants({
               {t('com_ui_cancel')}
             </Button>
             <Button size="xs" type="submit" disabled={save.isLoading}>
-              {t(
-                save.isLoading
-                  ? 'com_ai_projects_preparing'
-                  : save.isError
-                    ? 'com_codechat_retry'
-                    : 'com_ai_projects_create',
-              )}
+              {submitLabel}
             </Button>
           </div>
         </form>
