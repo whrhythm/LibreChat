@@ -15,6 +15,7 @@ import type { WorkspaceProjectInput } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import Delivery from './Delivery';
 import { deliveryState } from './delivery';
+import { TemplateCreate, TemplateProject } from './Templates';
 
 type Props = {
   enabled: boolean;
@@ -101,6 +102,10 @@ export default function Projects({ enabled, path, onOpen }: Props) {
     setView((old) => ({ ...old, draft: old.draft ? { ...old.draft, ...patch } : null }));
   return (
     <div className="space-y-3" data-testid="personal-projects">
+      <TemplateCreate
+        enabled={enabled}
+        onCreated={(project) => setView({ selected: project.id, draft: null })}
+      />
       <div className="flex items-center justify-between gap-2">
         <p className="text-text-secondary text-xs">{t('com_codechat_projects_hint')}</p>
         <Button
@@ -233,6 +238,12 @@ export default function Projects({ enabled, path, onOpen }: Props) {
           )}
           {current && (
             <>
+              <TemplateProject
+                key={selected}
+                projectId={selected}
+                enabled={enabled}
+                onApps={() => onOpen('apps', current.path)}
+              />
               <div className="border-border-light space-y-2 rounded-lg border p-3">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="truncate font-semibold" title={current.name}>

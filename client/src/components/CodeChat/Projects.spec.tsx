@@ -14,6 +14,7 @@ jest.mock('~/hooks', () => ({
   useLocalize: () => (key: string) => key,
 }));
 jest.mock('./Delivery', () => () => null);
+jest.mock('./Templates', () => ({ TemplateCreate: () => null, TemplateProject: () => null }));
 jest.mock('librechat-data-provider', () => ({
   ...jest.requireActual('librechat-data-provider'),
   workspaceProjects: jest.fn(),

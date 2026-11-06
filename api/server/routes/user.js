@@ -7,6 +7,7 @@ const {
   createCapacityHandlers,
   createVersionHandlers,
   createWorkspaceProjectHandlers,
+  createBusinessTemplateHandlers,
   createProjectDatabaseHandlers,
   preAuthTenantMiddleware,
   requirePreAuthTenantContext,
@@ -38,6 +39,18 @@ const settings = require('./settings');
 const { updateUserStatefulCodeEnvironment } = require('~/models');
 
 const router = express.Router();
+const templates = createBusinessTemplateHandlers({
+  baseUrl: process.env.CODECHAT_WORKSPACE_URL,
+  serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
+  issuer: process.env.OPENID_ISSUER,
+});
+router.get('/workspace/business-templates', requireJwtAuth, templates.catalog);
+router.post('/workspace/business-templates', requireJwtAuth, templates.create);
+router.get('/workspace/business-templates/:projectId', requireJwtAuth, templates.status);
+router.post('/workspace/business-templates/:projectId/prepare', requireJwtAuth, templates.prepare);
+router.get('/workspace/business-templates/:projectId/preview', requireJwtAuth, templates.preview);
+router.post('/workspace/business-templates/:projectId/access', requireJwtAuth, templates.access);
+router.put('/workspace/business-templates/:projectId/acceptance', requireJwtAuth, templates.acceptance);
 const projects = createWorkspaceProjectHandlers({
   baseUrl: process.env.CODECHAT_WORKSPACE_URL,
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
