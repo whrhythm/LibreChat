@@ -98,8 +98,8 @@ export default function Versions({ path }: { path: string }) {
       if (action.kind === 'delete')
         setValue((old) => ({ ...old, diffId: '', done: t('com_codechat_versions_deleted') }));
     },
-    onSettled: async () => {
-      await Promise.all(
+    onSettled: () => {
+      void Promise.all(
         [
           QueryKeys.codechatVersions,
           QueryKeys.codechatFiles,
