@@ -227,6 +227,44 @@ describe('useMessageScrolling resize reconciliation', () => {
     expect(mockReconcileMessageContentLayout).toHaveBeenCalledWith(scrollable);
   });
 
+  it('follows a coding task and its final resize after the chat request ends', () => {
+    renderScrolling({ contextOverrides: { isSubmitting: false } });
+    const content = screen.getByTestId('content');
+    const task = document.createElement('section');
+    task.dataset.programmingActive = 'true';
+    content.appendChild(task);
+    const scrollable = screen.getByTestId('scrollable');
+    Object.defineProperty(scrollable, 'scrollHeight', { value: 1000, configurable: true });
+    Object.defineProperty(scrollable, 'clientHeight', { value: 200, configurable: true });
+    scrollable.scrollTop = 700;
+    act(() => MockResizeObserver.last()?.trigger());
+    expect(scrollable.scrollTop).toBe(800);
+    delete task.dataset.programmingActive;
+    Object.defineProperty(scrollable, 'scrollHeight', { value: 1200, configurable: true });
+    act(() => MockResizeObserver.last()?.trigger());
+    expect(scrollable.scrollTop).toBe(1000);
+    Object.defineProperty(scrollable, 'scrollHeight', { value: 1400, configurable: true });
+    act(() => MockResizeObserver.last()?.trigger());
+    expect(scrollable.scrollTop).toBe(1000);
+  });
+
+  it('does not pull a reader back down during an independent coding task', () => {
+    renderScrolling({ contextOverrides: { isSubmitting: false } });
+    const task = document.createElement('section');
+    task.dataset.programmingActive = 'true';
+    screen.getByTestId('content').appendChild(task);
+    const scrollable = screen.getByTestId('scrollable');
+    Object.defineProperty(scrollable, 'scrollHeight', { value: 1000, configurable: true });
+    Object.defineProperty(scrollable, 'clientHeight', { value: 200, configurable: true });
+    scrollable.scrollTop = 800;
+    act(() => mockScrollCallback?.());
+    fireEvent.wheel(scrollable, { deltaY: -120 });
+    scrollable.scrollTop = 300;
+    fireEvent.scroll(scrollable);
+    act(() => MockResizeObserver.last()?.trigger());
+    expect(scrollable.scrollTop).toBe(300);
+  });
+
   /**
    * `useMessageProcess` raises the abort flag on any wheel at all, downward ones
    * included, through a throttle whose trailing call lands after the gesture has

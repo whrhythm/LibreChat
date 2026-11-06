@@ -111,7 +111,12 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
   else if (approval?.operation === 'mcp_read' || approval?.operation === 'mcp_write')
     approvalKey = 'com_codechat_mcp_confirm';
   return (
-    <section data-testid="programming-task" data-task-id={id} className="my-2 space-y-3">
+    <section
+      data-testid="programming-task"
+      data-task-id={id}
+      data-programming-active={running ? 'true' : undefined}
+      className="my-2 space-y-3"
+    >
       {(preservePartial ? answers : answers.slice(0, -1)).map((event) => (
         <div
           key={event.sequence}

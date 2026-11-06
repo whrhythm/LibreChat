@@ -53,6 +53,7 @@ export default function useMessageScrolling(messagesTree?: TMessage[] | null) {
   const landedConversationRef = useRef<string | null>(null);
   const { conversation, conversationId } = useMessagesConversation();
   const { setAbortScroll, isSubmitting, abortScroll } = useMessagesSubmission();
+  const taskActivityRef = useRef({ conversationId, active: false });
 
   const getIsNearBottom = useCallback(() => {
     const scrollEl = scrollableRef.current;
@@ -249,6 +250,12 @@ export default function useMessageScrolling(messagesTree?: TMessage[] | null) {
 
   const reconcileContentResize = useCallback(
     (shouldFollowResize = true) => {
+      // Coding continues inside the saved message after the chat request has ended.
+      // Include its final resize, without taking the scroll back from a reader.
+      const taskActive = !!contentRef.current?.querySelector('[data-programming-active="true"]');
+      const taskWasActive =
+        taskActivityRef.current.conversationId === conversationId && taskActivityRef.current.active;
+      taskActivityRef.current = { conversationId, active: taskActive };
       if (clampScrollToContent()) {
         return;
       }
@@ -280,11 +287,15 @@ export default function useMessageScrolling(messagesTree?: TMessage[] | null) {
        *  could never resume the ride while the button, which touches no wheel,
        *  always could. Whether the reader is riding the stream is answered here by
        *  where they actually are and which way they were going. */
-      if (shouldFollowResize && isSubmitting && isStuckRef.current) {
+      if (
+        shouldFollowResize &&
+        (isSubmitting || taskActive || taskWasActive) &&
+        isStuckRef.current
+      ) {
         followBottom();
       }
     },
-    [clampScrollToContent, followBottom, getIsNearBottom, isSubmitting],
+    [clampScrollToContent, conversationId, followBottom, getIsNearBottom, isSubmitting],
   );
 
   useEffect(() => {
