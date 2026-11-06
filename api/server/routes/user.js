@@ -50,7 +50,11 @@ router.get('/workspace/business-templates/:projectId', requireJwtAuth, templates
 router.post('/workspace/business-templates/:projectId/prepare', requireJwtAuth, templates.prepare);
 router.get('/workspace/business-templates/:projectId/preview', requireJwtAuth, templates.preview);
 router.post('/workspace/business-templates/:projectId/access', requireJwtAuth, templates.access);
-router.put('/workspace/business-templates/:projectId/acceptance', requireJwtAuth, templates.acceptance);
+router.put(
+  '/workspace/business-templates/:projectId/acceptance',
+  requireJwtAuth,
+  templates.acceptance,
+);
 const projects = createWorkspaceProjectHandlers({
   baseUrl: process.env.CODECHAT_WORKSPACE_URL,
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
