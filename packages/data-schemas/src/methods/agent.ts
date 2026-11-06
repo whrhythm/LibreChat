@@ -1055,11 +1055,24 @@ export interface GetAgent {
   ): Promise<IAgent | null>;
 }
 
+type PrivateProjectAgentInput = {
+  allowCreate: boolean;
+  id: string;
+  author: string;
+  name: string;
+  description: string;
+  instructions: string;
+  provider: string;
+  model: string;
+};
+type PrivateProjectAgentIdentity = { id: string; resourceId: string; ownerId: string };
+
 export function createAgentMethods(
   mongoose: typeof import('mongoose'),
   deps: AgentDeps,
 ): {
   getAgent: GetAgent;
+  ensurePrivateProjectAgent: (data: PrivateProjectAgentInput) => Promise<PrivateProjectAgentIdentity>;
   getAgentName: (id: string, tenantId?: string) => Promise<string | undefined>;
   getAgentVersions: (searchParameter: FilterQuery<IAgent>) => Promise<IAgent['versions'] | null>;
   getAgentWithVersionCount: (
@@ -2780,16 +2793,9 @@ export function createAgentMethods(
 
   /** A stable private project ID lets a lost creation reply be reconciled safely.
    * Never overwrite the owner's subsequent edits when repeating this operation. */
-  async function ensurePrivateProjectAgent(data: {
-    allowCreate: boolean;
-    id: string;
-    author: string;
-    name: string;
-    description: string;
-    instructions: string;
-    provider: string;
-    model: string;
-  }): Promise<{ id: string; resourceId: string; ownerId: string }> {
+  async function ensurePrivateProjectAgent(
+    data: PrivateProjectAgentInput,
+  ): Promise<PrivateProjectAgentIdentity> {
     if (!/^agent_[0-9a-f]{32}$/.test(data.id) || !/^[0-9a-f]{24}$/.test(data.author)) {
       throw new Error('Invalid private project identity');
     }
