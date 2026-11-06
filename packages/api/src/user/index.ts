@@ -6,6 +6,7 @@ export * from './workbench';
 export * from './capacity';
 export * from './versions';
 export * from './projects';
+export * from './assistants';
 export * from './templates';
 export * from './databases';
 export * from './erasure';

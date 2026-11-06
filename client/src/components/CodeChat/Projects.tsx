@@ -16,6 +16,7 @@ import { TemplateCreate, TemplateProject } from './Templates';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { deliveryState } from './delivery';
 import Delivery from './Delivery';
+import Assistants from './Assistants';
 
 type Props = {
   enabled: boolean;
@@ -102,6 +103,7 @@ export default function Projects({ enabled, path, onOpen }: Props) {
     setView((old) => ({ ...old, draft: old.draft ? { ...old.draft, ...patch } : null }));
   return (
     <div className="space-y-3" data-testid="personal-projects">
+      <Assistants enabled={enabled} onFiles={(path) => onOpen('files', path)} />
       <TemplateCreate
         enabled={enabled}
         onCreated={(project) => setView({ selected: project.id, draft: null })}

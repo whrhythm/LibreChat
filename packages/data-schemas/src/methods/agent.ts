@@ -2778,7 +2778,44 @@ export function createAgentMethods(
     await evictAuthUserDocsForUsers(deps.getCache, userIds);
   }
 
+  /** A stable private project ID lets a lost creation reply be reconciled safely.
+   * Never overwrite the owner's subsequent edits when repeating this operation. */
+  async function ensurePrivateProjectAgent(data: {
+    allowCreate: boolean;
+    id: string;
+    author: string;
+    name: string;
+    description: string;
+    instructions: string;
+    provider: string;
+    model: string;
+  }): Promise<{ id: string; resourceId: string; ownerId: string }> {
+    if (!/^agent_[0-9a-f]{32}$/.test(data.id) || !/^[0-9a-f]{24}$/.test(data.author)) {
+      throw new Error('Invalid private project identity');
+    }
+    let record = await getAgent({ id: data.id });
+    if (!record && !data.allowCreate) {
+      throw new Error('Previously bound project Agent is unavailable');
+    }
+    if (!record) {
+      try {
+        const { allowCreate: _allowCreate, ...initial } = data;
+        record = await createAgent({ ...initial, tools: [], skills_enabled: false });
+      } catch (error) {
+        if (!(error && typeof error === 'object' && 'code' in error && error.code === 11000)) {
+          throw error;
+        }
+        record = await getAgent({ id: data.id });
+      }
+    }
+    if (!record || String(record.author) !== data.author) {
+      throw new Error('Private project owner mismatch');
+    }
+    return { id: record.id, resourceId: String(record._id), ownerId: String(record.author) };
+  }
+
   return {
+    ensurePrivateProjectAgent,
     getAgent,
     getAgentName,
     getAgentVersions,

@@ -4438,6 +4438,9 @@ export const toolCallPreviewsConfigSchema = z.object({
 export type TToolCallPreviewsConfig = z.infer<typeof toolCallPreviewsConfigSchema>;
 
 export const configSchema = z.object({
+  aiProjects: z
+    .object({ requestTimeoutMs: z.number().int().min(1000).max(120000).default(35000) })
+    .optional(),
   version: z.string(),
   codechat: z
     .object({

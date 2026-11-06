@@ -529,6 +529,41 @@ describe('Agent Methods', () => {
       await AclEntry.deleteMany({});
     });
 
+    test('private project creation converges and preserves edits without reviving deleted Agents', async () => {
+      await Agent.init();
+      const input = {
+        id: 'agent_' + 'a'.repeat(32),
+        author: new mongoose.Types.ObjectId().toString(),
+        name: 'Private',
+        description: 'Test project',
+        instructions: 'Original',
+        provider: 'LiteLLM',
+        model: 'test-model',
+        allowCreate: true,
+      };
+      const results = await Promise.all([
+        methods.ensurePrivateProjectAgent(input),
+        methods.ensurePrivateProjectAgent(input),
+      ]);
+      expect(results[0]).toEqual(results[1]);
+      expect(await Agent.countDocuments({ id: input.id })).toBe(1);
+      expect(await AclEntry.countDocuments({ resourceId: results[0].resourceId })).toBe(0);
+      await Agent.updateOne({ id: input.id }, { $set: { instructions: 'Owner edits' } });
+      await methods.ensurePrivateProjectAgent(input);
+      expect((await getAgent({ id: input.id }))?.instructions).toBe('Owner edits');
+      await expect(
+        methods.ensurePrivateProjectAgent({
+          ...input,
+          author: new mongoose.Types.ObjectId().toString(),
+        }),
+      ).rejects.toThrow('owner mismatch');
+      await Agent.deleteOne({ id: input.id });
+      await expect(
+        methods.ensurePrivateProjectAgent({ ...input, allowCreate: false }),
+      ).rejects.toThrow('unavailable');
+      expect(await Agent.countDocuments({ id: input.id })).toBe(0);
+    });
+
     test('should create and get an agent', async () => {
       const { agentId, authorId } = createTestIds();
 

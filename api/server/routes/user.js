@@ -7,6 +7,8 @@ const {
   createCapacityHandlers,
   createVersionHandlers,
   createWorkspaceProjectHandlers,
+  createAIProjectHandlers,
+  generateCheckAccess,
   createBusinessTemplateHandlers,
   createProjectDatabaseHandlers,
   preAuthTenantMiddleware,
@@ -37,8 +39,38 @@ const {
 
 const settings = require('./settings');
 const { updateUserStatefulCodeEnvironment } = require('~/models');
+const { ensurePrivateProjectAgent, getRoleByName } = require('~/models');
+const { grantPermission } = require('~/server/services/PermissionService');
+const { PermissionTypes, Permissions } = require('librechat-data-provider');
 
 const router = express.Router();
+const aiProjects = createAIProjectHandlers({
+  baseUrl: process.env.CODECHAT_WORKSPACE_URL,
+  serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
+  issuer: process.env.OPENID_ISSUER,
+  ensurePrivateProjectAgent,
+  grantPermission,
+});
+const checkAIProjectCreate = generateCheckAccess({
+  permissionType: PermissionTypes.AGENTS,
+  permissions: [Permissions.USE, Permissions.CREATE],
+  getRoleByName,
+});
+router.get('/workspace/ai-projects', requireJwtAuth, aiProjects.list);
+router.post(
+  '/workspace/ai-projects',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  aiProjects.create,
+);
+router.post(
+  '/workspace/ai-projects/:projectId/resume',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  aiProjects.resume,
+);
 const templates = createBusinessTemplateHandlers({
   baseUrl: process.env.CODECHAT_WORKSPACE_URL,
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,

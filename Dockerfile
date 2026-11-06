@@ -70,6 +70,9 @@ RUN \
     # React client build with configurable memory
     NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" npm run frontend && \
     if [ "$CODECHAT_VERIFY" = "true" ]; then \
+      npx eslint packages/api/src/user/assistants.ts packages/api/src/user/assistants.spec.ts packages/data-provider/src/aiProjects.ts client/src/components/CodeChat/Assistants.tsx client/src/components/CodeChat/Assistants.spec.tsx && \
+      (cd packages/api && npx jest src/user/assistants.spec.ts --runInBand --coverage=false) && \
+      (cd client && npx jest src/components/CodeChat/Assistants.spec.tsx --runInBand --coverage=false) && \
       npx eslint packages/api/src/user/templates.ts packages/api/src/user/templates.spec.ts packages/data-provider/src/codechatTemplates.ts client/src/components/CodeChat/Templates.tsx client/src/components/CodeChat/Templates.spec.tsx && \
       (cd packages/api && npx jest src/user/templates.spec.ts --runInBand --coverage=false) && \
       (cd client && npx jest src/components/CodeChat/Templates.spec.tsx --runInBand --coverage=false) && \
