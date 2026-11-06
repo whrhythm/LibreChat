@@ -1,4 +1,13 @@
 {
+  "com_codechat_payment_title": "模拟付款",
+  "com_codechat_payment_local": "本地支付演练，不会实际扣款。付款确认后仍需等待模型额度到账和资源开通。",
+  "com_codechat_payment_create": "准备模拟收银台",
+  "com_codechat_payment_open": "打开本地收银台",
+  "com_codechat_payment_creating": "正在核实下单结果，请稍候，不要重复下单。",
+  "com_codechat_payment_confirmed": "付款已确认，权益开通结果请以上方订单状态为准。",
+  "com_codechat_payment_review": "付款或下单结果需要核验，请勿重复付款。",
+  "com_codechat_payment_error": "暂时无法查询付款结果，请刷新核验，不要重新付款。",
+  "com_codechat_payment_refresh": "刷新付款状态",
   "com_codechat_acceptance_title": "本轮需求与验收",
   "com_codechat_acceptance_scope": "工程：{{path}} · 此记录只对应本次编程任务。",
   "com_codechat_acceptance_summary": "你的验收：{{passed}}/{{total}} 项通过 · {{changes}} 项需修改",

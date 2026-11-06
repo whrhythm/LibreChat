@@ -79,6 +79,7 @@ export type CapacityAccount = {
   };
   plan: CapacityPlan;
   mode: 'test' | 'disabled';
+  payment_provider?: 'manual_test' | 'xunhupay_local';
   plans: CapacityPlan[];
   active_order: CapacityOrder | null;
   orders: CapacityOrder[];
@@ -150,6 +151,41 @@ export class CapacityError extends Error {
   constructor(public readonly code: string) {
     super(code);
   }
+}
+
+export type PaymentReceipt = {
+  state: 'not_started' | 'creating' | 'awaiting_payment' | 'confirmed' | 'requires_review';
+  checkout_url: string | null;
+  mode: 'local_simulator';
+};
+
+export async function personalPaymentRequest(
+  token: string,
+  orderId: string,
+  action: 'checkout' | 'payment',
+): Promise<PaymentReceipt> {
+  const response = await fetch(
+    `/api/user/workspace/capacity/orders/${encodeURIComponent(orderId)}/${action}`,
+    {
+      method: action === 'payment' ? 'GET' : 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+  if (!response.ok) throw new CapacityError('payment_unavailable');
+  const receipt: PaymentReceipt = await response.json();
+  if (receipt.checkout_url) {
+    const url = new URL(receipt.checkout_url);
+    if (
+      url.protocol !== 'http:' ||
+      !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) ||
+      url.username ||
+      url.password
+    )
+      throw new CapacityError('payment_unavailable');
+  }
+  return receipt;
 }
 
 type CapacityOptions = {

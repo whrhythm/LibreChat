@@ -1,4 +1,13 @@
 {
+  "com_codechat_payment_title": "Simulated payment",
+  "com_codechat_payment_local": "Local payment exercise. No real charge. Credit and resources are provisioned after payment confirmation.",
+  "com_codechat_payment_create": "Prepare simulated checkout",
+  "com_codechat_payment_open": "Open local checkout",
+  "com_codechat_payment_creating": "Checking the checkout result. Do not create another order.",
+  "com_codechat_payment_confirmed": "Payment confirmed. Check the order above for entitlement activation.",
+  "com_codechat_payment_review": "This payment needs review. Do not pay again.",
+  "com_codechat_payment_error": "Payment status is unavailable. Refresh to verify before paying again.",
+  "com_codechat_payment_refresh": "Refresh payment status",
   "com_codechat_acceptance_title": "Requirements & acceptance",
   "com_codechat_acceptance_scope": "Project: {{path}} · This record applies only to this programming task.",
   "com_codechat_acceptance_summary": "Your acceptance: {{passed}}/{{total}} passed · {{changes}} need changes",

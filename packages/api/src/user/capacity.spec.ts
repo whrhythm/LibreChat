@@ -14,6 +14,31 @@ const deps = {
 };
 type Input = Parameters<ReturnType<typeof createCapacityHandlers>['order']>[0];
 
+it('scopes checkout and polling to the verified owner and fixed routes', async () => {
+  const request = jest
+    .fn()
+    .mockImplementation(() =>
+      Promise.resolve(
+        new globalThis.Response(JSON.stringify({ state: 'awaiting_payment' }), { status: 200 }),
+      ),
+    );
+  const bridge = createCapacityHandlers({ ...deps, request });
+  const res = response();
+  const input = {
+    user,
+    params: { orderId: '11111111-1111-4111-8111-111111111111' },
+  } as unknown as Input;
+  await bridge.checkout(input, res as unknown as Response);
+  await bridge.payment(input, res as unknown as Response);
+  expect(String(request.mock.calls[0][0])).toMatch(/\/checkout$/);
+  expect(request.mock.calls[0][1]).toMatchObject({
+    method: 'POST',
+    headers: { 'X-CodeChat-Subject': 'alice' },
+  });
+  expect(String(request.mock.calls[1][0])).toMatch(/\/payment$/);
+  expect(request.mock.calls[1][1].method).toBe('GET');
+});
+
 it('forwards only validated order fields and idempotency, using the authenticated identity', async () => {
   const request = jest
     .fn()

@@ -20,6 +20,7 @@ import { useGetStartupConfig } from '~/data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { storageSize } from './storage';
 import Membership from './Membership';
+import Payment from './Payment';
 
 const statusKeys = {
   pending_payment: 'com_codechat_capacity_pending',
@@ -242,14 +243,16 @@ export default function Capacity({
                         <div className="mt-4 flex flex-wrap gap-2">
                           {order.status === 'pending_payment' && (
                             <>
-                              <Button
-                                disabled={operation.isLoading}
-                                onClick={() =>
-                                  operation.mutate({ action: 'confirm-test', orderId: order.id })
-                                }
-                              >
-                                {localize('com_codechat_capacity_confirm')}
-                              </Button>
+                              {data.payment_provider !== 'xunhupay_local' && (
+                                <Button
+                                  disabled={operation.isLoading}
+                                  onClick={() =>
+                                    operation.mutate({ action: 'confirm-test', orderId: order.id })
+                                  }
+                                >
+                                  {localize('com_codechat_capacity_confirm')}
+                                </Button>
+                              )}
                               <Button
                                 variant="outline"
                                 disabled={operation.isLoading}
@@ -273,6 +276,9 @@ export default function Capacity({
                             </Button>
                           )}
                         </div>
+                      )}
+                      {data.mode === 'test' && data.payment_provider === 'xunhupay_local' && (
+                        <Payment orderId={order.id} pending={order.status === 'pending_payment'} />
                       )}
                     </section>
                   )}

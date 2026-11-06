@@ -5,7 +5,7 @@ import type { ServerRequest } from '~/types';
 type CapacityRequest = Omit<ServerRequest, 'body'> & { body?: unknown };
 type CapacityHandler = (req: CapacityRequest, res: Response) => Promise<Response>;
 type CapacityHandlers = Record<
-  'account' | 'order' | 'confirm' | 'retry' | 'cancel' | 'objectRetry',
+  'account' | 'order' | 'confirm' | 'retry' | 'cancel' | 'objectRetry' | 'checkout' | 'payment',
   CapacityHandler
 >;
 type Dependencies = {
@@ -19,7 +19,17 @@ type Dependencies = {
 export function createCapacityHandlers(deps: Dependencies): CapacityHandlers {
   const request = deps.request ?? fetch;
   const handler =
-    (action: 'account' | 'order' | 'confirm-test' | 'retry' | 'cancel' | 'object-retry') =>
+    (
+      action:
+        | 'account'
+        | 'order'
+        | 'confirm-test'
+        | 'retry'
+        | 'cancel'
+        | 'object-retry'
+        | 'checkout'
+        | 'payment',
+    ) =>
     async (req: CapacityRequest, res: Response) => {
       res.setHeader('Cache-Control', 'no-store');
       res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -63,7 +73,7 @@ export function createCapacityHandlers(deps: Dependencies): CapacityHandlers {
         if (url.protocol !== 'https:' || url.username || url.password)
           return res.status(503).json({ code: 'capacity_unavailable' });
         const upstream = await request(url, {
-          method: action === 'account' ? 'GET' : 'POST',
+          method: action === 'account' || action === 'payment' ? 'GET' : 'POST',
           headers: {
             'X-CodeChat-Service-Token': deps.serviceToken,
             'X-CodeChat-Subject': user.openidId,
@@ -81,7 +91,7 @@ export function createCapacityHandlers(deps: Dependencies): CapacityHandlers {
           const value = await upstream.json().catch(() => null);
           const code =
             typeof value?.detail === 'string' &&
-            /^(capacity_|object_storage_)[a-z_]+$/.test(value.detail)
+            /^(capacity_|object_storage_|payment_)[a-z_]+$/.test(value.detail)
               ? value.detail
               : 'capacity_unavailable';
           return res.status(status).json({ code });
@@ -98,5 +108,7 @@ export function createCapacityHandlers(deps: Dependencies): CapacityHandlers {
     retry: handler('retry'),
     cancel: handler('cancel'),
     objectRetry: handler('object-retry'),
+    checkout: handler('checkout'),
+    payment: handler('payment'),
   };
 }

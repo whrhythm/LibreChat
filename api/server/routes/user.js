@@ -107,6 +107,8 @@ router.post('/workspace/capacity/orders', requireJwtAuth, capacity.order);
 router.post('/workspace/capacity/orders/:orderId/confirm-test', requireJwtAuth, capacity.confirm);
 router.post('/workspace/capacity/orders/:orderId/retry', requireJwtAuth, capacity.retry);
 router.post('/workspace/capacity/orders/:orderId/cancel', requireJwtAuth, capacity.cancel);
+router.post('/workspace/capacity/orders/:orderId/checkout', requireJwtAuth, capacity.checkout);
+router.get('/workspace/capacity/orders/:orderId/payment', requireJwtAuth, capacity.payment);
 router.get('/workspace/apps', requireJwtAuth, workspace.apps);
 router.post('/workspace/apps', requireJwtAuth, workspace.publish);
 router.post('/workspace/apps/:applicationId/start', requireJwtAuth, workspace.start);
