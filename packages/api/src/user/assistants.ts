@@ -113,7 +113,7 @@ export function createAIProjectHandlers(
             ...(payload ? { 'Content-Type': 'application/json' } : {}),
           },
           body: payload ? JSON.stringify(payload) : undefined,
-          signal: AbortSignal.timeout(req.config?.aiProjects?.requestTimeoutMs ?? 35000),
+          signal: AbortSignal.timeout(req.config?.config?.aiProjects?.requestTimeoutMs ?? 35000),
         });
         const result = await upstream.json();
         if (!upstream.ok) {
