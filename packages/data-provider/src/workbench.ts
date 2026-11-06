@@ -64,7 +64,46 @@ export type ProgrammingTask = {
   events: ProgrammingEvent[];
   pending: { id: string; expires_at: string; decision?: string | null } | null;
   updated_at?: string;
+  acceptance?: {
+    revision: number;
+    total: number;
+    passed: number;
+    pending: number;
+    changes_requested: number;
+  };
 };
+
+export const acceptanceSchema = z
+  .object({
+    revision: z.number().int().nonnegative(),
+    goal: z.string().max(4000),
+    criteria: z
+      .array(
+        z
+          .object({
+            id: z.string().uuid(),
+            text: z.string().trim().min(1).max(400),
+            result: z.enum(['pending', 'passed', 'changes_requested']),
+          })
+          .strict(),
+      )
+      .max(12),
+    note: z.string().max(1000),
+  })
+  .strict()
+  .refine((value) => new Set(value.criteria.map((item) => item.id)).size === value.criteria.length);
+export type AcceptanceInput = z.infer<typeof acceptanceSchema>;
+export type TaskAcceptance = AcceptanceInput & {
+  task_id: string;
+  project_path: string;
+  task_status: string;
+  request: { text: string; truncated: boolean } | null;
+  updated_at: string | null;
+};
+export const taskAcceptance = (token: string, id: string) =>
+  request<TaskAcceptance>(token, `tasks/${encodeURIComponent(id)}/acceptance`);
+export const saveTaskAcceptance = (token: string, id: string, body: AcceptanceInput) =>
+  request<TaskAcceptance>(token, `tasks/${encodeURIComponent(id)}/acceptance`, 'PUT', body);
 
 /** A stream is a replaceable projection of one task, not a command channel. */
 export async function streamProgrammingTask(

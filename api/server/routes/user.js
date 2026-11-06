@@ -85,6 +85,8 @@ router.get('/workspace/agent/tasks/:taskId', requireJwtAuth, programming.task);
 router.get('/workspace/agent/tasks/:taskId/stream', requireJwtAuth, programming.stream);
 router.post('/workspace/agent/tasks/:taskId/decision', requireJwtAuth, programming.decision);
 router.post('/workspace/agent/tasks/:taskId/cancel', requireJwtAuth, programming.cancel);
+router.get('/workspace/agent/tasks/:taskId/acceptance', requireJwtAuth, programming.acceptance);
+router.put('/workspace/agent/tasks/:taskId/acceptance', requireJwtAuth, programming.saveAcceptance);
 router.get('/workspace/capacity', requireJwtAuth, capacity.account);
 router.post('/workspace/object-storage/retry', requireJwtAuth, capacity.objectRetry);
 router.get('/workspace/databases', requireJwtAuth, databases.list);

@@ -79,6 +79,7 @@ export enum QueryKeys {
   programmingMCP = 'programmingMCP',
   programmingTasks = 'programmingTasks',
   programmingTask = 'programmingTask',
+  taskAcceptance = 'taskAcceptance',
   codechatDatabases = 'codechatDatabases',
   categories = 'categories',
   randomPrompts = 'randomPrompts',

@@ -2,6 +2,7 @@ import {
   programmingPreferenceSchema,
   programmingDecisionSchema,
   programmingMCPCredentialSchema,
+  acceptanceSchema,
 } from 'librechat-data-provider';
 import type { Response } from 'express';
 import type { ServerRequest } from '~/types';
@@ -24,7 +25,9 @@ type WorkbenchHandlers = Record<
   | 'decision'
   | 'cancel'
   | 'mcp'
-  | 'credential',
+  | 'credential'
+  | 'acceptance'
+  | 'saveAcceptance',
   WorkbenchHandler
 >;
 
@@ -41,7 +44,9 @@ export function createProgrammingHandlers(deps: Dependencies): WorkbenchHandlers
         | 'decision'
         | 'cancel'
         | 'mcp'
-        | 'credential',
+        | 'credential'
+        | 'acceptance'
+        | 'saveAcceptance',
     ) =>
     async (req: WorkbenchRequest, res: Response) => {
       res.setHeader('Cache-Control', 'no-store');
@@ -58,6 +63,11 @@ export function createProgrammingHandlers(deps: Dependencies): WorkbenchHandlers
         return res.status(503).json({ code: 'agent_unavailable' });
       let suffix: string = action === 'save' ? 'preferences' : action;
       let body: string | undefined;
+      if (action === 'saveAcceptance') {
+        const parsed = acceptanceSchema.safeParse(req.body);
+        if (!parsed.success) return res.status(400).json({ code: 'agent_invalid_input' });
+        body = JSON.stringify(parsed.data);
+      }
       if (action === 'credential') {
         const id =
           req.params && typeof req.params === 'object' && 'serverId' in req.params
@@ -86,7 +96,9 @@ export function createProgrammingHandlers(deps: Dependencies): WorkbenchHandlers
         action === 'decision' ||
         action === 'cancel' ||
         action === 'task' ||
-        action === 'stream'
+        action === 'stream' ||
+        action === 'acceptance' ||
+        action === 'saveAcceptance'
       ) {
         const id =
           req.params && typeof req.params === 'object' && 'taskId' in req.params
@@ -94,7 +106,8 @@ export function createProgrammingHandlers(deps: Dependencies): WorkbenchHandlers
             : null;
         if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/.test(id))
           return res.status(400).json({ code: 'agent_invalid_input' });
-        suffix = `tasks/${encodeURIComponent(id)}${action === 'task' || action === 'stream' ? '' : '/' + action}`;
+        const endpoint = action === 'saveAcceptance' ? 'acceptance' : action;
+        suffix = `tasks/${encodeURIComponent(id)}${action === 'task' || action === 'stream' ? '' : '/' + endpoint}`;
       }
       try {
         const url = new URL('agent/' + suffix, deps.baseUrl.replace(/\/?$/, '/'));
@@ -120,6 +133,8 @@ export function createProgrammingHandlers(deps: Dependencies): WorkbenchHandlers
             task: 'GET',
             mcp: 'GET',
             credential: 'PUT',
+            acceptance: 'GET',
+            saveAcceptance: 'PUT',
           }[action],
           headers: {
             'X-CodeChat-Service-Token': deps.serviceToken,
@@ -149,5 +164,7 @@ export function createProgrammingHandlers(deps: Dependencies): WorkbenchHandlers
     stream: handler('stream'),
     decision: handler('decision'),
     cancel: handler('cancel'),
+    acceptance: handler('acceptance'),
+    saveAcceptance: handler('saveAcceptance'),
   };
 }

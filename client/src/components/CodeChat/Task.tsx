@@ -12,6 +12,7 @@ import MarkdownLite from '~/components/Chat/Messages/Content/MarkdownLite';
 import { newestTask, useTaskStream } from './TaskLive';
 import { AuthContext } from '~/hooks/AuthContext';
 import { useLocalize } from '~/hooks';
+import Acceptance from './Acceptance';
 
 const active = ['queued', 'running', 'awaiting_approval', 'cancelling'];
 const commandKeys: Record<
@@ -228,6 +229,7 @@ export function TaskContent({ id, token, userId }: { id: string; token: string; 
             {t('com_codechat_programming_stop')}
           </Button>
         )}
+        {task && <Acceptance key={task.id} task={task} token={token} userId={userId} />}
         {action.isError && (
           <p role="alert" className="text-sm">
             {t('com_codechat_programming_error')}

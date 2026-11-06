@@ -8,6 +8,40 @@ const deps = {
   issuer: 'https://identity.test/',
 };
 
+it('loads and updates acceptance only on the fixed owner-bound task route', async () => {
+  const request = jest.fn().mockResolvedValue(new globalThis.Response('{"revision":1}'));
+  const handlers = createProgrammingHandlers({ ...deps, request });
+  const res = response();
+  const taskId = '12345678-1234-1234-1234-123456789abc';
+  const body = { revision: 0, goal: 'sample goal', criteria: [], note: '' };
+  await handlers.saveAcceptance(
+    { user, params: { taskId }, body } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(String(request.mock.calls[0][0])).toBe(
+    `https://platform.test/internal/v1/workspace/agent/tasks/${taskId}/acceptance`,
+  );
+  expect(request.mock.calls[0][1].method).toBe('PUT');
+  expect(request.mock.calls[0][1].headers['X-CodeChat-Subject']).toBe('alice');
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual(body);
+  request.mockClear();
+  await handlers.saveAcceptance(
+    { user, params: { taskId }, body: { ...body, owner: 'bob' } } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(request).not.toHaveBeenCalled();
+  await handlers.acceptance(
+    { user, params: { taskId: '../secret' } } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(request).not.toHaveBeenCalled();
+  await handlers.acceptance(
+    { user, params: { taskId } } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(request.mock.calls[0][1].method).toBe('GET');
+});
+
 it('binds MCP credential updates to the verified user and rejects destination injection', async () => {
   const request = jest
     .fn()
