@@ -103,10 +103,16 @@ export function getLangChainErrorCode(error: unknown): string | undefined {
 export function resolveLangChainError(error: unknown): string | undefined {
   const applicationCode = getErrorCode(error);
   // These fixed platform codes carry no provider text or private request content.
-  if (typeof applicationCode === 'string' && [
-    'ai_releases_budget_exhausted', 'ai_releases_access_denied',
-    'ai_releases_call_already_submitted', 'ai_releases_result_unknown',
-  ].includes(applicationCode)) return JSON.stringify({ type: applicationCode });
+  if (
+    typeof applicationCode === 'string' &&
+    [
+      'ai_releases_budget_exhausted',
+      'ai_releases_access_denied',
+      'ai_releases_call_already_submitted',
+      'ai_releases_result_unknown',
+    ].includes(applicationCode)
+  )
+    return JSON.stringify({ type: applicationCode });
   const code = getLangChainErrorCode(error);
   const type = code == null ? undefined : LANGCHAIN_ERROR_TYPES[code];
   return type == null ? undefined : JSON.stringify({ type });

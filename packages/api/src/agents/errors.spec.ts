@@ -548,10 +548,15 @@ describe('model stream failures', () => {
 
 it('preserves only fixed application rejection codes and discards arbitrary error text', () => {
   const error = Object.assign(new Error('private provider text'), {
-    code: 'ai_releases_budget_exhausted', lc_error_code: 'MODEL_RATE_LIMIT',
+    code: 'ai_releases_budget_exhausted',
+    lc_error_code: 'MODEL_RATE_LIMIT',
   });
-  expect(resolveLangChainError(error)).toBe(JSON.stringify({ type: 'ai_releases_budget_exhausted' }));
-  expect(resolveLangChainError(Object.assign(new Error('private'), { code: 'untrusted_code' }))).toBeUndefined();
+  expect(resolveLangChainError(error)).toBe(
+    JSON.stringify({ type: 'ai_releases_budget_exhausted' }),
+  );
+  expect(
+    resolveLangChainError(Object.assign(new Error('private'), { code: 'untrusted_code' })),
+  ).toBeUndefined();
 });
 
 it('does not retry a terminal application budget rejection through the real model client', async () => {
@@ -559,14 +564,28 @@ it('does not retry a terminal application budget rejection through the real mode
   const server = createServer((_req, res) => {
     calls++;
     res.writeHead(402, { 'Content-Type': 'application/json', 'x-should-retry': 'false' });
-    res.end(JSON.stringify({ error: { code: 'ai_releases_budget_exhausted', type: 'insufficient_quota', message: 'Application budget exhausted' } }));
+    res.end(
+      JSON.stringify({
+        error: {
+          code: 'ai_releases_budget_exhausted',
+          type: 'insufficient_quota',
+          message: 'Application budget exhausted',
+        },
+      }),
+    );
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   try {
     const port = (server.address() as AddressInfo).port;
-    const model = new ChatOpenAI({ apiKey: 'test-key', model: 'test-model', maxRetries: 2,
-      configuration: { baseURL: `http://127.0.0.1:${port}/v1` } });
-    await expect(model.invoke('hi')).rejects.toMatchObject({ code: 'ai_releases_budget_exhausted' });
+    const model = new ChatOpenAI({
+      apiKey: 'test-key',
+      model: 'test-model',
+      maxRetries: 2,
+      configuration: { baseURL: `http://127.0.0.1:${port}/v1` },
+    });
+    await expect(model.invoke('hi')).rejects.toMatchObject({
+      code: 'ai_releases_budget_exhausted',
+    });
     expect(calls).toBe(1);
   } finally {
     server.closeAllConnections();
