@@ -142,11 +142,16 @@ Use the EXACT anchor markers shown below (copy them verbatim) immediately after 
 };
 
 module.exports = {
-  createFileSearchTool: (options) => createProjectFileSearchTool(options, {
-    baseUrl: process.env.CODECHAT_WORKSPACE_URL,
-    serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
-    issuer: process.env.OPENID_ISSUER,
-  }, createFileSearchTool),
+  createFileSearchTool: (options) =>
+    createProjectFileSearchTool(
+      options,
+      {
+        baseUrl: process.env.CODECHAT_WORKSPACE_URL,
+        serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
+        issuer: process.env.OPENID_ISSUER,
+      },
+      createFileSearchTool,
+    ),
   primeFiles: (options) => primeProjectKnowledge(options, primeFiles),
   fileSearchJsonSchema,
 };

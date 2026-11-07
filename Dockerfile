@@ -74,6 +74,7 @@ RUN \
     if [ "$CODECHAT_VERIFY" = "true" ]; then \
       npx eslint packages/api/src/user/knowledge.ts packages/api/src/user/knowledge.spec.ts packages/data-provider/src/knowledge.ts client/src/components/CodeChat/Knowledge.tsx && \
       (cd packages/api && npx jest src/user/knowledge.spec.ts --runInBand --coverage=false) && \
+      (cd client && npx jest src/components/CodeChat/Knowledge.spec.tsx --runInBand --coverage=false) && \
       npx eslint packages/api/src/user/assistants.ts packages/api/src/user/assistants.spec.ts packages/data-provider/src/aiProjects.ts client/src/components/CodeChat/Assistants.tsx client/src/components/CodeChat/Assistants.spec.tsx && \
       (cd packages/api && npx jest src/user/assistants.spec.ts --runInBand --coverage=false) && \
       (cd client && npx jest src/components/CodeChat/Assistants.spec.tsx --runInBand --coverage=false) && \

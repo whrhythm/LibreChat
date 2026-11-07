@@ -136,7 +136,7 @@ export default function Assistants({
               {t(value.state === 'ready' ? 'com_ai_projects_private' : 'com_ai_projects_pending')}
             </span>
           </div>
-          {value.state === 'ready' && <Knowledge projectId={value.project.id} />}
+          {value.state === 'ready' ? <Knowledge projectId={value.project.id} /> : <p className="text-text-secondary text-xs">{t('com_ai_projects_knowledge_pending')}</p>}
           <div className="flex flex-wrap gap-2">
             {value.state === 'ready' ? (
               <Button size="xs" variant="outline" asChild>

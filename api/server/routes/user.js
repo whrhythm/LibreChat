@@ -63,10 +63,33 @@ const knowledge = createKnowledgeHandlers({
   issuer: process.env.OPENID_ISSUER,
   enableProjectKnowledge,
 });
-router.get('/workspace/ai-projects/:projectId/knowledge', requireJwtAuth, configMiddleware, knowledge.list);
-router.post('/workspace/ai-projects/:projectId/knowledge', requireJwtAuth, checkAIProjectCreate, configMiddleware, knowledge.import);
-router.post('/workspace/ai-projects/:projectId/knowledge/:revisionId/retry', requireJwtAuth, checkAIProjectCreate, configMiddleware, knowledge.retry);
-router.post('/workspace/ai-projects/:projectId/knowledge/:revisionId/remove', requireJwtAuth, checkAIProjectCreate, configMiddleware, knowledge.remove);
+router.get(
+  '/workspace/ai-projects/:projectId/knowledge',
+  requireJwtAuth,
+  configMiddleware,
+  knowledge.list,
+);
+router.post(
+  '/workspace/ai-projects/:projectId/knowledge',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  knowledge.import,
+);
+router.post(
+  '/workspace/ai-projects/:projectId/knowledge/:revisionId/retry',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  knowledge.retry,
+);
+router.post(
+  '/workspace/ai-projects/:projectId/knowledge/:revisionId/remove',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  knowledge.remove,
+);
 router.get('/workspace/ai-projects', requireJwtAuth, aiProjects.list);
 router.post(
   '/workspace/ai-projects',
