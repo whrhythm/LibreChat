@@ -19,7 +19,11 @@ export function createAgentAdminPermissionAccess({
   fallback,
 }: Pick<AllMethods, 'getAgent'> & { fallback: Middleware }): Middleware {
   return async (req, res, next) => {
-    if (![ResourceType.AGENT, ResourceType.REMOTE_AGENT].includes(req.params.resourceType as ResourceType)) {
+    if (
+      ![ResourceType.AGENT, ResourceType.REMOTE_AGENT].includes(
+        req.params.resourceType as ResourceType,
+      )
+    ) {
       return fallback(req, res, next);
     }
     const { resourceId } = req.params;

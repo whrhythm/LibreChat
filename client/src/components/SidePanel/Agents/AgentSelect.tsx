@@ -67,14 +67,16 @@ function AgentSelect({
     { requiredPermission: permissionLevel, ...(mine ? { mine: 1 as const } : {}) },
     {
       select: (res) =>
-        res.data.filter((agent) => !isPublishedAppAgent(agent.id)).map((agent) =>
-          processAgentOption({
-            agent: {
-              ...agent,
-              name: agent.name || agent.id,
-            },
-          }),
-        ),
+        res.data
+          .filter((agent) => !isPublishedAppAgent(agent.id))
+          .map((agent) =>
+            processAgentOption({
+              agent: {
+                ...agent,
+                name: agent.name || agent.id,
+              },
+            }),
+          ),
     },
   );
 

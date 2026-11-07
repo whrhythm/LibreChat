@@ -345,18 +345,24 @@ describe('AgentPanel - Update Agent Toast Messages', () => {
   });
 
   describe('AgentPanel', () => {
-    it.each(['USER', 'ADMIN'])('keeps a published entry read-only despite stale owner permissions for %s', (role) => {
-      const { mockUseGetAgentByIdQuery } = setupMocks();
-      const id = 'agent_app_' + 'a'.repeat(32);
-      mockUserRole = role;
-      mockAgentPanelContext.agent_id = id;
-      mockAgentQuery(mockUseGetAgentByIdQuery, { id });
-      const Wrapper = createWrapper();
-      const { queryByText } = render(<AgentPanel />, { wrapper: Wrapper });
-      expect(queryByText('com_agents_published_read_only')).toBeInTheDocument();
-      expect(useGetExpandedAgentByIdQuery).toHaveBeenCalledWith(id, expect.objectContaining({ enabled: false }));
-      expect(mockAgentConfigStatus).toBeUndefined();
-    });
+    it.each(['USER', 'ADMIN'])(
+      'keeps a published entry read-only despite stale owner permissions for %s',
+      (role) => {
+        const { mockUseGetAgentByIdQuery } = setupMocks();
+        const id = 'agent_app_' + 'a'.repeat(32);
+        mockUserRole = role;
+        mockAgentPanelContext.agent_id = id;
+        mockAgentQuery(mockUseGetAgentByIdQuery, { id });
+        const Wrapper = createWrapper();
+        const { queryByText } = render(<AgentPanel />, { wrapper: Wrapper });
+        expect(queryByText('com_agents_published_read_only')).toBeInTheDocument();
+        expect(useGetExpandedAgentByIdQuery).toHaveBeenCalledWith(
+          id,
+          expect.objectContaining({ enabled: false }),
+        );
+        expect(mockAgentConfigStatus).toBeUndefined();
+      },
+    );
 
     it('restores saved defaults from the current model catalogue', async () => {
       const { mockUseGetAgentByIdQuery } = setupMocks();

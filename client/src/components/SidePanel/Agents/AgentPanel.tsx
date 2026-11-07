@@ -1031,10 +1031,20 @@ export default function AgentPanel() {
             <div className="flex h-[30vh] w-full items-center justify-center">
               <div className="text-center">
                 <h2 className="text-text-primary m-2 text-xl font-semibold">
-                  {localize(isPublishedApp ? 'com_agents_published_read_only' : 'com_agents_not_available')}
+                  {localize(
+                    isPublishedApp ? 'com_agents_published_read_only' : 'com_agents_not_available',
+                  )}
                 </h2>
-                <p className="text-text-secondary">{localize(isPublishedApp ? 'com_agents_published_read_only_detail' : 'com_agents_no_access')}</p>
-                {!isPublishedApp && agentQuery.data?.id && <ResetApprovals agentId={agentQuery.data.id} />}
+                <p className="text-text-secondary">
+                  {localize(
+                    isPublishedApp
+                      ? 'com_agents_published_read_only_detail'
+                      : 'com_agents_no_access',
+                  )}
+                </p>
+                {!isPublishedApp && agentQuery.data?.id && (
+                  <ResetApprovals agentId={agentQuery.data.id} />
+                )}
               </div>
             </div>
           )}

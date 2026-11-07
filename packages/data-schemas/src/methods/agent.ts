@@ -2851,14 +2851,16 @@ export function createAgentMethods(
     });
     await AclEntry.updateOne(
       recipient,
-      { $setOnInsert: {
-        ...recipient,
-        principalModel: PrincipalModel.USER,
-        permBits: PermissionBits.VIEW,
-        roleId: role._id,
-        grantedBy: record.author,
-        ...(record.tenantId ? { tenantId: record.tenantId } : {}),
-      } },
+      {
+        $setOnInsert: {
+          ...recipient,
+          principalModel: PrincipalModel.USER,
+          permBits: PermissionBits.VIEW,
+          roleId: role._id,
+          grantedBy: record.author,
+          ...(record.tenantId ? { tenantId: record.tenantId } : {}),
+        },
+      },
       { upsert: true },
     );
   }
@@ -2867,7 +2869,9 @@ export function createAgentMethods(
   async function repairPublishedAppPermissions(): Promise<{ checked: number }> {
     const Agent = mongoose.models.Agent as Model<IAgent>;
     let checked = 0;
-    for await (const record of Agent.find({ id: /^agent_app_[0-9a-f]{32}$/ }).lean().cursor()) {
+    for await (const record of Agent.find({ id: /^agent_app_[0-9a-f]{32}$/ })
+      .lean()
+      .cursor()) {
       await restrictPublishedAppPermissions(record);
       checked++;
     }
