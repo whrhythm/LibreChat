@@ -48,11 +48,11 @@ export function createReleaseHandlers(
       try {
         const call = releaseClient(req, deps);
         if (action === 'source') {
-          const id = z.string().uuid().parse(req.params.entryId);
+          const { entryId: id } = z.object({ entryId: z.string().uuid() }).parse(req.params);
           const name = z.string().min(1).max(124).parse(req.query.name);
           return res.json(await call('entries/' + id + '/source?name=' + encodeURIComponent(name)));
         }
-        const project = z.string().uuid().parse(req.params.projectId);
+        const { projectId: project } = z.object({ projectId: z.string().uuid() }).parse(req.params);
         if (action === 'list')
           return res.json(releaseListSchema.parse(await call(project + '/releases')));
         if (action === 'publish')
