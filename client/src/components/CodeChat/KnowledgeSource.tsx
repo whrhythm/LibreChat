@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { projectKnowledge, QueryKeys } from 'librechat-data-provider';
 import {
   OGDialog,
   OGDialogContent,
@@ -7,7 +8,6 @@ import {
   OGDialogDescription,
   Button,
 } from '@librechat/client';
-import { projectKnowledge, QueryKeys } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { lazyWithRecovery } from '~/lib/assets/lazy';
 import EditorLoading from './EditorLoading';

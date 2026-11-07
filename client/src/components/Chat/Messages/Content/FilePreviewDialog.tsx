@@ -24,10 +24,10 @@ import {
 } from '~/data-provider';
 import { getDownloadFilename, logger, sortPagesByRelevance, triggerDownload } from '~/utils';
 import { useMessagePartsHost } from '~/Providers/MessagePartsHostContext';
+import KnowledgeSource from '~/components/CodeChat/KnowledgeSource';
 import CopyButton from '~/components/Messages/Content/CopyButton';
 import { useShareContext } from '~/Providers';
 import { useLocalize } from '~/hooks';
-import KnowledgeSource from '~/components/CodeChat/KnowledgeSource';
 
 interface FilePreviewDialogProps {
   open: boolean;

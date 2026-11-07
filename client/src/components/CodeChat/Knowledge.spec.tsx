@@ -1,6 +1,6 @@
+import { projectKnowledge } from 'librechat-data-provider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { projectKnowledge } from 'librechat-data-provider';
 import Knowledge from './Knowledge';
 jest.mock('~/hooks', () => ({
   useAuthContext: () => ({ user: { id: 'owner' }, token: 'test' }),
