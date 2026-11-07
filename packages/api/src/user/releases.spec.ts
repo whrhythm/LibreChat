@@ -42,8 +42,8 @@ it('pins runtime and sponsored transport without mutating shared config or retai
 });
 it('rejects extra client instructions and unverified member account lookup',async()=>{
   const {deps,handlers}=setup();
-  await expect(preparePublishedApp({req:request({agent_id:data.agent_id,promptPrefix:'override'}),endpointOption:{}}
-    as unknown as Parameters<typeof preparePublishedApp>[0],deps)).rejects.toMatchObject({code:'ai_releases_override_rejected'});
+  const params={req:request({agent_id:data.agent_id,promptPrefix:'override'}),endpointOption:{}};
+  await expect(preparePublishedApp(params as unknown as Parameters<typeof preparePublishedApp>[0],deps)).rejects.toMatchObject({code:'ai_releases_override_rejected'});
   deps.findUser.mockResolvedValue({_id:'c'.repeat(24),email:'guest@example.test',provider:'openid',openidId:'x',openidIssuer:'https://id.test',emailVerified:false});
   const res=response();await handlers.member(request({email:'guest@example.test',enabled:true}),res as unknown as Response);
   expect(res.status).toHaveBeenCalledWith(409);expect(deps.request).not.toHaveBeenCalled();
