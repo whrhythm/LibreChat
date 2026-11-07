@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   OGDialog,
@@ -8,6 +9,10 @@ import {
 } from '@librechat/client';
 import { projectKnowledge, QueryKeys } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
+import { lazyWithRecovery } from '~/lib/assets/lazy';
+import EditorLoading from './EditorLoading';
+
+const CodeEditor = lazyWithRecovery(() => import('./CodeEditor'));
 
 export default function KnowledgeSource({
   open,
@@ -52,21 +57,11 @@ export default function KnowledgeSource({
           </p>
         )}
         {source.data && (
-          <div
-            className="bg-surface-secondary overflow-auto rounded p-3 font-mono text-xs"
-            aria-label={t('com_knowledge_source')}
-          >
-            {source.data.content.split('\n').map((line, index) => (
-              <div key={index} className="flex gap-3">
-                <span
-                  aria-hidden="true"
-                  className="text-text-secondary w-8 shrink-0 text-right select-none"
-                >
-                  {index + 1}
-                </span>
-                <span className="break-words whitespace-pre-wrap">{line || ' '}</span>
-              </div>
-            ))}
+          <div className="h-[60vh] overflow-hidden">
+            <Suspense fallback={<EditorLoading />}>
+              <CodeEditor name={'knowledge://' + parts[1] + '/' + parts[2] + '/' + source.data.name}
+                value={source.data.content} readOnly onChange={() => undefined} label={t('com_knowledge_source')} />
+            </Suspense>
           </div>
         )}
       </OGDialogContent>

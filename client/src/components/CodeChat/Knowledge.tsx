@@ -16,11 +16,13 @@ export default function Knowledge({ projectId }: { projectId: string }) {
   const [draft, setDraft] = useAtom(draftAtom);
   const errorAtom = useMemo(() => atom(false), []);
   const [invalid, setInvalid] = useAtom(errorAtom);
+  const expandedAtom = useMemo(() => atom(false), []);
+  const [expanded, setExpanded] = useAtom(expandedAtom);
   const key = [QueryKeys.aiProjects, user?.id, projectId, 'knowledge'];
   const list = useQuery({
     queryKey: key,
     queryFn: () => projectKnowledge(token!, projectId),
-    enabled: !!token,
+    enabled: expanded && !!token,
     retry: false,
     refetchInterval: (data) =>
       data?.revisions.some((r) => ['queued', 'indexing', 'deleting'].includes(r.state))
@@ -93,7 +95,7 @@ export default function Knowledge({ projectId }: { projectId: string }) {
     return t('com_knowledge_error');
   }
   return (
-    <details className="border-border-light rounded border p-2">
+    <details className="border-border-light rounded border p-2" onToggle={(event) => setExpanded(event.currentTarget.open)}>
       <summary className="cursor-pointer text-sm font-medium">{t('com_knowledge_title')}</summary>
       <div className="mt-2 space-y-2 text-xs">
         <p className="text-text-secondary">{t('com_knowledge_hint')}</p>
