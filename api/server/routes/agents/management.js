@@ -10,6 +10,7 @@ const {
 } = require('librechat-data-provider');
 const {
   createAgentUploadLock,
+  createPublishedAppGuard,
   createAgentManagementCreateHandler,
   createAgentManagementDeleteHandler,
   createAgentManagementFileHandlers,
@@ -155,6 +156,7 @@ const handleUploadError = (error, _req, res, _next) => {
 router.use(requireAgentManagementAuth);
 router.use(requireTermsAcceptance);
 router.use(checkBan);
+router.use('/:id', createPublishedAppGuard());
 
 router.post('/', configMiddleware, createHandler);
 router.get('/', readHandlers.list);

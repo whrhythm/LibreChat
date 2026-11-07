@@ -6,6 +6,7 @@ import { useWatch, useForm, FormProvider } from 'react-hook-form';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import {
   MemoryScope,
+  isPublishedAppAgent,
   SystemRoles,
   ResourceType,
   EModelEndpoint,
@@ -491,10 +492,11 @@ export default function AgentPanel() {
     basicAgentQuery.data?._id || '',
   );
 
-  const canEdit = hasPermission(PermissionBits.EDIT);
+  const isPublishedApp = isPublishedAppAgent(current_agent_id);
+  const canEdit = !isPublishedApp && hasPermission(PermissionBits.EDIT);
   /** Same editor-visibility bypass `canEditAgent` grants admins below: an admin can open
    *  the editor for a linked agent even without ACL EDIT on it. */
-  const hasEditorAccess = canEdit || user?.role === SystemRoles.ADMIN;
+  const hasEditorAccess = !isPublishedApp && (canEdit || user?.role === SystemRoles.ADMIN);
 
   const expandedAgentQuery = useGetExpandedAgentByIdQuery(current_agent_id ?? '', {
     enabled: !isEphemeralAgent(current_agent_id) && hasEditorAccess && !permissionsLoading,
@@ -967,12 +969,13 @@ export default function AgentPanel() {
   }, [agent_id, onSelectAgent]);
 
   const canEditAgent = useMemo(() => {
+    if (isPublishedApp) return false;
     if (!agentQuery.data?.id) {
       return true;
     }
 
     return hasEditorAccess;
-  }, [agentQuery.data?.id, hasEditorAccess]);
+  }, [agentQuery.data?.id, hasEditorAccess, isPublishedApp]);
 
   return (
     <FormProvider {...methods}>
@@ -1028,10 +1031,10 @@ export default function AgentPanel() {
             <div className="flex h-[30vh] w-full items-center justify-center">
               <div className="text-center">
                 <h2 className="text-text-primary m-2 text-xl font-semibold">
-                  {localize('com_agents_not_available')}
+                  {localize(isPublishedApp ? 'com_agents_published_read_only' : 'com_agents_not_available')}
                 </h2>
-                <p className="text-text-secondary">{localize('com_agents_no_access')}</p>
-                {agentQuery.data?.id && <ResetApprovals agentId={agentQuery.data.id} />}
+                <p className="text-text-secondary">{localize(isPublishedApp ? 'com_agents_published_read_only_detail' : 'com_agents_no_access')}</p>
+                {!isPublishedApp && agentQuery.data?.id && <ResetApprovals agentId={agentQuery.data.id} />}
               </div>
             </div>
           )}

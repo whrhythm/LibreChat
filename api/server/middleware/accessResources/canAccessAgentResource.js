@@ -1,4 +1,5 @@
 const { ResourceType } = require('librechat-data-provider');
+const { createPublishedAppGuard } = require('@librechat/api');
 const { canAccessResource } = require('./canAccessResource');
 const { getAgent } = require('~/models');
 
@@ -46,11 +47,15 @@ const canAccessAgentResource = (options) => {
     throw new Error('canAccessAgentResource: requiredPermission is required and must be a number');
   }
 
-  return canAccessResource({
-    resourceType: ResourceType.AGENT,
+  return createPublishedAppGuard({
     requiredPermission,
     resourceIdParam,
-    idResolver: resolveAgentId,
+    fallback: canAccessResource({
+      resourceType: ResourceType.AGENT,
+      requiredPermission,
+      resourceIdParam,
+      idResolver: resolveAgentId,
+    }),
   });
 };
 

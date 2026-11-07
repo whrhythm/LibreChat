@@ -36,7 +36,7 @@ describe('agent admin permission access', () => {
     await test.run();
     expect(test.getAgent).toHaveBeenCalledWith(
       { _id: resourceId, tenantId: tenantId ?? { $exists: false } },
-      '_id',
+      '_id id',
     );
     expect(test.next).toHaveBeenCalledTimes(1);
     expect(test.fallback).not.toHaveBeenCalled();
@@ -46,7 +46,7 @@ describe('agent admin permission access', () => {
     const test = setup(SystemRoles.USER);
     await test.run();
     expect(test.fallback).toHaveBeenCalled();
-    expect(test.getAgent).not.toHaveBeenCalled();
+    expect(test.getAgent).toHaveBeenCalledTimes(1);
   });
 
   it('uses the ordinary permission check for other resource types', async () => {
@@ -80,4 +80,18 @@ describe('agent admin permission access', () => {
     expect(test.res.status).toHaveBeenCalledWith(500);
     expect(test.next).not.toHaveBeenCalled();
   });
+
+  it.each([ResourceType.AGENT, ResourceType.REMOTE_AGENT])(
+    'denies published app permission management by Mongo ID for %s even with admin bypass',
+    async (resourceType) => {
+      for (const role of [SystemRoles.USER, SystemRoles.ADMIN]) {
+        const test = setup(role, resourceType);
+        test.getAgent.mockResolvedValue({ _id: resourceId, id: 'agent_app_' + 'a'.repeat(32) });
+        await test.run();
+        expect(test.res.status).toHaveBeenCalledWith(403);
+        expect(test.fallback).not.toHaveBeenCalled();
+        expect(test.next).not.toHaveBeenCalled();
+      }
+    },
+  );
 });

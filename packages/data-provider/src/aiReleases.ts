@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+/** Reserved server-created runtime entries, never user-authored Agents. */
+export function isPublishedAppAgent(id?: string | null): boolean {
+  return typeof id === 'string' && /^agent_app_[0-9a-f]{32}$/.test(id);
+}
+
 export const publishSchema = z
   .object({
     request_id: z.string().uuid(),

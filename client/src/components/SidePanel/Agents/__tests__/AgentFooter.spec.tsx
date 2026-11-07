@@ -234,6 +234,14 @@ describe('AgentFooter', () => {
     isAvatarUploading: false,
   };
 
+  it('hides every mutation for a managed app even when the recipient is recorded as author', () => {
+    mockUseWatch.mockImplementation(({ name }) => name === 'id'
+      ? 'agent_app_' + 'a'.repeat(32)
+      : { _id: 'agent-db-123', author: 'user-123', name: 'Published' });
+    const { container } = render(<AgentFooter {...defaultProps} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     // Reset to default mock implementations

@@ -5,6 +5,7 @@ import { ControlCombobox } from '@librechat/client';
 import { useFormContext, Controller } from 'react-hook-form';
 import {
   AgentCapabilities,
+  isPublishedAppAgent,
   normalizeAgentSelectorLimit,
   defaultAgentFormValues,
 } from 'librechat-data-provider';
@@ -66,7 +67,7 @@ function AgentSelect({
     { requiredPermission: permissionLevel, ...(mine ? { mine: 1 as const } : {}) },
     {
       select: (res) =>
-        res.data.map((agent) =>
+        res.data.filter((agent) => !isPublishedAppAgent(agent.id)).map((agent) =>
           processAgentOption({
             agent: {
               ...agent,
@@ -81,6 +82,7 @@ function AgentSelect({
     const currentAgent = agentQuery.data;
     if (
       !mine ||
+      isPublishedAppAgent(currentAgent?.id) ||
       !currentAgent ||
       currentAgent.id !== selectedAgentId ||
       listedAgents?.some((agent) => agent.id === selectedAgentId)

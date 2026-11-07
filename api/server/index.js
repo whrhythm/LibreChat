@@ -78,6 +78,7 @@ const {
   sweepOrphanedPreviews,
   getRoleByName,
   seedDatabase,
+  repairPublishedAppPermissions,
   listAllConfigs,
   recordAuditEntry,
 } = require('~/models');
@@ -236,6 +237,7 @@ const startServer = async () => {
   }
 
   await runAsSystem(seedDatabase);
+  await runAsSystem(repairPublishedAppPermissions);
   /* Recover stuck `status: 'pending'` records from a crash mid-render.
    * `runAsSystem` is required — `File` is tenant-isolated and strict
    * mode rejects unscoped queries. Lazy sweep in the preview endpoint

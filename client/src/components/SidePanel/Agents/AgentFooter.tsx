@@ -3,6 +3,7 @@ import { Button, Spinner } from '@librechat/client';
 import { useWatch, useFormContext } from 'react-hook-form';
 import {
   SystemRoles,
+  isPublishedAppAgent,
   Permissions,
   ResourceType,
   PermissionBits,
@@ -75,6 +76,8 @@ export default function AgentFooter({
   );
 
   const showButtons = activePanel === Panel.builder;
+
+  if (isPublishedAppAgent(agent_id)) return null;
 
   return (
     <div className="mb-1 flex w-full flex-col gap-2">

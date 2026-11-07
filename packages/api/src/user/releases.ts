@@ -1,8 +1,5 @@
 import { z } from 'zod';
 import {
-  PrincipalType,
-  ResourceType,
-  AccessRoleIds,
   EModelEndpoint,
   appEntrySchema,
   releaseListSchema,
@@ -119,21 +116,8 @@ export function createReleaseHandlers(
         });
         if (agent.ownerId !== req.user!.id || agent.id !== entry.agent_id)
           throw new TrialFailure(403, 'ai_releases_access_denied');
-        if (!entry.ready) {
-          for (const [resourceType, accessRoleId] of [
-            [ResourceType.AGENT, AccessRoleIds.AGENT_OWNER],
-            [ResourceType.REMOTE_AGENT, AccessRoleIds.REMOTE_AGENT_OWNER],
-          ] as const) {
-            await deps.grantPermission({
-              principalType: PrincipalType.USER,
-              principalId: req.user!.id,
-              resourceType,
-              resourceId: agent.resourceId,
-              accessRoleId,
-              grantedBy: req.user!.id,
-            });
-          }
-        }
+        // The database method grants only private chat VIEW, including on retries.
+        // Never make the recipient the owner of this managed runtime entry.
         return res.json(
           appEntrySchema.parse(await call('entries/' + entry.entry_id + '/confirm', {})),
         );

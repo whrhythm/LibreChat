@@ -109,6 +109,14 @@ it('pins runtime and sponsored transport without mutating shared config or retai
     message_id: 'server-answer',
   });
 });
+
+it('never grants owner or remote execution rights when creating a new published entry', async () => {
+  const { handlers, deps } = setup();
+  deps.request.mockImplementation(async () => new globalThis.Response(JSON.stringify({ ...data, ready: false })));
+  await handlers.launch(request(), response() as unknown as Response);
+  expect(deps.ensurePrivateTrialAgent).toHaveBeenCalledWith(expect.objectContaining({ allowCreate: true, id: data.agent_id }));
+  expect(deps.grantPermission).not.toHaveBeenCalled();
+});
 it('rejects extra client instructions and unverified member account lookup', async () => {
   const { deps, handlers } = setup();
   const params = {

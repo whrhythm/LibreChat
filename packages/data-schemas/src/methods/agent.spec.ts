@@ -578,6 +578,43 @@ describe('Agent Methods', () => {
       expect(await Agent.countDocuments({ id: input.id })).toBe(0);
     });
 
+    test('published entries converge to private VIEW without modifying Agents or ordinary ownership', async () => {
+      await AccessRole.updateOne(
+        { accessRoleId: AccessRoleIds.AGENT_VIEWER },
+        { $setOnInsert: { name: 'Viewer', resourceType: ResourceType.AGENT, permBits: 1 } },
+        { upsert: true },
+      );
+      const author = new mongoose.Types.ObjectId();
+      const other = new mongoose.Types.ObjectId();
+      const app = await createAgent({ id: 'agent_app_' + 'c'.repeat(32), author, name: 'Published', provider: 'LiteLLM', model: 'test' });
+      const own = await createAgent({ id: 'agent_' + 'd'.repeat(32), author, name: 'Own project', provider: 'LiteLLM', model: 'test' });
+      for (const record of [app, own]) {
+        await AclEntry.create({ resourceId: record._id, resourceType: ResourceType.AGENT, principalType: PrincipalType.USER, principalModel: PrincipalModel.USER, principalId: author, permBits: 15 });
+      }
+      await AclEntry.create({ resourceId: app._id, resourceType: ResourceType.REMOTE_AGENT, principalType: PrincipalType.USER, principalModel: PrincipalModel.USER, principalId: author, permBits: 15 });
+      await AclEntry.create({ resourceId: app._id, resourceType: ResourceType.AGENT, principalType: PrincipalType.USER, principalModel: PrincipalModel.USER, principalId: other, permBits: 15 });
+      await AclEntry.create({ resourceId: app._id, resourceType: ResourceType.AGENT, principalType: PrincipalType.PUBLIC, permBits: 15 });
+      const before = JSON.stringify(await Agent.find({}).sort({ id: 1 }).lean());
+      await methods.repairPublishedAppPermissions();
+      await methods.repairPublishedAppPermissions();
+      const acl = createAclEntryMethods(mongoose);
+      const principals = [{ principalType: PrincipalType.USER, principalId: author }];
+      expect(await acl.getEffectivePermissions(principals, ResourceType.AGENT, app._id)).toBe(1);
+      expect(await acl.getEffectivePermissions(principals, ResourceType.REMOTE_AGENT, app._id)).toBe(0);
+      expect(await acl.getEffectivePermissions(principals, ResourceType.AGENT, own._id)).toBe(15);
+      expect(await AclEntry.countDocuments({ resourceId: app._id })).toBe(1);
+      expect(JSON.stringify(await Agent.find({}).sort({ id: 1 }).lean())).toBe(before);
+      const input = { id: app.id, author: author.toString(), name: 'Should not replace name', description: '', instructions: '', provider: 'LiteLLM', model: 'test', allowCreate: false };
+      await methods.ensurePrivateTrialAgent(input);
+      expect(JSON.stringify(await Agent.find({}).sort({ id: 1 }).lean())).toBe(before);
+      await expect(methods.ensurePrivateTrialAgent({ ...input, author: other.toString() })).rejects.toThrow('owner mismatch');
+      const newEntry = await methods.ensurePrivateTrialAgent({ ...input, id: 'agent_app_' + 'e'.repeat(32), allowCreate: true });
+      expect(await acl.getEffectivePermissions(principals, ResourceType.AGENT, newEntry.resourceId)).toBe(1);
+      expect(await acl.getEffectivePermissions(principals, ResourceType.REMOTE_AGENT, newEntry.resourceId)).toBe(0);
+      const updated = await updateAgent({ id: own.id }, { name: 'Owner still edits' }, { updatingUserId: author.toString() });
+      expect(updated?.name).toBe('Owner still edits');
+    });
+
     test('should create and get an agent', async () => {
       const { agentId, authorId } = createTestIds();
 

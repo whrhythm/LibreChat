@@ -1,4 +1,6 @@
 {
+  "com_agents_published_read_only": "已发布应用 · 仅供使用",
+  "com_agents_published_read_only_detail": "此应用由创建者维护。你可以继续对话，也可以创建自己的智能体。",
   "com_trials_title": "配置与预览",
   "com_trials_hint": "每次预览固定指令、模型和知识版本，试用消耗你的模型额度。修改草稿后另建预览，旧对话保持原配置。此处验收尚不等于发布。",
   "com_trials_refresh": "刷新试用状态",

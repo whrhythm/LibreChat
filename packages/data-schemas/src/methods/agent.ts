@@ -1,6 +1,9 @@
 import crypto from 'node:crypto';
 import {
   Constants,
+  AccessRoleIds,
+  PrincipalModel,
+  isPublishedAppAgent,
   EToolResources,
   PermissionBits,
   PrincipalType,
@@ -11,7 +14,7 @@ import {
 } from 'librechat-data-provider';
 import type { FilterQuery, Model, PipelineStage, ProjectionType, Types } from 'mongoose';
 import type { AgentSortOption, AgentToolResources } from 'librechat-data-provider';
-import type { IAgent, IAclEntry, IUser, ActionQuery, CacheStore } from '~/types';
+import type { IAgent, IAclEntry, IAccessRole, IUser, ActionQuery, CacheStore } from '~/types';
 import { evictAuthUserDocsForUsers, isAuthUserDocCacheEnabled } from '~/utils/eviction';
 import { withCodeEnvironmentReferences } from './codeEnvironment';
 import { OWNER_ACL_PERMISSION_BIT_SUPERSETS } from './aclEntry';
@@ -1076,6 +1079,7 @@ export function createAgentMethods(
     data: PrivateProjectAgentInput,
   ) => Promise<PrivateProjectAgentIdentity>;
   ensurePrivateTrialAgent: (data: PrivateProjectAgentInput) => Promise<PrivateProjectAgentIdentity>;
+  repairPublishedAppPermissions: () => Promise<{ checked: number }>;
   enableProjectKnowledge: (id: string, author: string) => Promise<boolean>;
   getAgentName: (id: string, tenantId?: string) => Promise<string | undefined>;
   getAgentVersions: (searchParameter: FilterQuery<IAgent>) => Promise<IAgent['versions'] | null>;
@@ -2630,6 +2634,7 @@ export function createAgentMethods(
     const Agent = mongoose.models.Agent as Model<IAgent>;
     const match: FilterQuery<IAgent> = {
       tenantId,
+      id: { $not: /^agent_app_[0-9a-f]{32}$/ },
       ...(accessibleIds != null ? { _id: { $in: accessibleIds } } : {}),
     };
 
@@ -2812,7 +2817,62 @@ export function createAgentMethods(
     if (!/^agent_(trial|app)_[0-9a-f]{32}$/.test(data.id) || !/^[0-9a-f]{24}$/.test(data.author)) {
       throw new Error('Invalid private trial identity');
     }
-    return ensurePrivateAgent(data);
+    const identity = await ensurePrivateAgent(data);
+    if (isPublishedAppAgent(data.id)) {
+      const record = await getAgent({ id: data.id });
+      if (!record) throw new Error('Published application entry unavailable');
+      await restrictPublishedAppPermissions(record);
+    }
+    return identity;
+  }
+
+  /** P1-04A: keep stable Agent/conversation identities; repair ACLs only.
+   * The author identifies the recipient, not authority to manage a published app.
+   * Remove historical public/group/remote grants before restoring private chat VIEW. */
+  async function restrictPublishedAppPermissions(record: IAgent): Promise<void> {
+    const AclEntry = mongoose.models.AclEntry as Model<IAclEntry>;
+    const AccessRole = mongoose.models.AccessRole as Model<IAccessRole>;
+    const role = await AccessRole.findOne({ accessRoleId: AccessRoleIds.AGENT_VIEWER }).lean();
+    if (!record.author || !role) throw new Error('Published application ACL prerequisites missing');
+    const recipient = {
+      resourceId: record._id,
+      resourceType: ResourceType.AGENT,
+      principalType: PrincipalType.USER,
+      principalId: record.author,
+    };
+    await AclEntry.deleteMany({
+      resourceId: record._id,
+      resourceType: { $in: [ResourceType.AGENT, ResourceType.REMOTE_AGENT] },
+      $nor: [recipient],
+    });
+    await AclEntry.updateMany(recipient, {
+      $set: { permBits: PermissionBits.VIEW, roleId: role._id },
+      $unset: { expiredAt: 1, inheritedFrom: 1 },
+    });
+    await AclEntry.updateOne(
+      recipient,
+      { $setOnInsert: {
+        ...recipient,
+        principalModel: PrincipalModel.USER,
+        permBits: PermissionBits.VIEW,
+        roleId: role._id,
+        grantedBy: record.author,
+        ...(record.tenantId ? { tenantId: record.tenantId } : {}),
+      } },
+      { upsert: true },
+    );
+  }
+
+  /** Await at startup before accepting requests. Safe to repeat after a crash. */
+  async function repairPublishedAppPermissions(): Promise<{ checked: number }> {
+    const Agent = mongoose.models.Agent as Model<IAgent>;
+    let checked = 0;
+    for await (const record of Agent.find({ id: /^agent_app_[0-9a-f]{32}$/ }).lean().cursor()) {
+      await restrictPublishedAppPermissions(record);
+      checked++;
+    }
+    logger.info('[P1-04A] Published application private VIEW permissions verified', { checked });
+    return { checked };
   }
 
   async function ensurePrivateAgent(
@@ -2866,6 +2926,7 @@ export function createAgentMethods(
   return {
     enableProjectKnowledge,
     ensurePrivateTrialAgent,
+    repairPublishedAppPermissions,
     ensurePrivateProjectAgent,
     getAgent,
     getAgentName,
