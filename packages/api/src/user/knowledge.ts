@@ -85,7 +85,7 @@ function client(req: Request, deps: Dependencies) {
   };
 }
 
-export function createKnowledgeHandlers(deps: Dependencies) {
+export function createKnowledgeHandlers(deps: Dependencies): Record<'list' | 'import' | 'retry' | 'remove', (req: Request, res: Response) => Promise<Response>> {
   const handler =
     (action: 'list' | 'import' | 'retry' | 'remove') => async (req: Request, res: Response) => {
       res.setHeader('Cache-Control', 'no-store');
@@ -166,7 +166,7 @@ export function createProjectFileSearchTool<T extends SearchOptions, R>(
   options: T,
   deps: Dependencies,
   fallback: (value: T) => R,
-) {
+): R | ReturnType<typeof tool> {
   const id = projectId(options.entity_id);
   if (!id || !options.req?.config?.config?.aiProjects?.knowledgeEnabled) return fallback(options);
   const req = options.req;
