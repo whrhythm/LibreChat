@@ -10,6 +10,7 @@ const {
   GenerationJobManager,
   getSafeErrorMetadata,
   validateChatMessageIds,
+  createTrialConversationGuard,
 } = require('@librechat/api');
 const { PermissionTypes, Permissions, PermissionBits } = require('librechat-data-provider');
 const {
@@ -24,7 +25,7 @@ const guardSubagentThreadTurn = require('~/server/middleware/validate/subagentTh
 const AgentController = require('~/server/controllers/agents/request');
 const ResumeController = require('~/server/controllers/agents/resume');
 const addTitle = require('~/server/services/Endpoints/agents/title');
-const { getFiles, getRoleByName } = require('~/models');
+const { getFiles, getRoleByName, getConvo } = require('~/models');
 
 const router = express.Router();
 
@@ -77,6 +78,7 @@ router.use(moderateText);
 router.use(checkAgentAccess);
 router.use(checkAgentResourceAccess);
 router.use(validateConvoAccess);
+router.use(createTrialConversationGuard(getConvo));
 router.use(guardSubagentThreadTurn);
 router.use(buildEndpointOption);
 

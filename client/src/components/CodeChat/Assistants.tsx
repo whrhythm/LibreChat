@@ -5,7 +5,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { aiProjects, createAIProject, resumeAIProject, QueryKeys } from 'librechat-data-provider';
 import type { AIProjectCreateInput } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
+import { useGetStartupConfig } from '~/data-provider';
 import Knowledge from './Knowledge';
+import Trials from './Trials';
 
 export default function Assistants({
   enabled,
@@ -16,6 +18,7 @@ export default function Assistants({
 }) {
   const t = useLocalize();
   const { user, token } = useAuthContext();
+  const { data: startup } = useGetStartupConfig();
   const client = useQueryClient();
   const state = useMemo(() => atom<AIProjectCreateInput | null>(null), []);
   const [draft, setDraft] = useAtom(state);
@@ -142,7 +145,7 @@ export default function Assistants({
             <p className="text-text-secondary text-xs">{t('com_ai_projects_knowledge_pending')}</p>
           )}
           <div className="flex flex-wrap gap-2">
-            {value.state === 'ready' ? (
+            {value.state === 'ready' && startup?.aiTrialsEnabled ? <Trials projectId={value.project.id} /> : value.state === 'ready' ? (
               <Button size="xs" variant="outline" asChild>
                 <a href={'/c/new?endpoint=agents&agent_id=' + encodeURIComponent(value.agent_id)}>
                   {t('com_ai_projects_try')}

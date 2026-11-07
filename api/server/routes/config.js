@@ -363,6 +363,7 @@ router.get('/', async function (req, res) {
       rum: getRumConfig(appConfig?.config?.telemetry),
       clientLimits: getClientLimits(appConfig?.config?.clientLimits),
       codechat: appConfig?.config?.codechat,
+      aiTrialsEnabled: appConfig?.config?.aiProjects?.trialsEnabled === true,
       fileUploadSseEnabled: isEnabled(process.env.FILE_UPLOAD_SSE_ENABLED),
       endpointsDropParamsMap: endpointsDropParamsMap,
     };

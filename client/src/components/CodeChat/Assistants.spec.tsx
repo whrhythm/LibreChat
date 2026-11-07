@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { aiProjects, createAIProject, resumeAIProject } from 'librechat-data-provider';
 import Assistants from './Assistants';
 jest.mock('./Knowledge', () => () => null);
+jest.mock('~/data-provider', () => ({ useGetStartupConfig: () => ({ data: {} }) }));
 
 jest.mock('~/hooks', () => ({
   useAuthContext: () => ({ user: { id: 'owner' }, token: 'test' }),

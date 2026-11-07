@@ -1,0 +1,10 @@
+/** Runtime-only context. Browser JSON cannot install or alter a fixed knowledge binding. */
+type TrialContext = { agentId: string; projectId: string; revisionId: string | null };
+const contexts = new WeakMap<object, TrialContext>();
+export const getTrialContext = (request?: object) => request ? contexts.get(request) : undefined;
+export const setTrialContext = (request: object, context: TrialContext) => contexts.set(request, context);
+export function trialIdFromAgent(id: unknown): string | null {
+  if (typeof id !== 'string' || !/^agent_trial_[0-9a-f]{32}$/.test(id)) return null;
+  const raw = id.slice(12);
+  return [raw.slice(0, 8), raw.slice(8, 12), raw.slice(12, 16), raw.slice(16, 20), raw.slice(20)].join('-');
+}

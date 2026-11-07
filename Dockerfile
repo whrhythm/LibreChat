@@ -72,6 +72,9 @@ RUN \
     # React client build with configurable memory
     NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" npm run frontend && \
     if [ "$CODECHAT_VERIFY" = "true" ]; then \
+      node scripts/static-checks.mts --only eslint,prettier,imports packages/api/src/user/trials.ts packages/api/src/user/trialContext.ts packages/api/src/user/trials.spec.ts packages/data-provider/src/aiTrials.ts client/src/components/CodeChat/Trials.tsx client/src/components/CodeChat/Trials.spec.tsx && \
+      (cd packages/api && npx jest src/user/trials.spec.ts --runInBand --coverage=false) && \
+      (cd client && npx jest src/components/CodeChat/Trials.spec.tsx --runInBand --coverage=false) && \
       node scripts/static-checks.mts --only eslint,prettier,imports packages/api/src/user/knowledge.ts packages/api/src/user/knowledge.spec.ts packages/data-provider/src/knowledge.ts client/src/components/CodeChat/Knowledge.tsx client/src/components/CodeChat/Knowledge.spec.tsx client/src/components/CodeChat/KnowledgeSource.tsx client/src/components/Chat/Messages/Content/FilePreviewDialog.tsx && \
       (cd packages/api && npx jest src/user/knowledge.spec.ts --runInBand --coverage=false) && \
       (cd client && npx jest src/components/CodeChat/Knowledge.spec.tsx --runInBand --coverage=false) && \

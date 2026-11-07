@@ -1075,6 +1075,7 @@ export function createAgentMethods(
   ensurePrivateProjectAgent: (
     data: PrivateProjectAgentInput,
   ) => Promise<PrivateProjectAgentIdentity>;
+  ensurePrivateTrialAgent: (data: PrivateProjectAgentInput) => Promise<PrivateProjectAgentIdentity>;
   enableProjectKnowledge: (id: string, author: string) => Promise<boolean>;
   getAgentName: (id: string, tenantId?: string) => Promise<string | undefined>;
   getAgentVersions: (searchParameter: FilterQuery<IAgent>) => Promise<IAgent['versions'] | null>;
@@ -2802,6 +2803,17 @@ export function createAgentMethods(
     if (!/^agent_[0-9a-f]{32}$/.test(data.id) || !/^[0-9a-f]{24}$/.test(data.author)) {
       throw new Error('Invalid private project identity');
     }
+    return ensurePrivateAgent(data);
+  }
+
+  async function ensurePrivateTrialAgent(data: PrivateProjectAgentInput): Promise<PrivateProjectAgentIdentity> {
+    if (!/^agent_trial_[0-9a-f]{32}$/.test(data.id) || !/^[0-9a-f]{24}$/.test(data.author)) {
+      throw new Error('Invalid private trial identity');
+    }
+    return ensurePrivateAgent(data);
+  }
+
+  async function ensurePrivateAgent(data: PrivateProjectAgentInput): Promise<PrivateProjectAgentIdentity> {
     let record = await getAgent({ id: data.id });
     if (!record && !data.allowCreate) {
       throw new Error('Previously bound project Agent is unavailable');
@@ -2849,6 +2861,7 @@ export function createAgentMethods(
 
   return {
     enableProjectKnowledge,
+    ensurePrivateTrialAgent,
     ensurePrivateProjectAgent,
     getAgent,
     getAgentName,
