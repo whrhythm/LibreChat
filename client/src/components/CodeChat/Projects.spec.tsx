@@ -10,6 +10,7 @@ import {
   aiProjects,
 } from 'librechat-data-provider';
 import Projects from './Projects';
+jest.mock('~/data-provider', () => ({ useGetStartupConfig: () => ({ data: {} }) }));
 
 jest.mock('~/hooks', () => ({
   useAuthContext: () => ({ user: { id: 'project-owner' }, token: 'test-token' }),
