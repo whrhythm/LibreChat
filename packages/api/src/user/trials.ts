@@ -333,9 +333,9 @@ const runtimeSchema = trialSchema.extend({
 });
 export type FixedSnapshot = {
   instructions: string;
-  model: {provider:'LiteLLM';model:string;temperature:number;max_output_tokens:number};
-  skills: {content:string}[];
-  tools: {tool_id:'file_search'}[];
+  model: { provider: 'LiteLLM'; model: string; temperature: number; max_output_tokens: number };
+  skills: { content: string }[];
+  tools: { tool_id: 'file_search' }[];
 };
 export function fixedSnapshotSchema(): z.ZodType<FixedSnapshot> {
   return runtimeSchema.shape.snapshot;
@@ -396,7 +396,12 @@ export async function prepareProjectTrial(
 
 export function applyFixedSnapshot(
   params: Parameters<typeof prepareProjectTrial>[0],
-  resolved: {agent_id:string;project_id:string;knowledge_revision_id:string|null;snapshot:FixedSnapshot},
+  resolved: {
+    agent_id: string;
+    project_id: string;
+    knowledge_revision_id: string | null;
+    snapshot: FixedSnapshot;
+  },
   runtimeName: string,
   modeText: string,
 ): void {
