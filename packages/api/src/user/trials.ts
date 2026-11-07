@@ -273,16 +273,9 @@ export function createTrialHandlers(
           trialSchema.parse(await call(prefix + '/trials/' + trialId + '/confirm', {})),
         );
       } catch (error) {
-        const status =
-          error instanceof TrialFailure ? error.status : error instanceof z.ZodError ? 400 : 503;
-        return res.status(status).json({
-          code:
-            error instanceof TrialFailure
-              ? error.code
-              : error instanceof z.ZodError
-                ? 'ai_trials_invalid_request'
-                : 'ai_trials_recovery_required',
-        });
+        if (error instanceof TrialFailure) return res.status(error.status).json({ code: error.code });
+        if (error instanceof z.ZodError) return res.status(400).json({ code: 'ai_trials_invalid_request' });
+        return res.status(503).json({ code: 'ai_trials_recovery_required' });
       }
     };
   return {

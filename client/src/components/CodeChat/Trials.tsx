@@ -7,6 +7,19 @@ import { projectTrials, AITrialError, QueryKeys } from 'librechat-data-provider'
 import type { TrialConfig, AITrial, AITrials } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 
+function statusKey(trial: AITrial, digest: string | null) {
+  if (trial.acceptance_valid) return 'com_trials_passed';
+  if (trial.acceptance?.outcome === 'failed') return 'com_trials_failed';
+  if (trial.digest !== digest) return 'com_trials_outdated';
+  return 'com_trials_unchecked';
+}
+
+function errorMessage(code: string) {
+  if (['ai_trials_draft_changed', 'ai_trials_confirmation_required'].includes(code)) return 'com_trials_changed';
+  if (['ai_trials_answer_required', 'ai_trials_session_mismatch'].includes(code)) return 'com_trials_answer_required';
+  return 'com_trials_error';
+}
+
 export default function Trials({ projectId }: { projectId: string }) {
   const { user, token } = useAuthContext();
   const { conversationId } = useParams();
@@ -48,17 +61,13 @@ export default function Trials({ projectId }: { projectId: string }) {
   });
   const data = list.data;
   const error = change.error instanceof AITrialError ? change.error.code : '';
-  const errorKey =
-    error === 'ai_trials_draft_changed'
-      ? 'com_trials_changed'
-      : ['ai_trials_answer_required', 'ai_trials_session_mismatch'].includes(error)
-        ? 'com_trials_answer_required'
-        : error === 'ai_trials_confirmation_required'
-          ? 'com_trials_changed'
-          : 'com_trials_error';
+  const errorKey = errorMessage(error);
   const inputClass =
     'border-border-light bg-surface-primary text-text-primary w-full rounded border px-2 py-1.5 text-sm';
   const busy = change.isLoading;
+  let createLabel = t('com_trials_create');
+  if (busy) createLabel = t('com_ai_projects_preparing');
+  else if (ui.request) createLabel = t('com_trials_retry');
   const submitTrial = () => {
     if (!data?.digest) return;
     const request = ui.request ?? { request_id: crypto.randomUUID(), expected_digest: data.digest };
@@ -129,11 +138,7 @@ export default function Trials({ projectId }: { projectId: string }) {
                     disabled={busy || !data.digest || !!data.unavailable_reason}
                     onClick={submitTrial}
                   >
-                    {busy
-                      ? t('com_ai_projects_preparing')
-                      : ui.request
-                        ? t('com_trials_retry')
-                        : t('com_trials_create')}
+                    {createLabel}
                   </Button>
                 </div>
               ) : (
@@ -263,15 +268,7 @@ export default function Trials({ projectId }: { projectId: string }) {
                       {t('com_trials_version')} {trial.number}
                     </strong>
                     <span className="text-text-secondary text-xs">
-                      {t(
-                        trial.acceptance_valid
-                          ? 'com_trials_passed'
-                          : trial.acceptance?.outcome === 'failed'
-                            ? 'com_trials_failed'
-                            : trial.digest !== data.digest
-                              ? 'com_trials_outdated'
-                              : 'com_trials_unchecked',
-                      )}
+                      {t(statusKey(trial, data.digest))}
                     </span>
                   </div>
                   <p className="text-text-secondary text-xs break-all">
