@@ -4406,5 +4406,7 @@
   "com_releases_chat": "Start using assistant",
   "com_releases_version_hint": "This conversation stays on this version. Reopen the application link for new versions. Disabled or revoked access prevents further calls.",
   "com_releases_my_id": "My member ID (send to the creator to request access):",
+  "com_releases_budget_exhausted": "The application budget is insufficient. Ask its creator to adjust the budget or model allowance. No model call was started for this request.",
+  "com_releases_call_uncertain": "This call was already submitted or its result is uncertain. It will not be replayed automatically. Review the conversation and usage before retrying.",
   "com_releases_refresh": "Refresh release status"
 }

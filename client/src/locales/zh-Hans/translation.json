@@ -2079,5 +2079,7 @@
   "com_releases_chat": "开始使用助手",
   "com_releases_version_hint": "本次对话固定使用此版本。创建者更新应用后，请从应用链接开启新版对话；停用或撤销访问后不能继续调用。",
   "com_releases_my_id": "我的成员 ID（发送给创建者以申请访问）：",
+  "com_releases_budget_exhausted": "应用预算不足，回答已停止。请联系创建者调整预算或补充模型额度后再试；本次没有发起模型调用。",
+  "com_releases_call_uncertain": "这次调用已经提交或结果仍待核验，平台不会自动重复执行。请保留当前对话，核对结果与用量后再决定是否重试。",
   "com_releases_refresh": "刷新发布状态"
 }

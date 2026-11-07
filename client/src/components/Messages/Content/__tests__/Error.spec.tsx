@@ -1309,3 +1309,8 @@ describe('Error — agent handoffs within a row', () => {
     expect(document.body.textContent).not.toContain('Google');
   });
 });
+
+it('explains the application budget boundary instead of suggesting a transient rate limit', () => {
+  renderError(JSON.stringify({ type: 'ai_releases_budget_exhausted' }));
+  expect(screen.getByText(catalog.com_releases_budget_exhausted)).toBeInTheDocument();
+});

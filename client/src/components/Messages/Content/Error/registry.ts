@@ -18,6 +18,10 @@ import AgentError from './AgentError';
  * `errorRenderers` instead.
  */
 export const errorCopy: Record<string, TranslationKeys> = {
+  ai_releases_budget_exhausted: 'com_releases_budget_exhausted',
+  ai_releases_access_denied: 'com_releases_denied',
+  ai_releases_call_already_submitted: 'com_releases_call_uncertain',
+  ai_releases_result_unknown: 'com_releases_call_uncertain',
   [ErrorTypes.MODERATION]: 'com_error_moderation',
   [ErrorTypes.INVALID_ACTION]: 'com_error_invalid_action_error',
   [ErrorTypes.MODELS_NOT_LOADED]: 'com_error_models_not_loaded',
