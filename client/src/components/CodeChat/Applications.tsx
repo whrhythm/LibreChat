@@ -92,10 +92,12 @@ export default function Applications({
   path,
   canPublish,
   enabled,
+  projectOnly = false,
 }: {
   path: string;
   canPublish: boolean;
   enabled: boolean;
+  projectOnly?: boolean;
 }) {
   const { user, token } = useAuthContext();
   const localize = useLocalize();
@@ -173,11 +175,14 @@ export default function Applications({
           operation.mutate({ action: 'publish', value: publicationPath });
         }}
       />
-      {apps.isSuccess && !apps.data.apps.some((app) => app.status !== 'deleted') && (
-        <p className="text-text-secondary py-6 text-center text-sm">
-          {localize('com_codechat_apps_empty')}
-        </p>
-      )}
+      {apps.isSuccess &&
+        !apps.data.apps.some(
+          (app) => app.status !== 'deleted' && (!projectOnly || app.project_path === path),
+        ) && (
+          <p className="text-text-secondary py-6 text-center text-sm">
+            {localize('com_codechat_apps_empty')}
+          </p>
+        )}
       {apps.isLoading && <p role="status">{localize('com_ui_loading')}</p>}
       {(apps.isError || operation.isError) && (
         <div role="alert">
@@ -188,7 +193,7 @@ export default function Applications({
         </div>
       )}
       {apps.data?.apps
-        ?.filter((app) => app.status !== 'deleted')
+        ?.filter((app) => app.status !== 'deleted' && (!projectOnly || app.project_path === path))
         .map((app) => {
           const busy = ['queued', 'preparing', 'building', 'deploying', 'changing'].includes(
             app.status,

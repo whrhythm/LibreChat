@@ -20,8 +20,8 @@ import { useGetStartupConfig } from '~/data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import FileDialog from './FileDialog';
 import NewFolder from './NewFolder';
-import Versions from './Versions';
 import { spaceDirty } from './dock';
+import Versions from './Versions';
 
 type TreeActions = {
   selected: string;
@@ -209,10 +209,12 @@ export default function PersonalFiles({
   expanded,
   path: selectedPath,
   onPathChange,
+  rootPath = '',
 }: {
   expanded: boolean;
   path?: string;
   onPathChange?: (path: string) => void;
+  rootPath?: string;
 }) {
   const { user, token } = useAuthContext();
   const localize = useLocalize();
@@ -229,7 +231,11 @@ export default function PersonalFiles({
   const [dirty, setDirty] = useAtom(spaceDirty(user?.id ?? 'anonymous'));
   const [downloadError, setDownloadError] = useAtom(downloadErrorAtom);
   const [localPath, setLocalPath] = useAtom(pathAtom);
-  const path = selectedPath ?? localPath;
+  const candidate = selectedPath ?? localPath;
+  const path =
+    !rootPath || candidate === rootPath || candidate.startsWith(rootPath + '/')
+      ? candidate
+      : rootPath;
   const setPath = onPathChange ?? setLocalPath;
   useEffect(() => {
     if (!expanded || !selectedPath) return;
@@ -349,8 +355,13 @@ export default function PersonalFiles({
           <Upload aria-hidden="true" className="me-1 size-3.5" />
           {localize(upload.isLoading ? 'com_ui_loading' : 'com_ui_upload_files')}
         </Button>
-        <Button variant="ghost" size="xs" aria-pressed={!path} onClick={() => setPath('')}>
-          {localize('com_codechat_workspace_root')}
+        <Button
+          variant="ghost"
+          size="xs"
+          aria-pressed={path === rootPath}
+          onClick={() => setPath(rootPath)}
+        >
+          {localize(rootPath ? 'com_project_root' : 'com_codechat_workspace_root')}
         </Button>
         <NewFolder path={path} />
         <Versions key={path} path={path} />
@@ -361,7 +372,7 @@ export default function PersonalFiles({
       {upload.isError && <p role="alert">{localize('com_codechat_files_upload_error')}</p>}
       {downloadError && <p role="alert">{localize('com_codechat_files_error')}</p>}
       <div>
-        <Directory path="" actions={actions} />
+        <Directory path={rootPath} actions={actions} />
       </div>
       {action && (
         <FileDialog

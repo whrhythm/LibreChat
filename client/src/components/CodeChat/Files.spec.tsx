@@ -61,14 +61,8 @@ it('reveals a selected nested project directory without writing files', async ()
     </QueryClientProvider>,
   );
   await screen.findByRole('button', { name: 'main.py' });
-  expect(screen.getByRole('button', { name: 'old' })).toHaveAttribute(
-    'aria-expanded',
-    'true',
-  );
-  expect(screen.getByRole('button', { name: 'nested' })).toHaveAttribute(
-    'aria-expanded',
-    'true',
-  );
+  expect(screen.getByRole('button', { name: 'old' })).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByRole('button', { name: 'nested' })).toHaveAttribute('aria-expanded', 'true');
   expect(request.mock.calls.every((call) => call[2] === 'GET' || call[1] === 'ensure')).toBe(true);
 });
 
@@ -82,6 +76,40 @@ function mount() {
     </QueryClientProvider>,
   );
 }
+
+it('keeps project listing and uploads inside its cloud directory even with an outside selection', async () => {
+  request.mockReset();
+  request.mockImplementation(
+    async (_token, endpoint) =>
+      ({
+        json: async () => (endpoint === 'ensure' ? { status: 'ready' } : { entries: [] }),
+      }) as Response,
+  );
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false, cacheTime: 0 } } })}
+    >
+      <PersonalFiles expanded rootPath="team/code" path="other-project" />
+    </QueryClientProvider>,
+  );
+  await screen.findByText('com_codechat_files_empty');
+  const file = new File(['ok'], 'check.txt', { type: 'text/plain' });
+  fireEvent.change(screen.getByLabelText('com_ui_upload_files'), { target: { files: [file] } });
+  await waitFor(() =>
+    expect(request).toHaveBeenCalledWith(
+      'synthetic-token',
+      'file',
+      'PUT',
+      'team/code/check.txt',
+      file,
+    ),
+  );
+  expect(
+    request.mock.calls
+      .filter((call) => call[1] === 'directories')
+      .every((call) => call[3] === 'team/code'),
+  ).toBe(true);
+});
 
 describe('personal files in the chat sidebar', () => {
   beforeEach(() => {

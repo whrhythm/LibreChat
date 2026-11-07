@@ -1,7 +1,9 @@
 import { memo, useCallback, useId, useMemo, useRef, useState } from 'react';
+import { useSetAtom } from 'jotai';
 import { useDrop } from 'react-dnd';
 import { useRecoilValue } from 'recoil';
 import * as Ariakit from '@ariakit/react';
+import { Bot, Code2, Files } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Constants, QueryKeys } from 'librechat-data-provider';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
@@ -43,8 +45,12 @@ import ProjectCreateDialog from '~/components/Projects/ProjectCreateDialog';
 import ProjectDeleteDialog from '~/components/Projects/ProjectDeleteDialog';
 import ProjectEditDialog from '~/components/Projects/ProjectEditDialog';
 import { useLocalize, useLocalStorage, useNewConvo } from '~/hooks';
+import { projectInspector } from '~/components/Projects/navigation';
 import { clearMessagesCache, cn, rowActionClasses } from '~/utils';
+import useProjectChat from '~/components/Projects/useProjectChat';
+import { isCodeChatEnabled } from '~/components/CodeChat/config';
 import { Collapse } from '~/components/ui';
+import { useAuthContext } from '~/hooks';
 import Convo from './Convo';
 import store from '~/store';
 
@@ -153,13 +159,7 @@ const ProjectChatsInline = memo(function ProjectChatsInline({
         />
       ))}
       {hasMore && (
-        <Button
-          type="button"
-          variant="quiet"
-          size="sm"
-          onClick={onShowAll}
-          className="ms-1 mt-0.5 h-auto rounded-md px-2 py-1 text-xs font-medium"
-        >
+        <Button type="button" variant="quiet" size="sm" onClick={onShowAll} className="ms-1 mt-0.5">
           {localize('com_ui_show_all')}
         </Button>
       )}
@@ -179,6 +179,8 @@ type ProjectItemProps = {
 const ProjectItem = memo(
   function ProjectItem({ project, toggleNav, defaultExpanded, isActive }: ProjectItemProps) {
     const localize = useLocalize();
+    const { user } = useAuthContext();
+    const select = useSetAtom(projectInspector(user?.id ?? 'anonymous'));
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -231,9 +233,13 @@ const ProjectItem = memo(
     dropRef(projectRowRef);
 
     const openProject = useCallback(() => {
+      if (isCodeChatEnabled()) {
+        select({ projectId: project._id, section: 'overview' });
+        return;
+      }
       navigate(`/projects/${project._id}`);
       toggleNav();
-    }, [navigate, project._id, toggleNav]);
+    }, [navigate, project._id, toggleNav, select]);
 
     const startChat = useCallback(
       (event: MouseEvent<HTMLAnchorElement>) => {
@@ -357,7 +363,7 @@ const ProjectItem = memo(
               setIsOpen={setIsMenuOpen}
               className="z-[125]"
               minWidth="11rem"
-              iconClassName="me-2 text-text-secondary"
+              iconClassName="me-2"
               trigger={
                 <Ariakit.MenuButton
                   aria-label={localize('com_ui_more_options')}
@@ -372,11 +378,36 @@ const ProjectItem = memo(
         </div>
         <Collapse open={expanded}>
           <div className="ps-2 pt-1">
+            {isCodeChatEnabled() && (
+              <nav className="mb-2 space-y-0.5" aria-label={localize('com_project_sections')}>
+                {(
+                  [
+                    ['assistant', 'com_project_assistant', Bot],
+                    ['code', 'com_project_code', Code2],
+                    ['files', 'com_project_files', Files],
+                  ] as const
+                ).map(([section, label, Icon]) => (
+                  <Button
+                    key={section}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => select({ projectId: project._id, section })}
+                  >
+                    <Icon className="size-3.5" aria-hidden="true" />
+                    {localize(label)}
+                  </Button>
+                ))}
+              </nav>
+            )}
             <ProjectChatsInline
               projectId={project._id}
               expanded={expanded}
               toggleNav={toggleNav}
-              onShowAll={openProject}
+              onShowAll={() => {
+                navigate(`/projects/${project._id}`);
+                toggleNav();
+              }}
             />
           </div>
         </Collapse>
@@ -415,6 +446,7 @@ interface ProjectsSectionProps {
 
 const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) => {
   const localize = useLocalize();
+  const startProjectChat = useProjectChat();
   const navigate = useNavigate();
   const location = useLocation();
   const [storedExpanded, setStoredExpanded] = useLocalStorage('projectsSectionExpanded', true);
@@ -461,6 +493,7 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
     }
 
     if (projects.length === 0) {
+      if (isCodeChatEnabled()) return null;
       return (
         /* `section-action` owns the quiet-secondary-until-hovered treatment these
          *  entries share with the section's other controls; only the row shape is
@@ -512,6 +545,17 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
 
   return (
     <div className="flex flex-col px-3 pt-3 text-sm">
+      {isCodeChatEnabled() && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="mb-2 w-full justify-start"
+          onClick={() => setIsCreateOpen(true)}
+        >
+          <FolderPlus className="size-4" aria-hidden="true" />
+          {localize('com_ui_new_project')}
+        </Button>
+      )}
       <div className="flex h-8 w-full items-center pe-1">
         <button
           type="button"
@@ -555,6 +599,10 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
         onCreated={(project) => {
+          if (isCodeChatEnabled()) {
+            startProjectChat(project._id);
+            return;
+          }
           navigate(`/projects/${project._id}`);
           toggleNav();
         }}

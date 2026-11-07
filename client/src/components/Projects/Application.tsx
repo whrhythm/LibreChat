@@ -19,7 +19,13 @@ import { useAuthContext, useLocalize } from '~/hooks';
 import Delivery from '~/components/CodeChat/Delivery';
 import Project from '~/components/CodeChat/Project';
 
-export default function ProjectApplication({ project }: { project: TChatProject }) {
+export default function ProjectApplication({
+  project,
+  focus,
+}: {
+  project: TChatProject;
+  focus?: 'assistant' | 'code';
+}) {
   const navigate = useNavigate();
   const { user, token } = useAuthContext();
   const t = useLocalize();
@@ -98,7 +104,7 @@ export default function ProjectApplication({ project }: { project: TChatProject 
           {t('com_project_link_pending')}
         </p>
       )}
-      {value?.state === 'ready' ? (
+      {value?.state === 'ready' && !focus ? (
         <Project
           value={{
             ...value,
@@ -110,6 +116,7 @@ export default function ProjectApplication({ project }: { project: TChatProject 
           nativeProjectId={project._id}
         />
       ) : (
+        focus !== 'code' &&
         (!project.platformProjectId || value?.state === 'preparing') && (
           <Button
             disabled={
@@ -121,7 +128,7 @@ export default function ProjectApplication({ project }: { project: TChatProject 
           </Button>
         )
       )}
-      {!project.platformProjectId && pending?.kind !== 'assistant' && (
+      {focus !== 'assistant' && !project.platformProjectId && pending?.kind !== 'assistant' && (
         <form
           className="space-y-2"
           onSubmit={(event) => {
@@ -153,7 +160,7 @@ export default function ProjectApplication({ project }: { project: TChatProject 
           </div>
         </form>
       )}
-      {workspace.data && value?.state !== 'ready' && (
+      {!focus && workspace.data && value?.state !== 'ready' && (
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => open('files', workspace.data.path)}>
             {t('com_codechat_project_files')}
@@ -163,10 +170,10 @@ export default function ProjectApplication({ project }: { project: TChatProject 
           </Button>
         </div>
       )}
-      {workspace.data?.application && (
+      {!focus && workspace.data?.application && (
         <Delivery app={workspace.data.application} stale={workspace.isError} />
       )}
-      {!!workspace.data?.tasks.length && (
+      {!focus && !!workspace.data?.tasks.length && (
         <div className="space-y-2">
           {workspace.data.tasks.map((task) => (
             <a

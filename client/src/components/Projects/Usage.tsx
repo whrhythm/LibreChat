@@ -5,7 +5,7 @@ import { isCodeChatEnabled } from '~/components/CodeChat/config';
 import { storageSize } from '~/components/CodeChat/storage';
 import { useAuthContext, useLocalize } from '~/hooks';
 
-export default function ProjectUsage() {
+export default function ProjectUsage({ compact = false }: { compact?: boolean }) {
   const { user, token } = useAuthContext();
   const t = useLocalize();
   const account = useQuery({
@@ -48,13 +48,19 @@ export default function ProjectUsage() {
   return (
     <section
       aria-label={t('com_project_account_usage')}
-      className="border-border-light border-b px-4 py-3 md:px-6"
+      className={
+        compact
+          ? 'border-border-light border-b px-3 py-3'
+          : 'border-border-light border-b px-4 py-3 md:px-6'
+      }
     >
       <div className="text-text-secondary mb-2 text-xs">
         {t('com_project_account_usage')}
         {account.isError ? ' · ' + t('com_codechat_space_stale') : ''}
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div
+        className={compact ? 'grid grid-cols-1 gap-2.5' : 'grid grid-cols-1 gap-3 sm:grid-cols-3'}
+      >
         {rows.map((row) => {
           const percent =
             row.used != null && row.limit != null && row.limit > 0

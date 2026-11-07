@@ -1,11 +1,21 @@
 import { memo } from 'react';
+import { useSetAtom } from 'jotai';
 import { Folder } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { activePanelAtom } from '~/Providers/ActivePanelContext';
+import { isCodeChatEnabled } from '~/components/CodeChat/config';
+import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
 import { useProjectQuery } from '~/data-provider';
+import { projectInspector } from './navigation';
+import { useAuthContext } from '~/hooks';
 import { useLocalize } from '~/hooks';
 
 function ProjectBadge({ projectId }: { projectId: string }) {
   const localize = useLocalize();
+  const { user } = useAuthContext();
+  const select = useSetAtom(projectInspector(user?.id ?? 'anonymous'));
+  const setActive = useSetAtom(activePanelAtom);
+  const { setSidebarOpen } = useSidebarToggle();
   const { data: project } = useProjectQuery(projectId);
   const name = project?.name ?? localize('com_ui_project');
 
@@ -13,6 +23,20 @@ function ProjectBadge({ projectId }: { projectId: string }) {
     <div className="pointer-events-none absolute inset-x-0 top-12 z-5 flex justify-center px-3 md:top-14">
       <Link
         to={`/projects/${encodeURIComponent(projectId)}`}
+        onClick={(event) => {
+          if (
+            !isCodeChatEnabled() ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.shiftKey ||
+            event.button !== 0
+          )
+            return;
+          event.preventDefault();
+          select({ projectId, section: 'overview' });
+          setActive('conversations');
+          setSidebarOpen(true);
+        }}
         className="border-border-light bg-surface-secondary text-text-secondary hover:bg-surface-hover hover:text-text-primary focus-visible:ring-text-primary pointer-events-auto inline-flex h-7 max-w-full items-center gap-1.5 rounded-full border ps-2.5 pe-3 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-hidden"
         aria-label={localize('com_ui_project_open_workspace', { name })}
       >

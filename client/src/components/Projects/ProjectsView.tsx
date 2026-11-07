@@ -6,12 +6,14 @@ import { Button, Spinner, Skeleton, DropdownPopup, buttonVariants } from '@libre
 import type { TChatProject } from 'librechat-data-provider';
 import type { ProjectSort } from './ProjectsSortMenu';
 import type { MenuItemProps } from '~/common';
+import { isCodeChatEnabled } from '~/components/CodeChat/config';
 import { useProjectsInfiniteQuery } from '~/data-provider';
 import ProjectCreateDialog from './ProjectCreateDialog';
 import ProjectDeleteDialog from './ProjectDeleteDialog';
 import ProjectEditDialog from './ProjectEditDialog';
 import ProjectsSortMenu from './ProjectsSortMenu';
 import ProjectsNavBar from './ProjectsNavBar';
+import useProjectChat from './useProjectChat';
 import { useLocalize } from '~/hooks';
 import ProjectUsage from './Usage';
 import ProjectSync from './Sync';
@@ -181,6 +183,7 @@ function ProjectGridSkeleton() {
 }
 
 export default function ProjectsView() {
+  const startProjectChat = useProjectChat();
   const localize = useLocalize();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -269,7 +272,11 @@ export default function ProjectsView() {
         <ProjectCreateDialog
           open={isCreating}
           onOpenChange={handleCreateDialogChange}
-          onCreated={(project) => navigate(`/projects/${project._id}`)}
+          onCreated={(project) =>
+            isCodeChatEnabled()
+              ? startProjectChat(project._id)
+              : navigate(`/projects/${project._id}`)
+          }
         />
 
         <div className="mt-4 flex flex-1 flex-col">
@@ -280,7 +287,11 @@ export default function ProjectsView() {
                 <ProjectCard
                   key={project._id}
                   project={project}
-                  onOpen={(projectId) => navigate(`/projects/${projectId}`)}
+                  onOpen={(projectId) =>
+                    isCodeChatEnabled()
+                      ? startProjectChat(projectId)
+                      : navigate(`/projects/${projectId}`)
+                  }
                 />
               ))}
             </div>

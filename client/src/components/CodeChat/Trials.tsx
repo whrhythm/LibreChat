@@ -30,12 +30,14 @@ export default function Trials({
   enabled = true,
   mode = 'all',
   nativeProjectId,
+  openInNewTab = false,
 }: {
   projectId: string;
   embedded?: boolean;
   enabled?: boolean;
   mode?: 'all' | 'settings' | 'preview';
   nativeProjectId?: string;
+  openInNewTab?: boolean;
 }) {
   const { user, token } = useAuthContext();
   const conversationId = useMatch('/c/:conversationId')?.params.conversationId;
@@ -328,6 +330,8 @@ export default function Trials({
                       {trial.state === 'ready' ? (
                         <Button size="xs" asChild>
                           <a
+                            target={openInNewTab ? '_blank' : undefined}
+                            rel={openInNewTab ? 'noopener noreferrer' : undefined}
                             href={
                               '/c/new?endpoint=agents&agent_id=' +
                               trial.agent_id +
@@ -353,6 +357,8 @@ export default function Trials({
                       {trial.conversation_ids?.[0] && (
                         <Button size="xs" variant="outline" asChild>
                           <a
+                            target={openInNewTab ? '_blank' : undefined}
+                            rel={openInNewTab ? 'noopener noreferrer' : undefined}
                             href={
                               '/c/' +
                               trial.conversation_ids[0] +

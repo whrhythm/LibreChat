@@ -27,7 +27,10 @@ import { chatFacetParamsAtom, useFreshLocalDay } from '~/components/Conversation
 import ProjectsSection from '~/components/Conversations/ProjectsSection';
 import ChatFilterMenu from '~/components/Conversations/ChatFilterMenu';
 import PinnedSection from '~/components/Conversations/PinnedSection';
+import { projectInspector } from '~/components/Projects/navigation';
 import ProjectNamesProvider from '~/Providers/ProjectNamesContext';
+import { isCodeChatEnabled } from '~/components/CodeChat/config';
+import ProjectInspector from '~/components/Projects/Inspector';
 import useDrawerViewport from '~/hooks/Nav/useDrawerViewport';
 import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
 import { Conversations } from '~/components/Conversations';
@@ -42,7 +45,9 @@ const ConversationsSection = memo(() => {
   const localize = useLocalize();
   const isSmallScreen = useDrawerViewport();
   const { setSidebarOpen } = useSidebarToggle();
-  const { isAuthenticated } = useAuthContext();
+  const { isAuthenticated, user } = useAuthContext();
+  const selection = useAtomValue(projectInspector(user?.id ?? 'anonymous'));
+  const showInspector = isCodeChatEnabled() && !!selection && isAuthenticated;
   useTitleGeneration(isAuthenticated);
 
   const [isChatsExpanded, setIsChatsExpanded] = useLocalStorage('chatsExpanded', true);
@@ -220,8 +225,12 @@ const ConversationsSection = memo(() => {
 
   return (
     <ProjectNamesProvider data={projectsData} isPending={!projectsLoaded && !projectsFailed}>
+      {showInspector && <ProjectInspector key={selection.projectId} />}
       <div
-        className="flex h-full min-h-0 flex-col overflow-hidden pt-2 pb-3"
+        className={cn(
+          'h-full min-h-0 flex-col overflow-hidden pt-2 pb-3',
+          showInspector ? 'hidden' : 'flex',
+        )}
         role="region"
         aria-label={localize('com_ui_chat_history')}
       >
