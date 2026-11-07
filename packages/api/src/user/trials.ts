@@ -368,8 +368,14 @@ export async function prepareProjectTrial(
     .uuid()
     .parse(params.requestBody?.conversationId ?? req.body.conversationId);
   const resolved = runtimeSchema.parse(
-    await trialClient(req, deps)('trials/' + id + '/resolve', { conversation_id: conversationId,
-      message_id: z.string().min(1).max(100).parse(params.foregroundRunId ?? params.requestBody?.messageId) }),
+    await trialClient(req, deps)('trials/' + id + '/resolve', {
+      conversation_id: conversationId,
+      message_id: z
+        .string()
+        .min(1)
+        .max(100)
+        .parse(params.foregroundRunId ?? params.requestBody?.messageId),
+    }),
   );
   if (resolved.id !== id || resolved.agent_id !== 'agent_trial_' + id.replace(/-/g, ''))
     throw new TrialFailure(503, 'ai_trials_unavailable');
