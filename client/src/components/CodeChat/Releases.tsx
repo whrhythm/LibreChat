@@ -206,13 +206,13 @@ export default function Releases({ projectId }: { projectId: string }) {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  change.mutate({ suffix: '/members', body: { email: ui.email, enabled: true } });
+                  change.mutate({ suffix: '/members', body: { identifier: ui.email, enabled: true } });
                 }}
               >
                 <input
                   className={input}
                   aria-label={t('com_releases_email')}
-                  type="email"
+                  type="text"
                   required
                   value={ui.email}
                   disabled={busy}
@@ -236,7 +236,7 @@ export default function Releases({ projectId }: { projectId: string }) {
                     onClick={() =>
                       change.mutate({
                         suffix: '/members',
-                        body: { email: m.label, enabled: !m.enabled },
+                        body: { identifier: m.native_id, enabled: !m.enabled },
                       })
                     }
                   >

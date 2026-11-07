@@ -18,7 +18,7 @@ import { appIdFromAgent, getTrialContext, setTrialContext } from './trialContext
 
 type Request = Omit<ServerRequest, 'body'> & { body?: unknown };
 type Dependencies = TrialDependencies & {
-  findUser: (filter: { email: string }, select: string) => Promise<unknown>;
+  findUser: (filter: { email: string } | { _id: string }, select: string) => Promise<unknown>;
 };
 const nativeUser = z.object({
   _id: z.unknown(),
@@ -26,7 +26,7 @@ const nativeUser = z.object({
   openidId: z.string().min(1),
   openidIssuer: z.string(),
   email: z.string().email(),
-  emailVerified: z.literal(true),
+  emailVerified: z.boolean(),
 });
 
 export function releaseClient(req: Request, deps: TrialTransport): ReturnType<typeof trialClient> {
@@ -69,14 +69,23 @@ export function createReleaseHandlers(
           );
         if (action === 'member') {
           const input = releaseMemberSchema.parse(req.body);
+          const byId = /^[0-9a-f]{24}$/.test(input.identifier);
+          if (!input.enabled) {
+            if (!byId) throw new TrialFailure(400, 'ai_releases_invalid_request');
+            return res.json(releaseListSchema.parse(await call(project + '/members/revoke', {
+              native_id: input.identifier,
+            })));
+          }
+          if (!byId && !z.string().email().safeParse(input.identifier).success)
+            throw new TrialFailure(400, 'ai_releases_invalid_request');
           const member = nativeUser.safeParse(
             await deps.findUser(
-              { email: input.email.trim().toLowerCase() },
+              byId ? { _id: input.identifier } : { email: input.identifier.toLowerCase() },
               '_id email emailVerified provider openidId openidIssuer',
             ),
           );
           if (
-            !member.success ||
+            !member.success || (!byId && !member.data.emailVerified) ||
             member.data.openidIssuer.replace(/\/$/, '') !== deps.issuer?.replace(/\/$/, '')
           )
             throw new TrialFailure(409, 'ai_releases_member_unavailable');

@@ -128,7 +128,7 @@ it('rejects extra client instructions and unverified member account lookup', asy
   });
   const res = response();
   await handlers.member(
-    request({ email: 'guest@example.test', enabled: true }),
+    request({ identifier: 'guest@example.test', enabled: true }),
     res as unknown as Response,
   );
   expect(res.status).toHaveBeenCalledWith(409);

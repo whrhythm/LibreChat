@@ -17,7 +17,7 @@ export const releaseAccessSchema = z
   })
   .strict();
 export const releaseMemberSchema = z
-  .object({ email: z.string().email().max(255), enabled: z.boolean() })
+  .object({ identifier: z.string().trim().min(1).max(255), enabled: z.boolean() })
   .strict();
 export const releaseSchema = z.object({
   id: z.string().uuid(),

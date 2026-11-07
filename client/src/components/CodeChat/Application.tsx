@@ -7,7 +7,7 @@ import { useAuthContext, useLocalize } from '~/hooks';
 
 export default function Application() {
   const { projectId } = useParams();
-  const { token } = useAuthContext();
+  const { token, user } = useAuthContext();
   const t = useLocalize();
   const launch = useMutation({
     mutationFn: () => projectReleases<AIAppEntry>(token!, projectId!, '/launch', {}),
@@ -19,6 +19,9 @@ export default function Application() {
         {launch.data?.name ?? t('com_releases_application')}
       </h1>
       <p>{t('com_releases_member_hint')}</p>
+      <p className="text-text-secondary break-all text-sm">
+        {t('com_releases_my_id')}{' '}<code>{user?.id}</code>
+      </p>
       {!launch.data && (
         <Button disabled={!token || launch.isLoading} onClick={() => launch.mutate()}>
           {t(launch.isLoading ? 'com_releases_working' : 'com_releases_enter')}

@@ -4393,9 +4393,9 @@
   "com_releases_working": "Checking…",
   "com_releases_publish": "Confirm release",
   "com_releases_members": "Invited members",
-  "com_releases_email": "Registered member email",
+  "com_releases_email": "Member ID or verified email",
   "com_releases_invite": "Add member",
-  "com_releases_invite_hint": "Members must sign in to Starbridge with SSO first. Share the link yourself; no email is sent.",
+  "com_releases_invite_hint": "Members can sign in and copy their member ID from the application link. Verified emails are also supported. Share the same link after adding a member; no email is sent.",
   "com_releases_revoke": "Revoke access",
   "com_releases_restore": "Restore member",
   "com_releases_application": "Invited AI application",
@@ -4405,5 +4405,6 @@
   "com_releases_creator_pays": "Model usage paid by creator",
   "com_releases_chat": "Start using assistant",
   "com_releases_version_hint": "This conversation stays on this version. Reopen the application link for new versions. Disabled or revoked access prevents further calls.",
+  "com_releases_my_id": "My member ID (send to the creator to request access):",
   "com_releases_refresh": "Refresh release status"
 }

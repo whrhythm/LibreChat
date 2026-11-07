@@ -2066,9 +2066,9 @@
   "com_releases_working": "正在核验…",
   "com_releases_publish": "确认发布",
   "com_releases_members": "指定成员",
-  "com_releases_email": "已注册成员邮箱",
+  "com_releases_email": "成员 ID 或已验证邮箱",
   "com_releases_invite": "添加成员",
-  "com_releases_invite_hint": "成员须先通过统一身份登录星桥。添加后请自行分享应用链接；平台不会发送邮件。",
+  "com_releases_invite_hint": "成员先登录并打开应用链接，可复制自己的成员 ID 发给创建者。已验证邮箱也可使用。添加后分享同一链接即可；平台不发送邮件。",
   "com_releases_revoke": "撤销访问",
   "com_releases_restore": "恢复成员",
   "com_releases_application": "受邀 AI 应用",
@@ -2078,5 +2078,6 @@
   "com_releases_creator_pays": "模型费用由创建者承担",
   "com_releases_chat": "开始使用助手",
   "com_releases_version_hint": "本次对话固定使用此版本。创建者更新应用后，请从应用链接开启新版对话；停用或撤销访问后不能继续调用。",
+  "com_releases_my_id": "我的成员 ID（发送给创建者以申请访问）：",
   "com_releases_refresh": "刷新发布状态"
 }
