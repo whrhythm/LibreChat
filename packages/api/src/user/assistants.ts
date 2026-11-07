@@ -41,7 +41,7 @@ const bindingSchema = z.object({
   project: z.object({ id: z.string().uuid() }).passthrough(),
   agent_id: z.string().regex(/^agent_[0-9a-f]{32}$/),
   state: z.enum(['preparing', 'ready']),
-  knowledge_state: z.literal('not_configured'),
+  knowledge_state: z.enum(['not_configured', 'ready']),
 });
 const preparedSchema = bindingSchema.extend({
   initial_agent: z

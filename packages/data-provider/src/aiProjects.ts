@@ -13,7 +13,7 @@ export type AIProject = {
   project: WorkspaceProject;
   agent_id: string;
   state: 'preparing' | 'ready';
-  knowledge_state: 'not_configured';
+  knowledge_state: 'not_configured' | 'ready';
 };
 export class AIProjectError extends Error {
   constructor(public readonly code: string) {

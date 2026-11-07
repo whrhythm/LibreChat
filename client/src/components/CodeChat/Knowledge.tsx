@@ -12,9 +12,9 @@ export default function Knowledge({ projectId }: { projectId: string }) {
   const t = useLocalize();
   const cache = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
-  const draftAtom = useMemo(() => atom<KnowledgeImportInput | null>(null), [projectId]);
+  const draftAtom = useMemo(() => atom<KnowledgeImportInput | null>(null), []);
   const [draft, setDraft] = useAtom(draftAtom);
-  const errorAtom = useMemo(() => atom(false), [projectId]);
+  const errorAtom = useMemo(() => atom(false), []);
   const [invalid, setInvalid] = useAtom(errorAtom);
   const key = [QueryKeys.aiProjects, user?.id, projectId, 'knowledge'];
   const list = useQuery({
@@ -85,6 +85,13 @@ export default function Knowledge({ projectId }: { projectId: string }) {
       setInvalid(true);
     }
   };
+  function errorLabel() {
+    if (invalid) return t('com_knowledge_invalid');
+    if (save.error instanceof Error && save.error.message === 'knowledge_storage_full') {
+      return t('com_knowledge_full');
+    }
+    return t('com_knowledge_error');
+  }
   return (
     <details className="border-border-light rounded border p-2">
       <summary className="cursor-pointer text-sm font-medium">{t('com_knowledge_title')}</summary>
@@ -109,13 +116,7 @@ export default function Knowledge({ projectId }: { projectId: string }) {
         </Button>
         {(invalid || save.isError || list.isError) && (
           <p role="alert">
-            {t(
-              invalid
-                ? 'com_knowledge_invalid'
-                : save.error instanceof Error && save.error.message === 'knowledge_storage_full'
-                  ? 'com_knowledge_full'
-                  : 'com_knowledge_error',
-            )}
+            {errorLabel()}
             {!invalid && (
               <Button
                 size="xs"
