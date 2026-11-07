@@ -13,7 +13,7 @@ import {
 import type { Response } from 'express';
 import type { TrialDependencies, TrialTransport } from './trials';
 import type { ServerRequest } from '~/types';
-import { TrialFailure, trialClient, runtimeSchema, applyFixedSnapshot } from './trials';
+import { TrialFailure, trialClient, fixedSnapshotSchema, applyFixedSnapshot } from './trials';
 import { appIdFromAgent, getTrialContext, setTrialContext } from './trialContext';
 
 type Request = Omit<ServerRequest, 'body'> & { body?: unknown };
@@ -142,7 +142,7 @@ export function createReleaseHandlers(
 }
 
 const resolvedSchema = appEntrySchema.extend({
-  snapshot: runtimeSchema.shape.snapshot,
+  snapshot: fixedSnapshotSchema(),
   credential: z.string().startsWith('sbapp_'),
 });
 export async function preparePublishedApp(

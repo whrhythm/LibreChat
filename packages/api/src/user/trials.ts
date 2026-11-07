@@ -318,7 +318,7 @@ export function createTrialConversationGuard(
   };
 }
 
-export const runtimeSchema = trialSchema.extend({
+const runtimeSchema = trialSchema.extend({
   snapshot: z.object({
     instructions: z.string(),
     model: z.object({
@@ -331,6 +331,15 @@ export const runtimeSchema = trialSchema.extend({
     tools: z.array(z.object({ tool_id: z.literal('file_search') })),
   }),
 });
+export type FixedSnapshot = {
+  instructions: string;
+  model: {provider:'LiteLLM';model:string;temperature:number;max_output_tokens:number};
+  skills: {content:string}[];
+  tools: {tool_id:'file_search'}[];
+};
+export function fixedSnapshotSchema(): z.ZodType<FixedSnapshot> {
+  return runtimeSchema.shape.snapshot;
+}
 /** Only server snapshot values reach initialization; mutable native edits are not spread into runtime. */
 export async function prepareProjectTrial(
   params: {
@@ -387,10 +396,7 @@ export async function prepareProjectTrial(
 
 export function applyFixedSnapshot(
   params: Parameters<typeof prepareProjectTrial>[0],
-  resolved: Pick<
-    z.infer<typeof runtimeSchema>,
-    'agent_id' | 'project_id' | 'knowledge_revision_id' | 'snapshot'
-  >,
+  resolved: {agent_id:string;project_id:string;knowledge_revision_id:string|null;snapshot:FixedSnapshot},
   runtimeName: string,
   modeText: string,
 ): void {
