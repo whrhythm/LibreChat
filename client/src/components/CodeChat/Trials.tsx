@@ -15,8 +15,10 @@ function statusKey(trial: AITrial, digest: string | null) {
 }
 
 function errorMessage(code: string) {
-  if (['ai_trials_draft_changed', 'ai_trials_confirmation_required'].includes(code)) return 'com_trials_changed';
-  if (['ai_trials_answer_required', 'ai_trials_session_mismatch'].includes(code)) return 'com_trials_answer_required';
+  if (['ai_trials_draft_changed', 'ai_trials_confirmation_required'].includes(code))
+    return 'com_trials_changed';
+  if (['ai_trials_answer_required', 'ai_trials_session_mismatch'].includes(code))
+    return 'com_trials_answer_required';
   return 'com_trials_error';
 }
 

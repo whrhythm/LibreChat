@@ -144,7 +144,9 @@ export default function Assistants({
           ) : (
             <p className="text-text-secondary text-xs">{t('com_ai_projects_knowledge_pending')}</p>
           )}
-          {value.state === 'ready' && startup?.aiTrialsEnabled && <Trials projectId={value.project.id} />}
+          {value.state === 'ready' && startup?.aiTrialsEnabled && (
+            <Trials projectId={value.project.id} />
+          )}
           <div className="flex flex-wrap gap-2">
             {value.state === 'ready' && !startup?.aiTrialsEnabled && (
               <Button size="xs" variant="outline" asChild>
