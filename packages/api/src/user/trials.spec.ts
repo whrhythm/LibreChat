@@ -92,6 +92,7 @@ it('uses an immutable snapshot instead of mutable native configuration or browse
     instructions: expect.stringContaining('Original instruction'),
   });
   expect(fixed).not.toHaveProperty('edges');
+  expect(fixed.instructions).toContain('创建者私人试用，未正式发布');
   expect(getTrialContext(params.req)).toEqual({ agentId, projectId: project, revisionId: null });
   expect(JSON.parse(deps.request.mock.calls[0]?.[1]?.body as string)).toMatchObject({
     native_owner_id: user.id,
