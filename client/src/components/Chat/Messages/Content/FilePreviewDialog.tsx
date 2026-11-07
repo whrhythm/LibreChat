@@ -95,7 +95,15 @@ export function getDisplayType(
 }
 
 export default function FilePreviewDialog(props: FilePreviewDialogProps) {
-  if (props.fileId?.startsWith('knowledge:')) return <KnowledgeSource open={props.open} onOpenChange={props.onOpenChange} fileId={props.fileId} fileName={props.fileName} />;
+  if (props.fileId?.startsWith('knowledge:'))
+    return (
+      <KnowledgeSource
+        open={props.open}
+        onOpenChange={props.onOpenChange}
+        fileId={props.fileId}
+        fileName={props.fileName}
+      />
+    );
   return <NativeFilePreviewDialog {...props} />;
 }
 

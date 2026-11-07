@@ -63,7 +63,12 @@ const knowledge = createKnowledgeHandlers({
   issuer: process.env.OPENID_ISSUER,
   enableProjectKnowledge,
 });
-router.get('/workspace/ai-projects/:projectId/knowledge/:revisionId/source', requireJwtAuth, configMiddleware, knowledge.source);
+router.get(
+  '/workspace/ai-projects/:projectId/knowledge/:revisionId/source',
+  requireJwtAuth,
+  configMiddleware,
+  knowledge.source,
+);
 router.get(
   '/workspace/ai-projects/:projectId/knowledge',
   requireJwtAuth,
