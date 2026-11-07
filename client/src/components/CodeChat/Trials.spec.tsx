@@ -45,6 +45,7 @@ it('exposes stable input labels and saves against the loaded draft digest', asyn
   fireEvent.change(screen.getByRole('textbox', { name: 'com_trials_instructions' }), {
     target: { value: 'updated' },
   });
+  fireEvent.click(screen.getByText('com_project_advanced'));
   fireEvent.change(screen.getByRole('combobox', { name: 'com_trials_style' }), {
     target: { value: 'support' },
   });

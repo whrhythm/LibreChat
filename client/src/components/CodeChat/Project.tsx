@@ -110,7 +110,7 @@ export default function Project({
           forceMount
           hidden={section !== 'materials'}
           size="flush"
-          className="mt-4 space-y-4"
+          className="mt-4"
         >
           <div className="space-y-2">
             <h4 className="text-sm font-medium">{t('com_project_files')}</h4>
