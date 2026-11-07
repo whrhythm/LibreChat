@@ -29,11 +29,13 @@ export default function Trials({
   embedded = false,
   enabled = true,
   mode = 'all',
+  nativeProjectId,
 }: {
   projectId: string;
   embedded?: boolean;
   enabled?: boolean;
   mode?: 'all' | 'settings' | 'preview';
+  nativeProjectId?: string;
 }) {
   const { user, token } = useAuthContext();
   const conversationId = useMatch('/c/:conversationId')?.params.conversationId;
@@ -59,7 +61,8 @@ export default function Trials({
   }, [ui.config, ui.acceptance, setEditing]);
   const key = [QueryKeys.aiProjects, user?.id, projectId, 'trials'];
   const list = useQuery({
-    queryKey: key,
+    // The persistent root sidebar must reload associations when a new chat gets its ID.
+    queryKey: [...key, conversationId],
     queryFn: () => projectTrials(token!, projectId),
     enabled: enabled && expanded && !!token,
     retry: false,
@@ -328,8 +331,9 @@ export default function Trials({
                             href={
                               '/c/new?endpoint=agents&agent_id=' +
                               trial.agent_id +
-                              '&workspaceProject=' +
-                              encodeURIComponent(projectId)
+                              (nativeProjectId
+                                ? '&projectId=' + encodeURIComponent(nativeProjectId)
+                                : '&workspaceProject=' + encodeURIComponent(projectId))
                             }
                           >
                             {t('com_trials_open')}
@@ -361,8 +365,8 @@ export default function Trials({
                         </Button>
                       )}
                       {!trial.acceptance &&
-                        conversationId &&
-                        trial.conversation_ids?.includes(conversationId) && (
+                        ((conversationId && trial.conversation_ids?.includes(conversationId)) ||
+                          (nativeProjectId && trial.conversation_ids?.length)) && (
                           <Button
                             size="xs"
                             variant="outline"
@@ -370,11 +374,21 @@ export default function Trials({
                             onClick={() =>
                               setUI({
                                 ...ui,
-                                acceptance: { trial, note: '', answer: false, sources: false },
+                                acceptance: {
+                                  trial,
+                                  note: '',
+                                  answer: false,
+                                  sources: false,
+                                  conversationId:
+                                    conversationId &&
+                                    trial.conversation_ids?.includes(conversationId)
+                                      ? conversationId
+                                      : trial.conversation_ids?.[0],
+                                },
                               })
                             }
                           >
-                            {t('com_trials_review')}
+                            {t(nativeProjectId ? 'com_project_review_trial' : 'com_trials_review')}
                           </Button>
                         )}
                     </div>
@@ -393,7 +407,7 @@ export default function Trials({
                       change.mutate({
                         suffix: '/' + ui.acceptance!.trial.id + '/acceptance',
                         body: {
-                          conversation_id: conversationId,
+                          conversation_id: ui.acceptance!.conversationId ?? conversationId,
                           outcome,
                           note: ui.acceptance!.note,
                           answer_checked: ui.acceptance!.answer,

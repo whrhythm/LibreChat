@@ -1,5 +1,6 @@
 import { Button } from '@librechat/client';
 import { ArrowLeft, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { personalFileRequest, QueryKeys } from 'librechat-data-provider';
@@ -11,7 +12,6 @@ import StorageSummary from './StorageSummary';
 import Applications from './Applications';
 import { spaceNavigation } from './dock';
 import PersonalFiles from './Files';
-import Projects from './Projects';
 
 function ApplicationProjects({
   path,
@@ -89,6 +89,7 @@ function ApplicationProjects({
 }
 
 export default function PersonalSpacePanel() {
+  const navigate = useNavigate();
   const { user } = useAuthContext();
   const localize = useLocalize();
   const [view, setView] = useAtom(spaceNavigation(user?.id ?? 'anonymous'));
@@ -121,7 +122,10 @@ export default function PersonalSpacePanel() {
           <Button
             size="xs"
             variant="ghost"
-            onClick={() => setView((current) => ({ ...current, pane: 'projects' }))}
+            onClick={() => {
+              setActive('conversations');
+              navigate('/projects');
+            }}
           >
             <ArrowLeft className="size-3.5" aria-hidden="true" />
             {localize('com_codechat_projects_tab')}
@@ -133,16 +137,6 @@ export default function PersonalSpacePanel() {
         <ApplicationNotice onOpen={() => setView((current) => ({ ...current, pane: 'apps' }))} />
       )}
       <div className="min-h-0 flex-1 overflow-auto px-4 pb-4">
-        <div hidden={view.pane !== 'projects'}>
-          <Projects
-            key={user?.id}
-            enabled={active && view.pane === 'projects'}
-            path={view.path}
-            onOpen={(pane, path) => {
-              setView({ pane, path });
-            }}
-          />
-        </div>
         <div hidden={view.pane !== 'files'}>
           <PersonalFiles
             expanded={active && view.pane === 'files'}

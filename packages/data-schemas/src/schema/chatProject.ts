@@ -14,6 +14,10 @@ const chatProjectSchema: Schema<IChatProjectDocument> = new Schema<IChatProjectD
       maxlength: 100,
       index: true,
     },
+    platformProjectId: { type: String },
+    platformDeletionPending: { type: Boolean, default: undefined },
+    platformLinkIntent: { type: Object, default: undefined },
+    platformAgentIds: { type: [String], default: undefined },
     description: {
       type: String,
       default: '',
@@ -62,6 +66,10 @@ const chatProjectSchema: Schema<IChatProjectDocument> = new Schema<IChatProjectD
 );
 
 chatProjectSchema.index({ user: 1, name: 1, _id: 1 });
+chatProjectSchema.index(
+  { user: 1, platformProjectId: 1 },
+  { unique: true, partialFilterExpression: { platformProjectId: { $type: 'string' } } },
+);
 chatProjectSchema.index({ user: 1, createdAt: -1, _id: -1 });
 chatProjectSchema.index({ user: 1, lastConversationAt: -1, _id: -1 });
 

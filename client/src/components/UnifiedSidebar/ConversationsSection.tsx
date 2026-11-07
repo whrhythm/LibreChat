@@ -32,6 +32,7 @@ import useDrawerViewport from '~/hooks/Nav/useDrawerViewport';
 import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
 import { Conversations } from '~/components/Conversations';
 import { cn, collectPinnedConversations } from '~/utils';
+import ProjectSync from '~/components/Projects/Sync';
 import SearchBar from '~/components/Nav/SearchBar';
 import store from '~/store';
 
@@ -240,6 +241,7 @@ const ConversationsSection = memo(() => {
             {/* `min-h-full` keeps the sections filling a tall sidebar, so the chats
             list still claims the space below them when there is little to show. */}
             <div ref={setScrollContent} className="flex min-h-full flex-col">
+              <ProjectSync />
               {!search.query && (
                 <ProjectsSection toggleNav={toggleNav} isAuthenticated={isAuthenticated} />
               )}

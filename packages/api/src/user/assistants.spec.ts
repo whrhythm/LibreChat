@@ -56,6 +56,30 @@ function setup() {
 }
 const input = { request_id: projectId, name: 'Private', purpose: 'Answer questions' };
 
+it('rejects linking to another owners native project before any upstream write', async () => {
+  const request = jest.fn();
+  const ensureLinkedChatProject = jest.fn();
+  const getChatProject = jest.fn().mockResolvedValue(null);
+  const handler = createAIProjectHandlers({
+    baseUrl: 'https://platform.test/',
+    serviceToken: 's'.repeat(40),
+    issuer: 'https://identity.test',
+    request,
+    getChatProject,
+    ensureLinkedChatProject,
+    ensurePrivateProjectAgent: jest.fn(),
+    grantPermission: jest.fn(),
+  });
+  const res = response();
+  await handler.create(
+    { user, body: { ...input, native_project_id: 'c'.repeat(24) } } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(res.status).toHaveBeenLastCalledWith(404);
+  expect(request).not.toHaveBeenCalled();
+  expect(ensureLinkedChatProject).not.toHaveBeenCalled();
+});
+
 it('binds only the authenticated owner and confirms after private ACL creation', async () => {
   const { handlers, requests, ensurePrivateProjectAgent, grantPermission } = setup();
   const res = response();

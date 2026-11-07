@@ -2501,6 +2501,21 @@ export function createConversationMethods(
       const candidate = update.chatProjectId;
       delete update.chatProjectId;
       delete unsetFields.chatProjectId;
+      if (
+        metadata?.noUpsert !== true &&
+        candidate == null &&
+        typeof update.agent_id === 'string' &&
+        /^agent_(?:trial_)?[0-9a-f]{32}$/.test(update.agent_id)
+      ) {
+        const ChatProject = mongoose.models.ChatProject as Model<IChatProjectDocument>;
+        const linked = await ChatProject.findOne({
+          user: userId,
+          platformAgentIds: update.agent_id,
+        })
+          .select('_id')
+          .lean();
+        if (linked) chatProjectIdOnInsert = linked._id.toString();
+      }
       if (metadata?.noUpsert !== true && typeof candidate === 'string') {
         if (isValidObjectIdString(candidate)) {
           const ChatProject = mongoose.models.ChatProject as Model<IChatProjectDocument>;

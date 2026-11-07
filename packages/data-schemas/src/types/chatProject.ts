@@ -1,6 +1,10 @@
 import type { Document, Types } from 'mongoose';
 
 export interface IChatProject {
+  platformProjectId?: string;
+  platformDeletionPending?: boolean;
+  platformLinkIntent?: { kind: 'assistant' | 'code'; name: string; goal: string; path?: string };
+  platformAgentIds?: string[];
   _id?: Types.ObjectId;
   name: string;
   description?: string;

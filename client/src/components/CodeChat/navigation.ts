@@ -16,6 +16,7 @@ export const trialEditor = atomFamily((_scope: string) =>
       note: string;
       answer: boolean;
       sources: boolean;
+      conversationId?: string;
     } | null,
   }),
 );

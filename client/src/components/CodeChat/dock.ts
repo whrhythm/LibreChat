@@ -5,4 +5,4 @@ import { atomFamily } from 'jotai/utils';
 export const spaceDock = atomFamily((_owner: string) => atom(false));
 export const spaceDirty = atomFamily((_owner: string) => atom(false));
 export const projectEditing = atomFamily((_owner: string) => atom(false));
-export const spaceNavigation = atomFamily((_owner: string) => atom({ pane: 'projects', path: '' }));
+export const spaceNavigation = atomFamily((_owner: string) => atom({ pane: 'files', path: '' }));

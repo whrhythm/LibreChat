@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   FileContext,
   MAX_CHAT_PROJECT_FILES,
@@ -53,6 +54,17 @@ export type AssignConversationToProjectResult = {
 };
 
 export interface ChatProjectMethods {
+  reservePlatformLink(
+    user: string,
+    id: string,
+    intent: { kind: 'assistant' | 'code'; name: string; goal: string; path?: string },
+  ): Promise<{ kind: 'assistant' | 'code'; name: string; goal: string; path?: string }>;
+  archivePlatformConversations(user: string, platformId: string, agentIds: string[]): Promise<void>;
+  ensureLinkedChatProject(
+    user: string,
+    input: { id: string; name: string; goal: string },
+    nativeId?: string,
+  ): Promise<{ id: string; platformProjectId: string }>;
   createChatProject(
     user: string,
     input: CreateChatProjectInput,
@@ -382,6 +394,7 @@ export async function updateChatProjectLastConversationForUser(
 }
 
 export function createChatProjectMethods(mongoose: typeof import('mongoose')): ChatProjectMethods {
+  let linkingIndexes: Promise<unknown> | undefined;
   async function createChatProject(
     user: string,
     input: CreateChatProjectInput,
@@ -450,6 +463,7 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
       {
         $project: {
           name: 1,
+          platformProjectId: 1,
           description: 1,
           user: 1,
           tenantId: 1,
@@ -672,21 +686,37 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     const ChatProject = mongoose.models.ChatProject as Model<IChatProjectDocument>;
     const Conversation = mongoose.models.Conversation as Model<IConversation>;
     const projectFilter = { _id: new mongoose.Types.ObjectId(projectId), user };
-    const project = await ChatProject.findOne(projectFilter).select('_id').lean<IChatProject>();
+    const project = await ChatProject.findOne(projectFilter)
+      .select('_id platformProjectId platformLinkIntent')
+      .lean<IChatProject>();
     if (!project) {
       return { deletedCount: 0, modifiedCount: 0 };
     }
+    if (project.platformProjectId || project.platformLinkIntent)
+      throw new Error('PROJECT_HAS_PLATFORM_RESOURCES');
 
-    const conversationResult = await Conversation.updateMany(
-      { user, chatProjectId: projectId },
-      { $unset: { chatProjectId: '' } },
+    const reserved = await ChatProject.updateOne(
+      {
+        ...projectFilter,
+        platformProjectId: { $exists: false },
+        platformLinkIntent: { $exists: false },
+      },
+      { $set: { platformDeletionPending: true } },
     );
-    const deleteResult = await ChatProject.deleteOne(projectFilter);
-
-    return {
-      deletedCount: deleteResult.deletedCount ?? 0,
-      modifiedCount: conversationResult.modifiedCount ?? 0,
-    };
+    if (!reserved.matchedCount) throw new Error('PROJECT_HAS_PLATFORM_RESOURCES');
+    try {
+      const conversationResult = await Conversation.updateMany(
+        { user, chatProjectId: projectId },
+        { $unset: { chatProjectId: '' } },
+      );
+      const deleteResult = await ChatProject.deleteOne(projectFilter);
+      return {
+        deletedCount: deleteResult.deletedCount ?? 0,
+        modifiedCount: conversationResult.modifiedCount ?? 0,
+      };
+    } finally {
+      await ChatProject.updateOne(projectFilter, { $unset: { platformDeletionPending: '' } });
+    }
   }
 
   /** Account erasure: the user's conversations are deleted first, so no chat keeps a pointer. */
@@ -753,7 +783,122 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     };
   }
 
+  async function ensureLinkedChatProject(
+    user: string,
+    input: { id: string; name: string; goal: string },
+    nativeId?: string,
+  ) {
+    const ChatProject = mongoose.models.ChatProject as Model<IChatProjectDocument>;
+    linkingIndexes ??= ChatProject.createIndexes().catch((error) => {
+      linkingIndexes = undefined;
+      throw error;
+    });
+    await linkingIndexes;
+    const existing = await ChatProject.findOne({
+      user,
+      platformProjectId: input.id,
+    }).lean<IChatProject>();
+    if (existing) {
+      if (nativeId && existing._id?.toString() !== nativeId)
+        throw new Error('PROJECT_LINK_CONFLICT');
+      return { id: existing._id!.toString(), platformProjectId: input.id };
+    }
+    if (
+      !nativeId &&
+      (await ChatProject.exists({
+        user,
+        platformLinkIntent: { $exists: true },
+        platformProjectId: { $exists: false },
+      }))
+    )
+      throw new Error('PROJECT_LINK_PENDING');
+    const id =
+      nativeId ??
+      createHash('sha256')
+        .update('xingqiao-project:' + user + ':' + input.id)
+        .digest('hex')
+        .slice(0, 24);
+    if (!isValidObjectIdString(id)) throw new Error('Project not found');
+    const filter = {
+      _id: new mongoose.Types.ObjectId(id),
+      user,
+      platformProjectId: { $exists: false },
+      platformDeletionPending: { $ne: true },
+    };
+    try {
+      const project = await ChatProject.findOneAndUpdate(
+        filter,
+        {
+          $set: { platformProjectId: input.id },
+          ...(nativeId && { $unset: { platformLinkIntent: '' } }),
+          ...(!nativeId && { $setOnInsert: { name: input.name, description: input.goal, user } }),
+        },
+        { upsert: !nativeId, new: true },
+      ).lean<IChatProject>();
+      if (!project) throw new Error('Project not found');
+      return { id, platformProjectId: input.id };
+    } catch (error) {
+      const winner = await ChatProject.findOne({
+        user,
+        platformProjectId: input.id,
+      }).lean<IChatProject>();
+      if (winner && (!nativeId || winner._id?.toString() === nativeId))
+        return { id: winner._id!.toString(), platformProjectId: input.id };
+      throw error;
+    }
+  }
+
+  async function archivePlatformConversations(
+    user: string,
+    platformId: string,
+    agentIds: string[],
+  ) {
+    const ChatProject = mongoose.models.ChatProject as Model<IChatProjectDocument>;
+    const Conversation = mongoose.models.Conversation as Model<IConversation>;
+    const project = await ChatProject.findOne({ user, platformProjectId: platformId })
+      .select('_id')
+      .lean<IChatProject>();
+    if (!project || !agentIds.length) return;
+    const id = project._id!.toString();
+    await ChatProject.updateOne(
+      { _id: project._id, user },
+      { $addToSet: { platformAgentIds: { $each: agentIds } } },
+    );
+    // Preserve explicit filing in another project and never import invited application chats.
+    const result = await Conversation.updateMany(
+      { user, agent_id: { $in: agentIds }, chatProjectId: null },
+      { $set: { chatProjectId: id } },
+    );
+    if (result.modifiedCount) await refreshChatProjectStatsForUser(mongoose, user, id);
+  }
+
+  async function reservePlatformLink(
+    user: string,
+    id: string,
+    intent: { kind: 'assistant' | 'code'; name: string; goal: string; path?: string },
+  ) {
+    if (!isValidObjectIdString(id)) throw new Error('Project not found');
+    const ChatProject = mongoose.models.ChatProject as Model<IChatProjectDocument>;
+    await ChatProject.updateOne(
+      {
+        _id: new mongoose.Types.ObjectId(id),
+        user,
+        platformProjectId: { $exists: false },
+        platformLinkIntent: { $exists: false },
+        platformDeletionPending: { $ne: true },
+      },
+      { $set: { platformLinkIntent: intent } },
+    );
+    const project = await getChatProject(user, id);
+    if (!project?.platformLinkIntent || project.platformLinkIntent.kind !== intent.kind)
+      throw new Error('PROJECT_LINK_CONFLICT');
+    return project.platformLinkIntent;
+  }
+
   return {
+    reservePlatformLink,
+    ensureLinkedChatProject,
+    archivePlatformConversations,
     createChatProject,
     getChatProject,
     listChatProjects,

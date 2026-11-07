@@ -34,6 +34,11 @@ export type TrialTransport = {
   request?: (url: URL, init: RequestInit) => Promise<globalThis.Response>;
 };
 export type TrialDependencies = TrialTransport & {
+  archivePlatformConversations?: (
+    user: string,
+    projectId: string,
+    agentIds: string[],
+  ) => Promise<void>;
   getAgent: (filter: { id: string }) => Promise<unknown>;
   ensurePrivateTrialAgent: (
     data: NativeInput,
@@ -151,7 +156,15 @@ export function createTrialHandlers(
           .object({ projectId: z.string().uuid(), trialId: z.string().uuid().optional() })
           .parse(req.params);
         const prefix = params.projectId;
-        if (action === 'list') return res.json(trialsSchema.parse(await call(prefix + '/trials')));
+        if (action === 'list') {
+          const result = trialsSchema.parse(await call(prefix + '/trials'));
+          await deps.archivePlatformConversations?.(
+            req.user!.id,
+            prefix,
+            result.trials.map((trial) => trial.agent_id),
+          );
+          return res.json(result);
+        }
         if (action === 'initialize') {
           z.object({}).strict().parse(req.body);
           const record = z
@@ -269,9 +282,11 @@ export function createTrialHandlers(
             });
           }
         }
-        return res.json(
-          trialSchema.parse(await call(prefix + '/trials/' + trialId + '/confirm', {})),
+        const confirmed = trialSchema.parse(
+          await call(prefix + '/trials/' + trialId + '/confirm', {}),
         );
+        await deps.archivePlatformConversations?.(req.user!.id, prefix, [confirmed.agent_id]);
+        return res.json(confirmed);
       } catch (error) {
         if (error instanceof TrialFailure)
           return res.status(error.status).json({ code: error.code });

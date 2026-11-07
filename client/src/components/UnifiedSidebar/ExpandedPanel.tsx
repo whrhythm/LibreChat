@@ -144,7 +144,6 @@ function ExpandedPanel({
   const { active, setActive } = useActivePanel();
   const effectiveActive = resolveActivePanel(active, links);
   const isInsightsRoute = location.pathname.startsWith('/insights');
-  const workspace = links.find((link) => link.id === 'personal-space');
 
   const toggleLabel = expanded ? 'com_nav_close_sidebar' : 'com_nav_open_sidebar';
   const toggleClick = expanded ? onCollapse : onExpand;
@@ -172,17 +171,6 @@ function ExpandedPanel({
           </Button>
         }
       />
-      {workspace && (
-        <NavIconButton
-          link={workspace}
-          isActive={!isInsightsRoute && effectiveActive === workspace.id}
-          expanded={expanded}
-          setActive={setActive}
-          onExpand={onExpand}
-          onCollapse={onCollapse}
-          onLeaveInsights={isInsightsRoute ? onLeaveInsights : undefined}
-        />
-      )}
       <NewChatButton setActive={setActive} switchToHistory={switchToHistory} />
       <AgentMarketplaceButton />
       <div className="border-border-inset mx-2 border-b" />

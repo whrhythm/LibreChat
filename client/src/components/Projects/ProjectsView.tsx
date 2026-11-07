@@ -13,6 +13,8 @@ import ProjectEditDialog from './ProjectEditDialog';
 import ProjectsSortMenu from './ProjectsSortMenu';
 import ProjectsNavBar from './ProjectsNavBar';
 import { useLocalize } from '~/hooks';
+import ProjectUsage from './Usage';
+import ProjectSync from './Sync';
 import { cn } from '~/utils';
 
 function formatActivity(project: TChatProject) {
@@ -251,6 +253,8 @@ export default function ProjectsView() {
         search={search}
         onSearchChange={setSearch}
       />
+      <ProjectUsage />
+      <ProjectSync />
 
       <div className="flex w-full flex-1 flex-col px-4 pt-3 pb-10 md:px-6 md:pt-4">
         <div className="flex min-h-8 items-center justify-between gap-3">

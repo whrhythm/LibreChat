@@ -7,6 +7,10 @@ export const workspaceProjectInput = z
     name: z.string().trim().min(1).max(80),
     goal: z.string().max(1000),
     revision: z.number().int().nonnegative(),
+    native_project_id: z
+      .string()
+      .regex(/^[0-9a-f]{24}$/)
+      .optional(),
   })
   .strict();
 export type WorkspaceProjectInput = z.infer<typeof workspaceProjectInput>;
@@ -65,6 +69,17 @@ async function request<T>(token: string, suffix = '', body?: WorkspaceProjectInp
 }
 export const workspaceProjects = (token: string) =>
   request<{ projects: WorkspaceProject[] }>(token);
+export async function syncWorkspaceProjects(
+  token: string,
+): Promise<{ links: { id: string; platformProjectId: string }[] }> {
+  const response = await fetch('/api/user/workspace/projects/sync', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { Authorization: 'Bearer ' + token },
+  });
+  if (!response.ok) throw new ProjectRequestError('projects_unavailable');
+  return response.json();
+}
 export const saveWorkspaceProject = (token: string, value: WorkspaceProjectInput) =>
   request<WorkspaceProject>(token, '', value);
 export const workspaceProject = (token: string, id: string) =>

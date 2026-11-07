@@ -45,10 +45,20 @@ const { updateUserStatefulCodeEnvironment } = require('~/models');
 const { ensurePrivateProjectAgent, enableProjectKnowledge, getRoleByName } = require('~/models');
 const { ensurePrivateTrialAgent, getAgent, getConvo, getMessages, findUser } = require('~/models');
 const { grantPermission } = require('~/server/services/PermissionService');
+const {
+  getChatProject,
+  ensureLinkedChatProject,
+  archivePlatformConversations,
+  reservePlatformLink,
+} = require('~/models');
 const { PermissionTypes, Permissions } = require('librechat-data-provider');
 
 const router = express.Router();
 const aiProjects = createAIProjectHandlers({
+  reservePlatformLink,
+  archivePlatformConversations,
+  getChatProject,
+  ensureLinkedChatProject,
   baseUrl: process.env.CODECHAT_WORKSPACE_URL,
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
   issuer: process.env.OPENID_ISSUER,
@@ -114,6 +124,7 @@ router.get(
   releases.source,
 );
 const trials = createTrialHandlers({
+  archivePlatformConversations,
   baseUrl: process.env.CODECHAT_WORKSPACE_URL,
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
   issuer: process.env.OPENID_ISSUER,
@@ -229,11 +240,15 @@ router.put(
   templates.acceptance,
 );
 const projects = createWorkspaceProjectHandlers({
+  reservePlatformLink,
+  getChatProject,
+  ensureLinkedChatProject,
   baseUrl: process.env.CODECHAT_WORKSPACE_URL,
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
   issuer: process.env.OPENID_ISSUER,
 });
 router.get('/workspace/projects', requireJwtAuth, projects.list);
+router.post('/workspace/projects/sync', requireJwtAuth, projects.sync);
 router.put('/workspace/projects', requireJwtAuth, projects.save);
 router.get('/workspace/projects/:projectId', requireJwtAuth, projects.context);
 router.get('/workspace/projects/:projectId/source', requireJwtAuth, projects.source);

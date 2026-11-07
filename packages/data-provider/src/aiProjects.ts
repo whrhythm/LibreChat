@@ -6,6 +6,10 @@ export const aiProjectCreateInput = z
     request_id: z.string().uuid(),
     name: z.string().trim().min(1).max(80),
     purpose: z.string().trim().min(1).max(1000),
+    native_project_id: z
+      .string()
+      .regex(/^[0-9a-f]{24}$/)
+      .optional(),
   })
   .strict();
 export type AIProjectCreateInput = z.infer<typeof aiProjectCreateInput>;

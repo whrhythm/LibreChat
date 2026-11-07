@@ -45,6 +45,7 @@ export default function NewFolder({
     <>
       <Button
         ref={trigger}
+        type="button"
         variant="ghost"
         size="xs"
         onClick={() => {

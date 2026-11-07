@@ -1,5 +1,6 @@
 /* eslint-disable i18next/no-literal-string -- Synthetic child components isolate navigation; these labels are test fixtures. */
 import { Provider, createStore } from 'jotai';
+import { MemoryRouter } from 'react-router-dom';
 import { personalFileRequest } from 'librechat-data-provider';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -59,12 +60,14 @@ it('keeps file navigation while separating applications and selects the browsed 
       <QueryClientProvider
         client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
       >
-        <Space />
+        <MemoryRouter>
+          <Space />
+        </MemoryRouter>
       </QueryClientProvider>
     </Provider>,
   );
   expect(screen.queryByText(/Applications at/)).not.toBeVisible();
-  expect(screen.getByRole('heading', { name: 'com_codechat_projects_tab' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'com_codechat_workspace' })).toBeVisible();
   act(() => store.set(spaceNavigation('pane-test'), { pane: 'files', path: '' }));
   fireEvent.click(screen.getByRole('button', { name: 'Browse my project' }));
   act(() => store.set(spaceNavigation('pane-test'), (current) => ({ ...current, pane: 'apps' })));

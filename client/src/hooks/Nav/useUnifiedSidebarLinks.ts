@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useSetAtom } from 'jotai';
 import { useRecoilValue } from 'recoil';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -9,7 +9,6 @@ import type { TEndpointsConfig } from 'librechat-data-provider';
 import type { NavLink } from '~/common';
 import { useGetEndpointsQuery, useGetStartupConfig, useInsightsAccessQuery } from '~/data-provider';
 import ConversationsSection from '~/components/UnifiedSidebar/ConversationsSection';
-import { selectedProject } from '~/components/CodeChat/navigation';
 import { activePanelAtom } from '~/Providers/ActivePanelContext';
 import { isCodeChatEnabled } from '~/components/CodeChat/config';
 import { spaceNavigation } from '~/components/CodeChat/dock';
@@ -29,17 +28,6 @@ export default function useUnifiedSidebarLinks() {
   const setSpaceNavigation = useSetAtom(spaceNavigation(user?.id ?? 'anonymous'));
   const setActive = useSetAtom(activePanelAtom);
   const { setSidebarOpen } = useSidebarToggle();
-  const selectProject = useSetAtom(selectedProject(user?.id ?? 'anonymous'));
-  useEffect(() => {
-    const project = new URLSearchParams(location.search).get('workspaceProject');
-    if (!user?.id || !project || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(project))
-      return;
-    // This only restores navigation. The project list and trial APIs enforce ownership.
-    selectProject(project);
-    setSpaceNavigation((current) => ({ ...current, pane: 'projects' }));
-    setActive('personal-space');
-    setSidebarOpen(true);
-  }, [location.search, user?.id, selectProject, setSpaceNavigation, setActive, setSidebarOpen]);
   /** Selector instead of the full conversation atom: the links only depend on
    * the endpoint, so parameter edits and other conversation writes stay out. */
   const endpoint = useRecoilValue(store.conversationEndpointByIndex(0)) ?? undefined;
@@ -98,12 +86,12 @@ export default function useUnifiedSidebarLinks() {
         ? [
             {
               id: 'personal-space',
-              title: 'com_codechat_projects_tab',
+              title: 'com_codechat_workspace',
               label: '',
               icon: FolderKanban,
               Component: PersonalSpace,
               onClick: () => {
-                setSpaceNavigation((view) => ({ ...view, pane: 'projects' }));
+                setSpaceNavigation((view) => ({ ...view, pane: 'files' }));
                 setActive('personal-space');
                 setSidebarOpen(true);
                 if (!location.pathname.startsWith('/c/')) navigate('/c/new');

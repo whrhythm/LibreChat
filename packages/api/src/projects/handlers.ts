@@ -431,6 +431,10 @@ export function createProjectHandlers(deps: ProjectHandlerDependencies): {
       }
       return res.status(200).json(result);
     } catch (error) {
+      if (error instanceof Error && error.message === 'PROJECT_HAS_PLATFORM_RESOURCES') {
+        const code = 'PROJECT_HAS_PLATFORM_RESOURCES';
+        return res.status(409).json({ code, error: 'Project contains application resources' });
+      }
       logger.error('[projects] Error deleting project', error);
       return res.status(500).json({ error: 'Error deleting project' });
     }

@@ -402,6 +402,7 @@ export type TUpdateConversationRequest = {
 export type TUpdateConversationResponse = TConversation;
 
 export type TChatProject = {
+  platformProjectId?: string;
   _id: string;
   name: string;
   description?: string;

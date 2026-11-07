@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { createHash } from 'node:crypto';
 import {
   aiProjectCreateInput,
   PrincipalType,
@@ -21,6 +22,22 @@ type NativeInput = {
   model: string;
 };
 type Dependencies = {
+  reservePlatformLink?: (
+    user: string,
+    id: string,
+    intent: { kind: 'assistant' | 'code'; name: string; goal: string; path?: string },
+  ) => Promise<{ kind: 'assistant' | 'code'; name: string; goal: string; path?: string }>;
+  archivePlatformConversations?: (
+    user: string,
+    projectId: string,
+    agentIds: string[],
+  ) => Promise<void>;
+  getChatProject?: (user: string, id: string) => Promise<{ platformProjectId?: string } | null>;
+  ensureLinkedChatProject?: (
+    user: string,
+    input: { id: string; name: string; goal: string },
+    nativeId?: string,
+  ) => Promise<{ id: string; platformProjectId: string }>;
   baseUrl?: string;
   serviceToken?: string;
   issuer?: string;
@@ -130,10 +147,40 @@ export function createAIProjectHandlers(
       if (action === 'list') return res.status(200).json(await call(''));
       let projectId = typeof identifier === 'string' ? identifier : '';
       if (body?.success) {
-        const created = bindingSchema.parse(
-          await call('', { ...body.data, native_owner_id: user.id }),
-        );
-        projectId = created.project.id;
+        const { native_project_id: nativeId, ...input } = body.data;
+        if (nativeId) {
+          const native = await deps.getChatProject?.(user.id, nativeId);
+          if (!native || !deps.ensureLinkedChatProject)
+            return res.status(404).json({ code: 'ai_projects_not_found' });
+          if (native.platformProjectId) projectId = native.platformProjectId;
+          else {
+            if (!deps.reservePlatformLink)
+              return res.status(503).json({ code: 'ai_projects_unavailable' });
+            const intent = await deps.reservePlatformLink(user.id, nativeId, {
+              kind: 'assistant',
+              name: input.name,
+              goal: input.purpose,
+            });
+            input.name = intent.name;
+            input.purpose = intent.goal;
+          }
+          const hash = createHash('sha256')
+            .update('assistant:' + user.id + ':' + nativeId)
+            .digest('hex');
+          input.request_id = `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
+        }
+        if (!projectId) {
+          const created = bindingSchema.parse(
+            await call('', { ...input, native_owner_id: user.id }),
+          );
+          projectId = created.project.id;
+        }
+        if (nativeId)
+          await deps.ensureLinkedChatProject!(
+            user.id,
+            { id: projectId, name: input.name, goal: input.purpose },
+            nativeId,
+          );
       }
       const prepared = preparedSchema.parse(
         await call('/' + projectId + '/prepare', { native_owner_id: user.id }),
@@ -184,6 +231,7 @@ export function createAIProjectHandlers(
       ) {
         throw new Error('Project confirmation response mismatch');
       }
+      await deps.archivePlatformConversations?.(user.id, projectId, [agent.id]);
       return res.status(200).json(confirmed);
     } catch (error) {
       if (error instanceof UpstreamFailure)

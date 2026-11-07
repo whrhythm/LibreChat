@@ -30,8 +30,11 @@ let methods: ChatProjectMethods;
 let modelsToCleanup: string[] = [];
 
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
-  const mongoUri = mongoServer.getUri();
+  const external = process.env.CHAT_PROJECT_TEST_MONGO_URI;
+  if (external && external !== 'mongodb://127.0.0.1:27017/p1_project_tests')
+    throw new Error('Only the isolated loopback test database is permitted');
+  if (!external) mongoServer = await MongoMemoryServer.create();
+  const mongoUri = external ?? mongoServer.getUri();
 
   const models = createModels(mongoose);
   modelsToCleanup = Object.keys(models);
@@ -47,7 +50,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await mongoose.disconnect();
-  await mongoServer.stop();
+  await mongoServer?.stop();
 
   for (const modelName of modelsToCleanup) {
     if (mongoose.models[modelName]) {
@@ -72,6 +75,92 @@ async function createConversation(user: string, conversationId: string, title: s
 }
 
 describe('ChatProject methods', () => {
+  it('reserves an immutable link intent before remote writes and delays imports until reconciled', async () => {
+    const native = await methods.createChatProject('owner', { name: 'Native' });
+    const id = native._id!.toString();
+    const intent = { kind: 'assistant' as const, name: 'Original', goal: 'Original purpose' };
+    await methods.reservePlatformLink('owner', id, intent);
+    expect(await methods.reservePlatformLink('owner', id, { ...intent, name: 'Changed' })).toEqual(
+      intent,
+    );
+    await expect(
+      methods.reservePlatformLink('owner', id, { kind: 'code', name: 'Other', goal: '' }),
+    ).rejects.toThrow('PROJECT_LINK_CONFLICT');
+    const source = { id: '00000000-0000-4000-8000-000000000003', name: 'Remote', goal: '' };
+    await expect(methods.ensureLinkedChatProject('owner', source)).rejects.toThrow(
+      'PROJECT_LINK_PENDING',
+    );
+    await expect(methods.deleteChatProject('owner', id)).rejects.toThrow(
+      'PROJECT_HAS_PLATFORM_RESOURCES',
+    );
+    await methods.ensureLinkedChatProject('owner', source, id);
+    expect((await methods.ensureLinkedChatProject('owner', source)).id).toBe(id);
+    expect((await methods.getChatProject('owner', id))?.platformLinkIntent).toBeUndefined();
+  });
+  it('imports concurrently without duplicates and preserves existing native fields', async () => {
+    const source = {
+      id: '00000000-0000-4000-8000-000000000001',
+      name: 'Imported',
+      goal: 'Description',
+    };
+    const results = await Promise.all(
+      Array.from({ length: 4 }, () => methods.ensureLinkedChatProject('owner', source)),
+    );
+    expect(new Set(results.map((item) => item.id)).size).toBe(1);
+    expect(await ChatProject.countDocuments({ user: 'owner' })).toBe(1);
+    const id = results[0].id;
+    await methods.updateChatProject('owner', id, { name: 'Renamed', instructions: 'Keep this' });
+    await methods.ensureLinkedChatProject('owner', source);
+    expect(await methods.getChatProject('owner', id)).toMatchObject({
+      name: 'Renamed',
+      instructions: 'Keep this',
+    });
+    await expect(methods.deleteChatProject('owner', id)).rejects.toThrow(
+      'PROJECT_HAS_PLATFORM_RESOURCES',
+    );
+    expect(await methods.getChatProject('owner', id)).not.toBeNull();
+    await expect(methods.ensureLinkedChatProject('other', source, id)).rejects.toThrow(
+      'Project not found',
+    );
+  });
+
+  it('archives only owned private trial conversations and preserves explicit filing', async () => {
+    const source = { id: '00000000-0000-4000-8000-000000000002', name: 'Trial', goal: '' };
+    const project = await methods.ensureLinkedChatProject('owner', source);
+    const agent = 'agent_trial_' + 'a'.repeat(32);
+    await Conversation.create([
+      { user: 'owner', conversationId: 'unfiled', agent_id: agent, endpoint: 'agents' },
+      {
+        user: 'owner',
+        conversationId: 'filed',
+        agent_id: agent,
+        chatProjectId: 'b'.repeat(24),
+        endpoint: 'agents',
+      },
+      { user: 'other', conversationId: 'foreign', agent_id: agent, endpoint: 'agents' },
+      {
+        user: 'owner',
+        conversationId: 'invited',
+        agent_id: 'agent_app_' + 'a'.repeat(32),
+        endpoint: 'agents',
+      },
+    ]);
+    await methods.archivePlatformConversations('owner', source.id, [agent]);
+    await methods.archivePlatformConversations('owner', source.id, [agent]);
+    expect((await Conversation.findOne({ conversationId: 'unfiled' }).lean())?.chatProjectId).toBe(
+      project.id,
+    );
+    expect((await Conversation.findOne({ conversationId: 'filed' }).lean())?.chatProjectId).toBe(
+      'b'.repeat(24),
+    );
+    expect(
+      (await Conversation.findOne({ conversationId: 'foreign' }).lean())?.chatProjectId,
+    ).toBeFalsy();
+    expect(
+      (await Conversation.findOne({ conversationId: 'invited' }).lean())?.chatProjectId,
+    ).toBeFalsy();
+    expect((await methods.getChatProject('owner', project.id))?.conversationCount).toBe(1);
+  });
   const user = 'user-1';
   const otherUser = 'user-2';
 

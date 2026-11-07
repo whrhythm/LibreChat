@@ -41,8 +41,10 @@ import useDrawerViewport from '~/hooks/Nav/useDrawerViewport';
 import ProjectDeleteDialog from './ProjectDeleteDialog';
 import ProjectResources from './ProjectResources';
 import ProjectChatList from './ProjectChatList';
+import ProjectApplication from './Application';
 import { clearMessagesCache } from '~/utils';
 import ProjectEditor from './ProjectEditor';
+import ProjectUsage from './Usage';
 import store from '~/store';
 
 type ChatSortField = 'updatedAt' | 'createdAt';
@@ -73,6 +75,7 @@ export default function ProjectWorkspace() {
   const { projectId = '' } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [sortBy, setSortBy] = useState<ChatSortField>('updatedAt');
+  const [section, setSection] = useState('chats');
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [initialEditField, setInitialEditField] = useState<'name' | 'description'>('name');
   const isEditOpen = editingProjectId === projectId || searchParams.get('edit') === '1';
@@ -492,6 +495,32 @@ export default function ProjectWorkspace() {
           />
         </div>
       </header>
+      <ProjectUsage />
+      <div className="border-border-light flex gap-2 border-b px-4 py-2" role="tablist">
+        <Button
+          size="sm"
+          variant={section === 'chats' ? 'default' : 'ghost'}
+          role="tab"
+          aria-selected={section === 'chats'}
+          onClick={() => setSection('chats')}
+        >
+          {localize('com_ui_chat_history')}
+        </Button>
+        <Button
+          size="sm"
+          variant={section === 'application' ? 'default' : 'ghost'}
+          role="tab"
+          aria-selected={section === 'application'}
+          onClick={() => setSection('application')}
+        >
+          {localize('com_project_application')}
+        </Button>
+      </div>
+      {section === 'application' && (
+        <div className="min-h-0 flex-1 overflow-auto">
+          <ProjectApplication key={project._id} project={project} />
+        </div>
+      )}
 
       <ProjectDeleteDialog
         open={isDeleteOpen}
@@ -506,28 +535,29 @@ export default function ProjectWorkspace() {
         triggerRef={instructionsButtonRef}
       />
 
-      {isSmallScreen ? (
-        /** Panels need a bounded height to resize against, which a stacked phone
-         *  layout cannot give them; scroll the column instead. */
-        <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
-          {detailsHeader}
-          <div className="h-72 shrink-0">{instructionsSection}</div>
-          {filesSection != null && <div className="h-72 shrink-0">{filesSection}</div>}
-          <div className="flex min-h-[26.25rem] flex-col">{chatsSection}</div>
-        </div>
-      ) : (
-        <ResizablePanelGroup
-          orientation="horizontal"
-          id="project-workspace"
-          defaultLayout={workspaceLayout.defaultLayout}
-          onLayoutChanged={workspaceLayout.onLayoutChanged}
-          resizeTargetMinimumSize={RESIZE_TARGET_SIZE}
-          className="min-h-0 flex-1"
-          {...(reversed ? { dir: 'ltr' } : {})}
-        >
-          {reversed ? workspacePanels.reverse() : workspacePanels}
-        </ResizablePanelGroup>
-      )}
+      {section === 'chats' &&
+        (isSmallScreen ? (
+          /** Panels need a bounded height to resize against, which a stacked phone
+           *  layout cannot give them; scroll the column instead. */
+          <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
+            {detailsHeader}
+            <div className="h-72 shrink-0">{instructionsSection}</div>
+            {filesSection != null && <div className="h-72 shrink-0">{filesSection}</div>}
+            <div className="flex min-h-[26.25rem] flex-col">{chatsSection}</div>
+          </div>
+        ) : (
+          <ResizablePanelGroup
+            orientation="horizontal"
+            id="project-workspace"
+            defaultLayout={workspaceLayout.defaultLayout}
+            onLayoutChanged={workspaceLayout.onLayoutChanged}
+            resizeTargetMinimumSize={RESIZE_TARGET_SIZE}
+            className="min-h-0 flex-1"
+            {...(reversed ? { dir: 'ltr' } : {})}
+          >
+            {reversed ? workspacePanels.reverse() : workspacePanels}
+          </ResizablePanelGroup>
+        ))}
     </main>
   );
 }

@@ -58,7 +58,9 @@ export default function ProjectDeleteDialog({
           <OGDialogTitle>{localize('com_ui_delete_project')}</OGDialogTitle>
         </OGDialogHeader>
         <div className="text-text-secondary text-sm">
-          {localize('com_ui_delete_project_confirm', { name: project.name })}
+          {project.platformProjectId
+            ? localize('com_project_delete_linked')
+            : localize('com_ui_delete_project_confirm', { name: project.name })}
         </div>
         <div className="flex justify-end gap-4 pt-4">
           <OGDialogClose asChild>
@@ -66,7 +68,11 @@ export default function ProjectDeleteDialog({
               {localize('com_ui_cancel')}
             </Button>
           </OGDialogClose>
-          <Button variant="destructive" onClick={confirmDelete} disabled={deleteProject.isLoading}>
+          <Button
+            variant="destructive"
+            onClick={confirmDelete}
+            disabled={deleteProject.isLoading || !!project.platformProjectId}
+          >
             {deleteProject.isLoading ? <Spinner className="size-4" /> : localize('com_ui_delete')}
           </Button>
         </div>

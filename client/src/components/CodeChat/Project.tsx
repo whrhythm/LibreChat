@@ -18,11 +18,13 @@ export default function Project({
   enabled,
   onBack,
   onFiles,
+  nativeProjectId,
 }: {
   value: AIProject;
   enabled: boolean;
   onBack: () => void;
   onFiles: (path: string) => void;
+  nativeProjectId?: string;
 }) {
   const t = useLocalize();
   const { user, token } = useAuthContext();
@@ -150,6 +152,7 @@ export default function Project({
               embedded
               enabled={enabled && (section === 'settings' || section === 'preview')}
               mode={section === 'settings' ? 'settings' : 'preview'}
+              nativeProjectId={nativeProjectId}
             />
           ) : (
             <Button size="sm" asChild>

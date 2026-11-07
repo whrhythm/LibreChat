@@ -1,4 +1,12 @@
 {
+  "com_codechat_space_partial_status": "Incomplete or unavailable",
+  "com_project_account_usage": "Account resources · all projects",
+  "com_project_application": "Application",
+  "com_project_application_usage": "Deployed applications",
+  "com_project_delete_linked": "This project contains application resources. Deleting its navigation is unavailable; your applications, files and conversations are preserved.",
+  "com_project_model_usage": "Model credit used / allocated",
+  "com_project_prepare_assistant": "Prepare assistant draft",
+  "com_project_review_trial": "Record acceptance",
   "com_agents_published_read_only": "Published application · use only",
   "com_agents_published_read_only_detail": "This application is managed by its creator. Continue the conversation, or create your own agent.",
   "com_trials_title": "Configure and preview",

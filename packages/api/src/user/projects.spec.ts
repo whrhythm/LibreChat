@@ -13,6 +13,32 @@ function response() {
   res.status.mockReturnValue(res);
   return res;
 }
+
+it('synchronizes only authoritative owned project records, ignoring browser claims', async () => {
+  const project = {
+    id: '00000000-0000-4000-8000-000000000001',
+    name: 'Existing',
+    goal: 'Keep data',
+  };
+  const ensureLinkedChatProject = jest
+    .fn()
+    .mockResolvedValue({ id: 'a'.repeat(24), platformProjectId: project.id });
+  const request = jest
+    .fn()
+    .mockResolvedValue(new globalThis.Response(JSON.stringify({ projects: [project] })));
+  const handler = createWorkspaceProjectHandlers({ ...config, request, ensureLinkedChatProject });
+  const res = response();
+  await handler.sync(
+    {
+      user: { ...user, id: 'b'.repeat(24) },
+      body: { owner: 'other', projects: [{ id: 'forged' }] },
+    } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(ensureLinkedChatProject).toHaveBeenCalledWith('b'.repeat(24), project);
+  expect(ensureLinkedChatProject).toHaveBeenCalledTimes(1);
+  expect(request.mock.calls[0][1].method).toBe('GET');
+});
 it('uses authenticated identity and preserves the metadata revision without file mutations', async () => {
   const request = jest
     .fn()
