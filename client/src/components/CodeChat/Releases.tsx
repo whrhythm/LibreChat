@@ -6,7 +6,15 @@ import { projectReleases, projectTrials, QueryKeys } from 'librechat-data-provid
 import type { AIPublish } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 
-export default function Releases({ projectId, embedded = false, enabled = true }: { projectId: string; embedded?: boolean; enabled?: boolean }) {
+export default function Releases({
+  projectId,
+  embedded = false,
+  enabled = true,
+}: {
+  projectId: string;
+  embedded?: boolean;
+  enabled?: boolean;
+}) {
   const t = useLocalize();
   const { user, token } = useAuthContext();
   const cache = useQueryClient();
@@ -51,18 +59,17 @@ export default function Releases({ projectId, embedded = false, enabled = true }
   const busy = change.isLoading;
   const budget = Math.round(Number(ui.budget) * 1000000);
   return (
-    <section
-      className="space-y-3 text-xs"
-      aria-label={t('com_releases_title')}
-    >
-      {!embedded && <Button
-        size="xs"
-        variant="ghost"
-        aria-expanded={ui.expanded}
-        onClick={() => setUI((s) => ({ ...s, expanded: !s.expanded }))}
-      >
-        {t('com_releases_title')}
-      </Button>}
+    <section className="space-y-3 text-xs" aria-label={t('com_releases_title')}>
+      {!embedded && (
+        <Button
+          size="xs"
+          variant="ghost"
+          aria-expanded={ui.expanded}
+          onClick={() => setUI((s) => ({ ...s, expanded: !s.expanded }))}
+        >
+          {t('com_releases_title')}
+        </Button>
+      )}
       {ui.expanded && (
         <>
           <p className="text-text-secondary">{t('com_releases_hint')}</p>
@@ -133,7 +140,9 @@ export default function Releases({ projectId, embedded = false, enabled = true }
               </Button>
             </div>
           )}
-          <h4 className="border-border-light border-t pt-3 text-sm font-medium">{t('com_project_publication_heading')}</h4>
+          <h4 className="border-border-light border-t pt-3 text-sm font-medium">
+            {t('com_project_publication_heading')}
+          </h4>
           <label className="block space-y-1">
             <span>{t('com_releases_budget')}</span>
             <input

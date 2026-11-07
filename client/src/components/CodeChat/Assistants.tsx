@@ -43,17 +43,23 @@ export default function Assistants({
   });
   const current = list.data?.projects.find((value) => value.project.id === selected);
   if (!list.data?.enabled && !list.isError && !list.isLoading) return null;
-  if (current?.state === 'ready') return <Project key={current.project.id} value={current} enabled={enabled} onBack={() => setSelected('')} onFiles={onFiles} />;
+  if (current?.state === 'ready')
+    return (
+      <Project
+        key={current.project.id}
+        value={current}
+        enabled={enabled}
+        onBack={() => setSelected('')}
+        onFiles={onFiles}
+      />
+    );
   const inputClass =
     'border-border-light bg-surface-primary text-text-primary w-full rounded border px-2 py-1.5 text-sm';
   let submitLabel = t('com_ai_projects_create');
   if (save.isLoading) submitLabel = t('com_ai_projects_preparing');
   else if (save.isError) submitLabel = t('com_codechat_retry');
   return (
-    <section
-      className="space-y-3"
-      aria-label={t('com_ai_projects_title')}
-    >
+    <section className="space-y-3" aria-label={t('com_ai_projects_title')}>
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-medium">{t('com_ai_projects_title')}</h3>
         {!draft && list.data?.enabled && (
@@ -71,7 +77,9 @@ export default function Assistants({
       </div>
       <p className="text-text-secondary text-xs">{t('com_ai_projects_hint')}</p>
       {list.isLoading && <p role="status">{t('com_ui_loading')}</p>}
-      {list.isSuccess && list.data?.enabled && !list.data.projects.length && !draft && <p className="text-text-secondary py-4 text-sm">{t('com_project_empty')}</p>}
+      {list.isSuccess && list.data?.enabled && !list.data.projects.length && !draft && (
+        <p className="text-text-secondary py-4 text-sm">{t('com_project_empty')}</p>
+      )}
       {list.isError && (
         <div role="alert">
           {t('com_ai_projects_load_error')}
@@ -150,7 +158,11 @@ export default function Assistants({
             <p className="text-text-secondary text-xs">{t('com_ai_projects_knowledge_pending')}</p>
           )}
           <div className="flex flex-wrap gap-2">
-            {value.state === 'ready' && <Button size="xs" variant="outline" onClick={() => setSelected(value.project.id)}>{t('com_project_enter')}</Button>}
+            {value.state === 'ready' && (
+              <Button size="xs" variant="outline" onClick={() => setSelected(value.project.id)}>
+                {t('com_project_enter')}
+              </Button>
+            )}
             {value.state !== 'ready' && (
               <Button
                 size="xs"

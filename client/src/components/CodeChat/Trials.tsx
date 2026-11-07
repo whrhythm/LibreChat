@@ -23,7 +23,15 @@ function errorMessage(code: string) {
   return 'com_trials_error';
 }
 
-export default function Trials({ projectId, embedded = false, enabled = true }: { projectId: string; embedded?: boolean; enabled?: boolean }) {
+export default function Trials({
+  projectId,
+  embedded = false,
+  enabled = true,
+}: {
+  projectId: string;
+  embedded?: boolean;
+  enabled?: boolean;
+}) {
   const { user, token } = useAuthContext();
   const { conversationId } = useParams();
   const t = useLocalize();
@@ -49,9 +57,17 @@ export default function Trials({ projectId, embedded = false, enabled = true }: 
   useEffect(() => {
     const dirty = !!ui.config || !!ui.acceptance;
     setEditing(dirty);
-    const warn = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ''; } };
+    const warn = (event: BeforeUnloadEvent) => {
+      if (dirty) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
     window.addEventListener('beforeunload', warn);
-    return () => { setEditing(false); window.removeEventListener('beforeunload', warn); };
+    return () => {
+      setEditing(false);
+      window.removeEventListener('beforeunload', warn);
+    };
   }, [ui.config, ui.acceptance, setEditing]);
   const key = [QueryKeys.aiProjects, user?.id, projectId, 'trials'];
   const list = useQuery({
@@ -86,21 +102,20 @@ export default function Trials({ projectId, embedded = false, enabled = true }: 
     change.mutate({ suffix: '', body: request });
   };
   return (
-    <section
-      className="space-y-3"
-      aria-label={t('com_trials_title')}
-    >
-      {!embedded && <Button
-        size="xs"
-        variant="outline"
-        aria-expanded={ui.expanded}
-        onClick={() => {
-          setUI((current) => ({ ...current, expanded: !current.expanded }));
-          if (!ui.expanded) void cache.invalidateQueries(key);
-        }}
-      >
-        {t('com_trials_title')}
-      </Button>}
+    <section className="space-y-3" aria-label={t('com_trials_title')}>
+      {!embedded && (
+        <Button
+          size="xs"
+          variant="outline"
+          aria-expanded={ui.expanded}
+          onClick={() => {
+            setUI((current) => ({ ...current, expanded: !current.expanded }));
+            if (!ui.expanded) void cache.invalidateQueries(key);
+          }}
+        >
+          {t('com_trials_title')}
+        </Button>
+      )}
       {ui.expanded && (
         <div className="space-y-3 text-sm">
           <h4 className="text-sm font-medium">{t('com_project_settings_heading')}</h4>
@@ -199,72 +214,74 @@ export default function Trials({ projectId, embedded = false, enabled = true }: 
                     </select>
                   </label>
                   <details className="space-y-2">
-                  <summary className="text-text-secondary cursor-pointer text-xs">{t('com_project_advanced')}</summary>
-                  <label className="block space-y-1">
-                    {t('com_trials_style')}
-                    <select
-                      className={inputClass}
-                      value={ui.config.response_style}
-                      aria-label={t('com_trials_style')}
-                      disabled={busy}
-                      onChange={(event) =>
-                        setUI({
-                          ...ui,
-                          config: {
-                            ...ui.config!,
-                            response_style: event.target.value as TrialConfig['response_style'],
-                          },
-                        })
-                      }
-                    >
-                      <option value="grounded">{t('com_trials_grounded')}</option>
-                      <option value="support">{t('com_trials_support')}</option>
-                    </select>
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label>
-                      {t('com_trials_temperature')}
-                      <input
+                    <summary className="text-text-secondary cursor-pointer text-xs">
+                      {t('com_project_advanced')}
+                    </summary>
+                    <label className="block space-y-1">
+                      {t('com_trials_style')}
+                      <select
                         className={inputClass}
-                        type="number"
-                        min={0}
-                        aria-label={t('com_trials_temperature')}
+                        value={ui.config.response_style}
+                        aria-label={t('com_trials_style')}
                         disabled={busy}
-                        max={2}
-                        step={0.1}
-                        required
-                        value={ui.config.temperature}
-                        onChange={(event) =>
-                          setUI({
-                            ...ui,
-                            config: { ...ui.config!, temperature: Number(event.target.value) },
-                          })
-                        }
-                      />
-                    </label>
-                    <label>
-                      {t('com_trials_output')}
-                      <input
-                        className={inputClass}
-                        type="number"
-                        min={256}
-                        aria-label={t('com_trials_output')}
-                        disabled={busy}
-                        max={data.output_limit}
-                        required
-                        value={ui.config.max_output_tokens}
                         onChange={(event) =>
                           setUI({
                             ...ui,
                             config: {
                               ...ui.config!,
-                              max_output_tokens: Number(event.target.value),
+                              response_style: event.target.value as TrialConfig['response_style'],
                             },
                           })
                         }
-                      />
+                      >
+                        <option value="grounded">{t('com_trials_grounded')}</option>
+                        <option value="support">{t('com_trials_support')}</option>
+                      </select>
                     </label>
-                  </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label>
+                        {t('com_trials_temperature')}
+                        <input
+                          className={inputClass}
+                          type="number"
+                          min={0}
+                          aria-label={t('com_trials_temperature')}
+                          disabled={busy}
+                          max={2}
+                          step={0.1}
+                          required
+                          value={ui.config.temperature}
+                          onChange={(event) =>
+                            setUI({
+                              ...ui,
+                              config: { ...ui.config!, temperature: Number(event.target.value) },
+                            })
+                          }
+                        />
+                      </label>
+                      <label>
+                        {t('com_trials_output')}
+                        <input
+                          className={inputClass}
+                          type="number"
+                          min={256}
+                          aria-label={t('com_trials_output')}
+                          disabled={busy}
+                          max={data.output_limit}
+                          required
+                          value={ui.config.max_output_tokens}
+                          onChange={(event) =>
+                            setUI({
+                              ...ui,
+                              config: {
+                                ...ui.config!,
+                                max_output_tokens: Number(event.target.value),
+                              },
+                            })
+                          }
+                        />
+                      </label>
+                    </div>
                   </details>
                   <div className="flex justify-end gap-2">
                     <Button
@@ -282,11 +299,18 @@ export default function Trials({ projectId, embedded = false, enabled = true }: 
                   </div>
                 </form>
               )}
-              {!!data.trials.length && <h4 className="border-border-light border-t pt-3 text-sm font-medium">{t('com_project_previews')}</h4>}
+              {!!data.trials.length && (
+                <h4 className="border-border-light border-t pt-3 text-sm font-medium">
+                  {t('com_project_previews')}
+                </h4>
+              )}
               {data.trials.map((trial, index) => (
                 <details
                   key={trial.id}
-                  open={index === 0 || (!!conversationId && trial.conversation_ids?.includes(conversationId))}
+                  open={
+                    index === 0 ||
+                    (!!conversationId && trial.conversation_ids?.includes(conversationId))
+                  }
                   className="border-border-light space-y-2 border-b py-2"
                   aria-label={t('com_trials_version') + ' ' + trial.number}
                 >

@@ -7,7 +7,15 @@ import type { KnowledgeImportInput, KnowledgeRevision } from 'librechat-data-pro
 import { useAuthContext, useLocalize } from '~/hooks';
 import { storageSize } from './storage';
 
-export default function Knowledge({ projectId, embedded = false, enabled = true }: { projectId: string; embedded?: boolean; enabled?: boolean }) {
+export default function Knowledge({
+  projectId,
+  embedded = false,
+  enabled = true,
+}: {
+  projectId: string;
+  embedded?: boolean;
+  enabled?: boolean;
+}) {
   const { user, token } = useAuthContext();
   const t = useLocalize();
   const cache = useQueryClient();
@@ -100,10 +108,15 @@ export default function Knowledge({ projectId, embedded = false, enabled = true 
     <Container
       className="border-border-light border-t pt-3"
       onToggle={(event) => {
-        if (event.currentTarget instanceof HTMLDetailsElement) setExpanded(event.currentTarget.open);
+        if (event.currentTarget instanceof HTMLDetailsElement)
+          setExpanded(event.currentTarget.open);
       }}
     >
-      {embedded ? <h4 className="text-sm font-medium">{t('com_knowledge_title')}</h4> : <summary className="cursor-pointer text-sm font-medium">{t('com_knowledge_title')}</summary>}
+      {embedded ? (
+        <h4 className="text-sm font-medium">{t('com_knowledge_title')}</h4>
+      ) : (
+        <summary className="cursor-pointer text-sm font-medium">{t('com_knowledge_title')}</summary>
+      )}
       <div className="mt-2 space-y-2 text-xs">
         <p className="text-text-secondary">{t('com_knowledge_hint')}</p>
         <input
@@ -140,7 +153,13 @@ export default function Knowledge({ projectId, embedded = false, enabled = true 
         {list.isLoading && <p role="status">{t('com_knowledge_loading')}</p>}
         {list.data?.revisions.length === 0 && <p>{t('com_knowledge_empty')}</p>}
         {list.data?.revisions.map((row, index) => (
-          <details key={row.id} open={list.data?.active_revision_id === row.id || (index === 0 && row.state !== 'deleted')} className="border-border-light space-y-2 border-t py-2">
+          <details
+            key={row.id}
+            open={
+              list.data?.active_revision_id === row.id || (index === 0 && row.state !== 'deleted')
+            }
+            className="border-border-light space-y-2 border-t py-2"
+          >
             <summary className="cursor-pointer text-xs">
               <span>{new Date(row.created_at).toLocaleString()}</span>
               <span role="status">

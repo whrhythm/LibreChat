@@ -56,7 +56,8 @@ export default function Engineering({ enabled, path, onOpen, exclude = [] }: Pro
     retry: false,
   });
   const projects = list.data?.projects.filter((project) => !exclude.includes(project.id)) ?? [];
-  const selected = projects.find((project) => project.id === view.selected)?.id || projects[0]?.id || '';
+  const selected =
+    projects.find((project) => project.id === view.selected)?.id || projects[0]?.id || '';
   const context = useQuery({
     queryKey: [QueryKeys.workspaceProject, user?.id, selected],
     queryFn: () => workspaceProject(token!, selected),
