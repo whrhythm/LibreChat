@@ -152,16 +152,26 @@ it('allows an explicit stable member ID and revokes it without mutable email loo
   const result = { application: null, releases: [], members: [] };
   deps.request.mockResolvedValue(new globalThis.Response(JSON.stringify(result)));
   deps.findUser.mockResolvedValue({
-    _id: 'c'.repeat(24), email: 'unverified@example.test', provider: 'openid',
-    openidId: 'stable-subject', openidIssuer: 'https://id.test', emailVerified: false,
+    _id: 'c'.repeat(24),
+    email: 'unverified@example.test',
+    provider: 'openid',
+    openidId: 'stable-subject',
+    openidIssuer: 'https://id.test',
+    emailVerified: false,
   });
   const res = response();
-  await handlers.member(request({ identifier: 'c'.repeat(24), enabled: true }), res as unknown as Response);
+  await handlers.member(
+    request({ identifier: 'c'.repeat(24), enabled: true }),
+    res as unknown as Response,
+  );
   expect(deps.findUser).toHaveBeenCalledWith({ _id: 'c'.repeat(24) }, expect.any(String));
   expect(res.json).toHaveBeenCalledWith(result);
   deps.findUser.mockClear();
   deps.request.mockResolvedValue(new globalThis.Response(JSON.stringify(result)));
-  await handlers.member(request({ identifier: 'c'.repeat(24), enabled: false }), res as unknown as Response);
+  await handlers.member(
+    request({ identifier: 'c'.repeat(24), enabled: false }),
+    res as unknown as Response,
+  );
   expect(deps.findUser).not.toHaveBeenCalled();
   const last = deps.request.mock.calls.at(-1) as unknown as [URL, RequestInit];
   expect(last[0].pathname).toContain('/members/revoke');
