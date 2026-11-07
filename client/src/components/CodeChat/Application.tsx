@@ -19,8 +19,8 @@ export default function Application() {
         {launch.data?.name ?? t('com_releases_application')}
       </h1>
       <p>{t('com_releases_member_hint')}</p>
-      <p className="text-text-secondary break-all text-sm">
-        {t('com_releases_my_id')}{' '}<code>{user?.id}</code>
+      <p className="text-text-secondary text-sm break-all">
+        {t('com_releases_my_id')} <code>{user?.id}</code>
       </p>
       {!launch.data && (
         <Button disabled={!token || launch.isLoading} onClick={() => launch.mutate()}>

@@ -206,7 +206,10 @@ export default function Releases({ projectId }: { projectId: string }) {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  change.mutate({ suffix: '/members', body: { identifier: ui.email, enabled: true } });
+                  change.mutate({
+                    suffix: '/members',
+                    body: { identifier: ui.email, enabled: true },
+                  });
                 }}
               >
                 <input

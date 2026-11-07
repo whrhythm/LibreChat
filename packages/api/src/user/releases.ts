@@ -72,9 +72,13 @@ export function createReleaseHandlers(
           const byId = /^[0-9a-f]{24}$/.test(input.identifier);
           if (!input.enabled) {
             if (!byId) throw new TrialFailure(400, 'ai_releases_invalid_request');
-            return res.json(releaseListSchema.parse(await call(project + '/members/revoke', {
-              native_id: input.identifier,
-            })));
+            return res.json(
+              releaseListSchema.parse(
+                await call(project + '/members/revoke', {
+                  native_id: input.identifier,
+                }),
+              ),
+            );
           }
           if (!byId && !z.string().email().safeParse(input.identifier).success)
             throw new TrialFailure(400, 'ai_releases_invalid_request');
@@ -85,7 +89,8 @@ export function createReleaseHandlers(
             ),
           );
           if (
-            !member.success || (!byId && !member.data.emailVerified) ||
+            !member.success ||
+            (!byId && !member.data.emailVerified) ||
             member.data.openidIssuer.replace(/\/$/, '') !== deps.issuer?.replace(/\/$/, '')
           )
             throw new TrialFailure(409, 'ai_releases_member_unavailable');
