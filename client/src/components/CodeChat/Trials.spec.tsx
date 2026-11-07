@@ -42,12 +42,19 @@ it('exposes stable input labels and saves against the loaded draft digest', asyn
   (projectTrials as jest.Mock).mockResolvedValue(data);
   mount();
   fireEvent.click(await screen.findByRole('button', { name: 'com_trials_edit' }));
-  fireEvent.change(screen.getByRole('textbox', { name: 'com_trials_instructions' }), { target: { value: 'updated' } });
-  fireEvent.change(screen.getByRole('combobox', { name: 'com_trials_style' }), { target: { value: 'support' } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'com_trials_instructions' }), {
+    target: { value: 'updated' },
+  });
+  fireEvent.change(screen.getByRole('combobox', { name: 'com_trials_style' }), {
+    target: { value: 'support' },
+  });
   fireEvent.click(screen.getByRole('button', { name: 'com_trials_save' }));
-  await waitFor(() => expect(projectTrials).toHaveBeenCalledWith('test', 'project', '/update', {
-    expected_digest: data.digest, config: { ...data.config, instructions: 'updated', response_style: 'support' },
-  }));
+  await waitFor(() =>
+    expect(projectTrials).toHaveBeenCalledWith('test', 'project', '/update', {
+      expected_digest: data.digest,
+      config: { ...data.config, instructions: 'updated', response_style: 'support' },
+    }),
+  );
 });
 it('does not repeat model calls or silently create another preview after a lost reply', async () => {
   (projectTrials as jest.Mock).mockImplementation((_token, _id, _suffix, body) =>
