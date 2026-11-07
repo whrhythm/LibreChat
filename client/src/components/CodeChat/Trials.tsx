@@ -157,6 +157,8 @@ export default function Trials({ projectId }: { projectId: string }) {
                   <label className="block space-y-1">
                     {t('com_trials_instructions')}
                     <textarea
+                      aria-label={t('com_trials_instructions')}
+                      disabled={busy}
                       className={inputClass}
                       rows={6}
                       required
@@ -173,6 +175,8 @@ export default function Trials({ projectId }: { projectId: string }) {
                   <label className="block space-y-1">
                     {t('com_trials_model')}
                     <select
+                      aria-label={t('com_trials_model')}
+                      disabled={busy}
                       className={inputClass}
                       value={ui.config.model}
                       onChange={(event) =>
@@ -189,6 +193,8 @@ export default function Trials({ projectId }: { projectId: string }) {
                     <select
                       className={inputClass}
                       value={ui.config.response_style}
+                      aria-label={t('com_trials_style')}
+                      disabled={busy}
                       onChange={(event) =>
                         setUI({
                           ...ui,
@@ -210,6 +216,8 @@ export default function Trials({ projectId }: { projectId: string }) {
                         className={inputClass}
                         type="number"
                         min={0}
+                        aria-label={t('com_trials_temperature')}
+                        disabled={busy}
                         max={2}
                         step={0.1}
                         required
@@ -228,6 +236,8 @@ export default function Trials({ projectId }: { projectId: string }) {
                         className={inputClass}
                         type="number"
                         min={256}
+                        aria-label={t('com_trials_output')}
+                        disabled={busy}
                         max={data.output_limit}
                         required
                         value={ui.config.max_output_tokens}
@@ -378,6 +388,8 @@ export default function Trials({ projectId }: { projectId: string }) {
                       className={inputClass}
                       required
                       maxLength={2000}
+                      aria-label={t('com_trials_note')}
+                      disabled={busy}
                       rows={2}
                       value={ui.acceptance.note}
                       onChange={(event) =>
