@@ -7,6 +7,7 @@ import {
 } from 'librechat-data-provider';
 import type { Response } from 'express';
 import type { ServerRequest } from '~/types';
+import { selectFileCitationSources } from '~/files/citations';
 
 type Request = Omit<ServerRequest, 'body'> & { body?: unknown };
 type Dependencies = {
@@ -88,11 +89,11 @@ function client(req: Request, deps: Dependencies) {
 export function createKnowledgeHandlers(
   deps: Dependencies,
 ): Record<
-  'list' | 'import' | 'retry' | 'remove',
+  'list' | 'import' | 'retry' | 'remove' | 'source',
   (req: Request, res: Response) => Promise<Response>
 > {
   const handler =
-    (action: 'list' | 'import' | 'retry' | 'remove') => async (req: Request, res: Response) => {
+    (action: 'list' | 'import' | 'retry' | 'remove' | 'source') => async (req: Request, res: Response) => {
       res.setHeader('Cache-Control', 'no-store');
       try {
         const call = client(req, deps);
@@ -102,6 +103,11 @@ export function createKnowledgeHandlers(
         if (!params.success) return res.status(400).json({ code: 'knowledge_invalid_request' });
         const { projectId: id, revisionId } = params.data;
         if (action === 'list') return res.json(knowledgeListSchema.parse(await call(id)));
+        if (action === 'source') {
+          const query = z.object({ name: z.string().min(1).max(124) }).strict().safeParse(req.query);
+          if (!revisionId || !query.success) return res.status(400).json({ code: 'knowledge_invalid_request' });
+          return res.json(await call(id, '/' + revisionId + '/source?name=' + encodeURIComponent(query.data.name)));
+        }
         let result;
         if (action === 'import') {
           const body = knowledgeImportInput.safeParse(req.body);
@@ -130,6 +136,7 @@ export function createKnowledgeHandlers(
     import: handler('import'),
     retry: handler('retry'),
     remove: handler('remove'),
+    source: handler('source'),
   };
 }
 
@@ -191,13 +198,16 @@ export function createProjectFileSearchTool<T extends SearchOptions, R>(
           return ['当前项目没有可检索的就绪资料。请说明缺少依据，不能编造答案或引用。', undefined];
         const sources = result.sources.map((s) => ({
           type: 'file',
-          fileId: result.revision_id!,
+          fileId: 'knowledge:' + id + ':' + result.revision_id! + ':' + encodeURIComponent(s.name),
           fileName: s.name,
           content: s.content,
           relevance: 1 - s.distance,
           pages: [],
           pageRelevance: {},
         }));
+        const citationSources = options.fileCitations
+          ? selectFileCitationSources(sources, req.config?.endpoints?.agents)
+          : [];
         const content = result.sources
           .map(
             (s, i) =>
@@ -207,7 +217,7 @@ export function createProjectFileSearchTool<T extends SearchOptions, R>(
               s.line +
               '；知识修订：' +
               result.revision_id +
-              (options.fileCitations ? '\nAnchor: \\ue202turn0file' + i : '') +
+              (citationSources.includes(sources[i]) ? '\nAnchor: \\ue202turn0file' + citationSources.indexOf(sources[i]) : '') +
               '\n<untrusted_knowledge>\n' +
               s.content +
               '\n</untrusted_knowledge>',

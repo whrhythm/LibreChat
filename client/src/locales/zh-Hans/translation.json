@@ -1,4 +1,6 @@
 {
+  "com_knowledge_source": "知识原文",
+  "com_knowledge_source_hint": "此引用对应的原始知识修订，仅向有权访问该项目的用户显示。",
   "com_knowledge_title": "项目知识",
   "com_knowledge_hint": "导入 UTF-8 的 Markdown/TXT 资料（最多 10 个，每个 1 MiB）。每次导入形成一份完整知识修订，就绪后替换试用资料；历史修订保留。原文、索引与待处理预留计入空间。",
   "com_knowledge_import": "导入资料",

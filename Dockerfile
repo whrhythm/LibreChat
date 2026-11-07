@@ -72,7 +72,7 @@ RUN \
     # React client build with configurable memory
     NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" npm run frontend && \
     if [ "$CODECHAT_VERIFY" = "true" ]; then \
-      npx eslint packages/api/src/user/knowledge.ts packages/api/src/user/knowledge.spec.ts packages/data-provider/src/knowledge.ts client/src/components/CodeChat/Knowledge.tsx && \
+      npx eslint packages/api/src/user/knowledge.ts packages/api/src/user/knowledge.spec.ts packages/data-provider/src/knowledge.ts client/src/components/CodeChat/Knowledge.tsx client/src/components/CodeChat/KnowledgeSource.tsx client/src/components/Chat/Messages/Content/FilePreviewDialog.tsx && \
       (cd packages/api && npx jest src/user/knowledge.spec.ts --runInBand --coverage=false) && \
       (cd client && npx jest src/components/CodeChat/Knowledge.spec.tsx --runInBand --coverage=false) && \
       npx eslint packages/api/src/user/assistants.ts packages/api/src/user/assistants.spec.ts packages/data-provider/src/aiProjects.ts client/src/components/CodeChat/Assistants.tsx client/src/components/CodeChat/Assistants.spec.tsx && \

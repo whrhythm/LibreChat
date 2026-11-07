@@ -27,6 +27,7 @@ import { useMessagePartsHost } from '~/Providers/MessagePartsHostContext';
 import CopyButton from '~/components/Messages/Content/CopyButton';
 import { useShareContext } from '~/Providers';
 import { useLocalize } from '~/hooks';
+import KnowledgeSource from '~/components/CodeChat/KnowledgeSource';
 
 interface FilePreviewDialogProps {
   open: boolean;
@@ -93,7 +94,12 @@ export function getDisplayType(
   return ext ? ext.toUpperCase() : localize('com_ui_file');
 }
 
-export default function FilePreviewDialog({
+export default function FilePreviewDialog(props: FilePreviewDialogProps) {
+  if (props.fileId?.startsWith('knowledge:')) return <KnowledgeSource open={props.open} onOpenChange={props.onOpenChange} fileId={props.fileId} fileName={props.fileName} />;
+  return <NativeFilePreviewDialog {...props} />;
+}
+
+function NativeFilePreviewDialog({
   open,
   onOpenChange,
   fileName,

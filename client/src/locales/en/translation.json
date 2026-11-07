@@ -1,4 +1,6 @@
 {
+  "com_knowledge_source": "Knowledge source",
+  "com_knowledge_source_hint": "Original document for this knowledge revision, visible only to authorized project owners.",
   "com_knowledge_title": "Project knowledge",
   "com_knowledge_hint": "Import UTF-8 Markdown/TXT (up to 10 files, 1 MiB each). Each import is a complete revision that replaces trial knowledge when ready. Previous revisions remain. Sources, indexes and pending reservations count toward storage.",
   "com_knowledge_import": "Import documents",
