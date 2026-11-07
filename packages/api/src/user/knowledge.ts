@@ -85,7 +85,12 @@ function client(req: Request, deps: Dependencies) {
   };
 }
 
-export function createKnowledgeHandlers(deps: Dependencies): Record<'list' | 'import' | 'retry' | 'remove', (req: Request, res: Response) => Promise<Response>> {
+export function createKnowledgeHandlers(
+  deps: Dependencies,
+): Record<
+  'list' | 'import' | 'retry' | 'remove',
+  (req: Request, res: Response) => Promise<Response>
+> {
   const handler =
     (action: 'list' | 'import' | 'retry' | 'remove') => async (req: Request, res: Response) => {
       res.setHeader('Cache-Control', 'no-store');
