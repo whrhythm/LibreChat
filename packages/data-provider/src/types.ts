@@ -403,6 +403,7 @@ export type TUpdateConversationResponse = TConversation;
 
 export type TChatProject = {
   platformProjectId?: string;
+  platformLinkIntent?: { kind: 'assistant' | 'code'; name: string; goal: string; path?: string };
   _id: string;
   name: string;
   description?: string;

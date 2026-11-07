@@ -58,7 +58,7 @@ export default function ProjectDeleteDialog({
           <OGDialogTitle>{localize('com_ui_delete_project')}</OGDialogTitle>
         </OGDialogHeader>
         <div className="text-text-secondary text-sm">
-          {project.platformProjectId
+          {project.platformProjectId || project.platformLinkIntent
             ? localize('com_project_delete_linked')
             : localize('com_ui_delete_project_confirm', { name: project.name })}
         </div>
@@ -71,7 +71,9 @@ export default function ProjectDeleteDialog({
           <Button
             variant="destructive"
             onClick={confirmDelete}
-            disabled={deleteProject.isLoading || !!project.platformProjectId}
+            disabled={
+              deleteProject.isLoading || !!project.platformProjectId || !!project.platformLinkIntent
+            }
           >
             {deleteProject.isLoading ? <Spinner className="size-4" /> : localize('com_ui_delete')}
           </Button>

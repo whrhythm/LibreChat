@@ -51,19 +51,21 @@ export default function Project({
   const active = releases.data?.releases.find((r) => r.id === app?.active_release_id);
   return (
     <section className="space-y-4" aria-label={t('com_project_detail')}>
-      <Button
-        size="xs"
-        variant="ghost"
-        onClick={() => {
-          if (!editing || window.confirm(t('com_project_unsaved'))) {
-            discard();
-            onBack();
-          }
-        }}
-      >
-        <ArrowLeft className="size-3.5" aria-hidden="true" />
-        {t('com_project_back')}
-      </Button>
+      {!nativeProjectId && (
+        <Button
+          size="xs"
+          variant="ghost"
+          onClick={() => {
+            if (!editing || window.confirm(t('com_project_unsaved'))) {
+              discard();
+              onBack();
+            }
+          }}
+        >
+          <ArrowLeft className="size-3.5" aria-hidden="true" />
+          {t('com_project_back')}
+        </Button>
+      )}
       <header className="space-y-2">
         <h3 className="text-base font-semibold break-words">{value.project.name}</h3>
         <p className="text-text-secondary line-clamp-2 text-xs" title={value.project.goal}>
@@ -98,10 +100,18 @@ export default function Project({
           )}
         </div>
       </header>
-      <Tabs value={section} onValueChange={setSection} orientation="vertical">
+      <Tabs
+        value={section}
+        onValueChange={setSection}
+        orientation={nativeProjectId ? 'horizontal' : 'vertical'}
+      >
         <TabsList
           variant="segmented"
-          className="flex h-auto w-full flex-col items-stretch"
+          className={
+            nativeProjectId
+              ? 'grid h-auto w-full grid-cols-2 sm:grid-cols-4'
+              : 'flex h-auto w-full flex-col items-stretch'
+          }
           aria-label={t('com_project_sections')}
         >
           <TabsTrigger className="justify-start" variant="segmented" value="preview">

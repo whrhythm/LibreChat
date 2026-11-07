@@ -4442,5 +4442,6 @@
   "com_project_settings_heading": "Configure and try your assistant",
   "com_project_advanced": "Advanced response settings",
   "com_project_previews": "Preview versions and review",
-  "com_project_publication_heading": "Publication and payer budget"
+  "com_project_publication_heading": "Publication and payer budget",
+  "com_project_link_pending": "A previous link is still pending. Retry continues the same operation without creating a duplicate."
 }

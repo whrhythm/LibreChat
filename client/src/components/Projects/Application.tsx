@@ -25,6 +25,7 @@ export default function ProjectApplication({ project }: { project: TChatProject 
   const t = useLocalize();
   const cache = useQueryClient();
   const [path, setPath] = useState('');
+  const pending = project.platformLinkIntent;
   const setSpace = useSetAtom(spaceNavigation(user?.id ?? 'anonymous'));
   const setActive = useSetAtom(activePanelAtom);
   const { setSidebarOpen } = useSidebarToggle();
@@ -53,6 +54,7 @@ export default function ProjectApplication({ project }: { project: TChatProject 
       void cache.invalidateQueries([QueryKeys.projects]);
       void cache.invalidateQueries([QueryKeys.aiProjects, user?.id]);
     },
+    onSettled: () => void cache.invalidateQueries([QueryKeys.project, project._id]),
     retry: false,
   });
   const value = list.data?.projects.find((item) => item.project.id === project.platformProjectId);
@@ -62,13 +64,14 @@ export default function ProjectApplication({ project }: { project: TChatProject 
         native_project_id: project._id,
         name: project.name.slice(0, 80),
         goal: (project.description ?? '').slice(0, 1000),
-        path,
+        path: pending?.path ?? path,
         revision: 0,
       }),
     onSuccess: () => {
       void cache.invalidateQueries([QueryKeys.project, project._id]);
       void cache.invalidateQueries([QueryKeys.projects]);
     },
+    onSettled: () => void cache.invalidateQueries([QueryKeys.project, project._id]),
     retry: false,
   });
   const open = (pane: 'files' | 'apps', path: string) => {
@@ -81,6 +84,7 @@ export default function ProjectApplication({ project }: { project: TChatProject 
       className="mx-auto w-full max-w-4xl space-y-4 px-4 py-4"
       aria-label={t('com_project_application')}
     >
+      {value?.state !== 'ready' && <h1 className="text-lg font-semibold">{project.name}</h1>}
       {(list.isLoading || workspace.isFetching || create.isLoading) && (
         <p role="status" className="text-sm">
           {t('com_ui_loading')}
@@ -88,6 +92,11 @@ export default function ProjectApplication({ project }: { project: TChatProject 
       )}
       {(list.isError || workspace.isError || create.isError || bindCode.isError) && (
         <p role="alert">{t('com_ai_projects_recovery')}</p>
+      )}
+      {pending && (
+        <p role="status" className="text-sm">
+          {t('com_project_link_pending')}
+        </p>
       )}
       {value?.state === 'ready' ? (
         <Project
@@ -102,12 +111,17 @@ export default function ProjectApplication({ project }: { project: TChatProject 
         />
       ) : (
         (!project.platformProjectId || value?.state === 'preparing') && (
-          <Button disabled={create.isLoading || !list.isSuccess} onClick={() => create.mutate()}>
+          <Button
+            disabled={
+              create.isLoading || bindCode.isLoading || !list.isSuccess || pending?.kind === 'code'
+            }
+            onClick={() => create.mutate()}
+          >
             {t('com_project_prepare_assistant')}
           </Button>
         )
       )}
-      {!project.platformProjectId && (
+      {!project.platformProjectId && pending?.kind !== 'assistant' && (
         <form
           className="space-y-2"
           onSubmit={(event) => {
@@ -119,21 +133,27 @@ export default function ProjectApplication({ project }: { project: TChatProject 
             {t('com_codechat_project_path')}
             <input
               className="border-border-light bg-surface-primary mt-1 block w-full rounded border p-2"
-              value={path}
+              value={pending?.path ?? path}
+              readOnly={!!pending}
               onChange={(event) => setPath(event.target.value)}
               required
               maxLength={255}
             />
           </label>
           <div className="flex gap-2">
-            <NewFolder path="" onCreated={setPath} />
-            <Button size="sm" variant="outline" disabled={bindCode.isLoading || create.isLoading}>
+            {!pending && <NewFolder path="" onCreated={setPath} />}
+            <Button
+              type="submit"
+              size="sm"
+              variant="outline"
+              disabled={bindCode.isLoading || create.isLoading}
+            >
               {t('com_codechat_project_associate')}
             </Button>
           </div>
         </form>
       )}
-      {workspace.data && (
+      {workspace.data && value?.state !== 'ready' && (
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => open('files', workspace.data.path)}>
             {t('com_codechat_project_files')}

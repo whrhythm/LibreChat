@@ -70,6 +70,7 @@ export default function NewFolder({
             className="space-y-3"
             onSubmit={(event) => {
               event.preventDefault();
+              event.stopPropagation();
               create.mutate();
             }}
           >

@@ -2182,5 +2182,7 @@
   "com_project_settings_heading": "配置并试用助手",
   "com_project_advanced": "进阶回答设置",
   "com_project_previews": "试用版本与验收",
-  "com_project_publication_heading": "发布与代付预算"
+  "com_project_publication_heading": "发布与代付预算",
+  "com_ui_latest_activity": "最近活动",
+  "com_project_link_pending": "上次关联尚未完成。重试将继续原操作，不会重复创建。"
 }
