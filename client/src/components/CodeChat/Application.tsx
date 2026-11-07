@@ -32,7 +32,7 @@ export default function Application() {
           </p>
           <a
             className="border-border-light bg-surface-secondary rounded-lg border p-4 text-center font-medium"
-            href={'/c/new?agent_id=' + encodeURIComponent(launch.data.agent_id)}
+            href={'/c/new?endpoint=agents&agent_id=' + encodeURIComponent(launch.data.agent_id)}
           >
             {t('com_releases_chat')}
           </a>

@@ -91,8 +91,8 @@ export default function Releases({ projectId }: { projectId: string }) {
                 {t(app.enabled ? 'com_releases_enabled' : 'com_releases_disabled')}
               </p>
               <p>
-                {t('com_releases_budget_used')} ${(app.held_micros / 1000000).toFixed(6)} / $
-                {(app.budget_micros / 1000000).toFixed(2)}
+                {t('com_releases_budget_used')}{' '}
+                {`$${(app.held_micros / 1000000).toFixed(6)} / $${(app.budget_micros / 1000000).toFixed(2)}`}
               </p>
               <p className="text-text-secondary">{t('com_releases_meter_hint')}</p>
               <a
