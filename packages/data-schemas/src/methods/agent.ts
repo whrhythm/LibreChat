@@ -2829,7 +2829,9 @@ export function createAgentMethods(
   /** P1-04A: keep stable Agent/conversation identities; repair ACLs only.
    * The author identifies the recipient, not authority to manage a published app.
    * Remove historical public/group/remote grants before restoring private chat VIEW. */
-  async function restrictPublishedAppPermissions(record: IAgent): Promise<void> {
+  async function restrictPublishedAppPermissions(
+    record: Pick<IAgent, '_id' | 'author' | 'tenantId'>,
+  ): Promise<void> {
     const AclEntry = mongoose.models.AclEntry as Model<IAclEntry>;
     const AccessRole = mongoose.models.AccessRole as Model<IAccessRole>;
     const role = await AccessRole.findOne({ accessRoleId: AccessRoleIds.AGENT_VIEWER }).lean();
