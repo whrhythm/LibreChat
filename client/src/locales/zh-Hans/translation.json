@@ -1,4 +1,7 @@
 {
+  "com_ui_n_searches": "{{0}} 次检索",
+  "com_ui_retrieved_files": "已检索资料",
+  "com_ui_searching_files": "正在检索资料",
   "com_knowledge_source": "知识原文",
   "com_knowledge_source_hint": "此引用对应的原始知识修订，仅向有权访问该项目的用户显示。",
   "com_knowledge_title": "项目知识",

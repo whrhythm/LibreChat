@@ -106,6 +106,8 @@ it('retrieves only the project derived from the authorized agent and pins subseq
   expect(search).not.toBeNull();
   const result = await search!.invoke({ query: 'exchange period' });
   expect(result).toContain('policy.md');
+  expect(result).toContain('Anchor: \\ue202turn0file0');
+  expect(search!.description).toContain('\\ue202turn0file0');
   await search!.invoke({ query: 'proof' });
   const calls = request.mock.calls as unknown as [URL, RequestInit][];
   expect(String(calls[0][0])).toContain('/' + id + '/knowledge/search');
