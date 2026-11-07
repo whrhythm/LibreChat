@@ -9,7 +9,7 @@ import type { TEndpointsConfig } from 'librechat-data-provider';
 import type { NavLink } from '~/common';
 import { useGetEndpointsQuery, useGetStartupConfig, useInsightsAccessQuery } from '~/data-provider';
 import ConversationsSection from '~/components/UnifiedSidebar/ConversationsSection';
-import { spaceDock, spaceDirty } from '~/components/CodeChat/dock';
+import { spaceDock, spaceDirty, spaceNavigation, projectEditing } from '~/components/CodeChat/dock';
 import { isCodeChatEnabled } from '~/components/CodeChat/config';
 import useSideNavLinks from '~/hooks/Nav/useSideNavLinks';
 import { useAuthContext, useLocalize } from '~/hooks';
@@ -23,6 +23,8 @@ export default function useUnifiedSidebarLinks() {
   const { user } = useAuthContext();
   const [spaceOpen, setSpaceOpen] = useAtom(spaceDock(user?.id ?? 'anonymous'));
   const [dirty, setDirty] = useAtom(spaceDirty(user?.id ?? 'anonymous'));
+  const [, setSpaceNavigation] = useAtom(spaceNavigation(user?.id ?? 'anonymous'));
+  const [editing] = useAtom(projectEditing(user?.id ?? 'anonymous'));
   const t = useLocalize();
   /** Selector instead of the full conversation atom: the links only depend on
    * the endpoint, so parameter edits and other conversation writes stay out. */
@@ -87,7 +89,9 @@ export default function useUnifiedSidebarLinks() {
               icon: FolderKanban,
               onClick: () => {
                 if (spaceOpen && dirty && !window.confirm(t('com_codechat_file_unsaved'))) return;
+                if (spaceOpen && editing && !window.confirm(t('com_project_unsaved'))) return;
                 if (spaceOpen) setDirty(false);
+                if (!spaceOpen) setSpaceNavigation((view) => ({ ...view, pane: 'projects' }));
                 setSpaceOpen(!spaceOpen);
                 if (!location.pathname.startsWith('/c/')) navigate('/c/new');
               },
@@ -131,6 +135,8 @@ export default function useUnifiedSidebarLinks() {
     setSpaceOpen,
     dirty,
     setDirty,
+    setSpaceNavigation,
+    editing,
     t,
   ]);
 

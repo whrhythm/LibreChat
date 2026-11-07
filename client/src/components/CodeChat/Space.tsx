@@ -1,5 +1,4 @@
-import { atom, useAtom } from 'jotai';
-import { atomFamily } from 'jotai/utils';
+import { useAtom } from 'jotai';
 import { useQuery } from '@tanstack/react-query';
 import { Files, PanelsTopLeft, FolderOpen, X } from 'lucide-react';
 import { personalFileRequest, QueryKeys } from 'librechat-data-provider';
@@ -7,14 +6,11 @@ import { Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@librechat/cli
 import type { PersonalSpace, WorkspaceEntry } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import ApplicationNotice from './ApplicationNotice';
-import { spaceDock, spaceDirty } from './dock';
+import { spaceDock, spaceDirty, spaceNavigation, projectEditing } from './dock';
 import StorageSummary from './StorageSummary';
 import Applications from './Applications';
 import PersonalFiles from './Files';
 import Projects from './Projects';
-
-/** Feature-owned navigation, scoped to the signed-in identity. */
-const navigation = atomFamily((_owner: string) => atom({ pane: 'files', path: '' }));
 
 function ApplicationProjects({
   path,
@@ -94,9 +90,10 @@ function ApplicationProjects({
 export default function PersonalSpacePanel() {
   const { user } = useAuthContext();
   const localize = useLocalize();
-  const [view, setView] = useAtom(navigation(user?.id ?? 'anonymous'));
+  const [view, setView] = useAtom(spaceNavigation(user?.id ?? 'anonymous'));
   const [, setOpen] = useAtom(spaceDock(user?.id ?? 'anonymous'));
   const [dirty, setDirty] = useAtom(spaceDirty(user?.id ?? 'anonymous'));
+  const [editing] = useAtom(projectEditing(user?.id ?? 'anonymous'));
   const allowLeave = () => !dirty || window.confirm(localize('com_codechat_file_unsaved'));
   const changePane = (pane: string) => {
     if (pane === view.pane || !allowLeave()) return;
@@ -118,6 +115,7 @@ export default function PersonalSpacePanel() {
           aria-label={localize('com_codechat_space_close')}
           onClick={() => {
             if (!allowLeave()) return;
+            if (editing && !window.confirm(localize('com_project_unsaved'))) return;
             setDirty(false);
             setOpen(false);
           }}

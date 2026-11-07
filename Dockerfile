@@ -72,6 +72,7 @@ RUN \
     # React client build with configurable memory
     NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" npm run frontend && \
     if [ "$CODECHAT_VERIFY" = "true" ]; then \
+      node scripts/static-checks.mts --only eslint,prettier,imports client/src/components/CodeChat/Project.tsx client/src/components/CodeChat/Project.spec.tsx client/src/components/CodeChat/Projects.tsx client/src/components/CodeChat/Projects.spec.tsx client/src/components/CodeChat/Engineering.tsx client/src/components/CodeChat/Engineering.spec.tsx client/src/components/CodeChat/Assistants.tsx client/src/components/CodeChat/Assistants.spec.tsx client/src/components/CodeChat/Space.tsx client/src/components/CodeChat/Space.spec.tsx client/src/components/CodeChat/dock.ts client/src/hooks/Nav/useUnifiedSidebarLinks.ts && \
       node scripts/static-checks.mts --only eslint,prettier,imports packages/api/src/acl/published.ts packages/api/src/acl/published.spec.ts packages/api/src/acl/middleware.ts packages/api/src/acl/middleware.spec.ts packages/data-schemas/src/methods/agent.ts packages/data-schemas/src/methods/agent.spec.ts client/src/components/SidePanel/Agents/AgentSelect.tsx client/src/components/SidePanel/Agents/AgentPanel.tsx client/src/components/SidePanel/Agents/AgentPanel.test.tsx client/src/components/SidePanel/Agents/AgentFooter.tsx client/src/components/SidePanel/Agents/__tests__/AgentFooter.spec.tsx api/server/middleware/accessResources/canAccessAgentResource.js api/server/routes/agents/management.js api/server/index.js && \
       (cd packages/api && npx jest src/acl/published.spec.ts src/acl/middleware.spec.ts --runInBand --coverage=false) && \
       (cd client && npx jest src/components/SidePanel/Agents/AgentPanel.test.tsx src/components/SidePanel/Agents/__tests__/AgentFooter.spec.tsx --runInBand --coverage=false) && \
@@ -94,7 +95,7 @@ RUN \
       (cd client && npx jest src/components/CodeChat/Payment.spec.tsx --runInBand --coverage=false) && \
       npx eslint packages/api/src/user/projects.ts packages/api/src/user/projects.spec.ts packages/data-provider/src/codechatProjects.ts client/src/components/CodeChat/Projects.tsx client/src/components/CodeChat/Projects.spec.tsx client/src/components/CodeChat/Workbench.tsx && \
       (cd packages/api && npx jest src/user/projects.spec.ts --runInBand --coverage=false) && \
-      (cd client && npx jest src/components/CodeChat/Projects.spec.tsx --runInBand --coverage=false) && \
+      (cd client && npx jest src/components/CodeChat/Projects.spec.tsx src/components/CodeChat/Engineering.spec.tsx src/components/CodeChat/Project.spec.tsx --runInBand --coverage=false) && \
       npx eslint client/src/components/CodeChat/Provenance.tsx client/src/components/CodeChat/Provenance.spec.tsx && \
       (cd client && npx jest src/components/CodeChat/Provenance.spec.tsx --runInBand --coverage=false) && \
       npx eslint client/src/components/CodeChat/Acceptance.tsx client/src/components/CodeChat/Acceptance.spec.tsx client/src/components/CodeChat/evidence.ts && \

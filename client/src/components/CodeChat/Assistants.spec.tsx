@@ -80,6 +80,7 @@ it('opens the native assistant entry in a fresh page so prior chat configuration
     ],
   });
   mount();
+  fireEvent.click(await screen.findByRole('button', { name: 'com_project_enter' }));
   expect(await screen.findByRole('link', { name: 'com_ai_projects_try' })).toHaveAttribute(
     'href',
     '/c/new?endpoint=agents&agent_id=agent-test',

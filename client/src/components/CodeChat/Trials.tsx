@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { atom, useAtom } from 'jotai';
 import { Button } from '@librechat/client';
 import { useParams } from 'react-router-dom';
@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectTrials, AITrialError, QueryKeys } from 'librechat-data-provider';
 import type { TrialConfig, AITrial, AITrials } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
+import { projectEditing } from './dock';
 
 function statusKey(trial: AITrial, digest: string | null) {
   if (trial.acceptance_valid) return 'com_trials_passed';
@@ -22,7 +23,7 @@ function errorMessage(code: string) {
   return 'com_trials_error';
 }
 
-export default function Trials({ projectId }: { projectId: string }) {
+export default function Trials({ projectId, embedded = false, enabled = true }: { projectId: string; embedded?: boolean; enabled?: boolean }) {
   const { user, token } = useAuthContext();
   const { conversationId } = useParams();
   const t = useLocalize();
@@ -30,7 +31,7 @@ export default function Trials({ projectId }: { projectId: string }) {
   const state = useMemo(
     () =>
       atom({
-        expanded: false,
+        expanded: embedded,
         config: null as TrialConfig | null,
         baseDigest: '',
         request: null as { request_id: string; expected_digest: string } | null,
@@ -44,11 +45,19 @@ export default function Trials({ projectId }: { projectId: string }) {
     [],
   );
   const [ui, setUI] = useAtom(state);
+  const [, setEditing] = useAtom(projectEditing(user?.id ?? 'anonymous'));
+  useEffect(() => {
+    const dirty = !!ui.config || !!ui.acceptance;
+    setEditing(dirty);
+    const warn = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ''; } };
+    window.addEventListener('beforeunload', warn);
+    return () => { setEditing(false); window.removeEventListener('beforeunload', warn); };
+  }, [ui.config, ui.acceptance, setEditing]);
   const key = [QueryKeys.aiProjects, user?.id, projectId, 'trials'];
   const list = useQuery({
     queryKey: key,
     queryFn: () => projectTrials(token!, projectId),
-    enabled: ui.expanded && !!token,
+    enabled: enabled && ui.expanded && !!token,
     retry: false,
   });
   const change = useMutation({
@@ -78,10 +87,10 @@ export default function Trials({ projectId }: { projectId: string }) {
   };
   return (
     <section
-      className="border-border-light space-y-2 border-t pt-2"
+      className="space-y-3"
       aria-label={t('com_trials_title')}
     >
-      <Button
+      {!embedded && <Button
         size="xs"
         variant="outline"
         aria-expanded={ui.expanded}
@@ -91,9 +100,10 @@ export default function Trials({ projectId }: { projectId: string }) {
         }}
       >
         {t('com_trials_title')}
-      </Button>
+      </Button>}
       {ui.expanded && (
         <div className="space-y-3 text-sm">
+          <h4 className="text-sm font-medium">{t('com_project_settings_heading')}</h4>
           <p className="text-text-secondary text-xs">{t('com_trials_hint')}</p>
           {(list.isError || change.isError) && <p role="alert">{t(errorKey)}</p>}
           {list.isLoading && <p role="status">{t('com_ui_loading')}</p>}
@@ -188,6 +198,8 @@ export default function Trials({ projectId }: { projectId: string }) {
                       ))}
                     </select>
                   </label>
+                  <details className="space-y-2">
+                  <summary className="text-text-secondary cursor-pointer text-xs">{t('com_project_advanced')}</summary>
                   <label className="block space-y-1">
                     {t('com_trials_style')}
                     <select
@@ -253,6 +265,7 @@ export default function Trials({ projectId }: { projectId: string }) {
                       />
                     </label>
                   </div>
+                  </details>
                   <div className="flex justify-end gap-2">
                     <Button
                       size="xs"
@@ -269,20 +282,22 @@ export default function Trials({ projectId }: { projectId: string }) {
                   </div>
                 </form>
               )}
-              {data.trials.map((trial) => (
-                <article
+              {!!data.trials.length && <h4 className="border-border-light border-t pt-3 text-sm font-medium">{t('com_project_previews')}</h4>}
+              {data.trials.map((trial, index) => (
+                <details
                   key={trial.id}
-                  className="border-border-light space-y-2 rounded border p-2"
+                  open={index === 0 || (!!conversationId && trial.conversation_ids?.includes(conversationId))}
+                  className="border-border-light space-y-2 border-b py-2"
                   aria-label={t('com_trials_version') + ' ' + trial.number}
                 >
-                  <div className="flex flex-wrap justify-between gap-1">
+                  <summary className="cursor-pointer text-xs">
                     <strong>
                       {t('com_trials_version')} {trial.number}
                     </strong>
                     <span className="text-text-secondary text-xs">
                       {t(statusKey(trial, data.digest))}
                     </span>
-                  </div>
+                  </summary>
                   <p className="text-text-secondary text-xs break-all">
                     {trial.model} · {t('com_trials_knowledge')}{' '}
                     {trial.knowledge_revision_id?.slice(0, 8) ?? t('com_trials_none')}
@@ -329,7 +344,7 @@ export default function Trials({ projectId }: { projectId: string }) {
                         </Button>
                       )}
                   </div>
-                </article>
+                </details>
               ))}
               {ui.acceptance && (
                 <form

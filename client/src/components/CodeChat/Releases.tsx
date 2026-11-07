@@ -6,14 +6,14 @@ import { projectReleases, projectTrials, QueryKeys } from 'librechat-data-provid
 import type { AIPublish } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 
-export default function Releases({ projectId }: { projectId: string }) {
+export default function Releases({ projectId, embedded = false, enabled = true }: { projectId: string; embedded?: boolean; enabled?: boolean }) {
   const t = useLocalize();
   const { user, token } = useAuthContext();
   const cache = useQueryClient();
   const state = useMemo(
     () =>
       atom({
-        expanded: false,
+        expanded: embedded,
         budget: '0.50',
         email: '',
         confirmed: false,
@@ -26,13 +26,13 @@ export default function Releases({ projectId }: { projectId: string }) {
   const list = useQuery({
     queryKey: key,
     queryFn: () => projectReleases(token!, projectId),
-    enabled: !!token && ui.expanded,
+    enabled: enabled && !!token && ui.expanded,
     retry: false,
   });
   const trials = useQuery({
     queryKey: [QueryKeys.aiProjects, user?.id, projectId, 'trials'],
     queryFn: () => projectTrials(token!, projectId),
-    enabled: !!token && ui.expanded,
+    enabled: enabled && !!token && ui.expanded,
     retry: false,
   });
   const change = useMutation({
@@ -52,17 +52,17 @@ export default function Releases({ projectId }: { projectId: string }) {
   const budget = Math.round(Number(ui.budget) * 1000000);
   return (
     <section
-      className="border-border-light space-y-3 rounded border p-2 text-xs"
+      className="space-y-3 text-xs"
       aria-label={t('com_releases_title')}
     >
-      <Button
+      {!embedded && <Button
         size="xs"
         variant="ghost"
         aria-expanded={ui.expanded}
         onClick={() => setUI((s) => ({ ...s, expanded: !s.expanded }))}
       >
         {t('com_releases_title')}
-      </Button>
+      </Button>}
       {ui.expanded && (
         <>
           <p className="text-text-secondary">{t('com_releases_hint')}</p>
@@ -133,6 +133,7 @@ export default function Releases({ projectId }: { projectId: string }) {
               </Button>
             </div>
           )}
+          <h4 className="border-border-light border-t pt-3 text-sm font-medium">{t('com_project_publication_heading')}</h4>
           <label className="block space-y-1">
             <span>{t('com_releases_budget')}</span>
             <input

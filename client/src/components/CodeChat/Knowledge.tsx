@@ -7,7 +7,7 @@ import type { KnowledgeImportInput, KnowledgeRevision } from 'librechat-data-pro
 import { useAuthContext, useLocalize } from '~/hooks';
 import { storageSize } from './storage';
 
-export default function Knowledge({ projectId }: { projectId: string }) {
+export default function Knowledge({ projectId, embedded = false, enabled = true }: { projectId: string; embedded?: boolean; enabled?: boolean }) {
   const { user, token } = useAuthContext();
   const t = useLocalize();
   const cache = useQueryClient();
@@ -16,16 +16,16 @@ export default function Knowledge({ projectId }: { projectId: string }) {
   const [draft, setDraft] = useAtom(draftAtom);
   const errorAtom = useMemo(() => atom(false), []);
   const [invalid, setInvalid] = useAtom(errorAtom);
-  const expandedAtom = useMemo(() => atom(false), []);
+  const expandedAtom = useMemo(() => atom(embedded), []);
   const [expanded, setExpanded] = useAtom(expandedAtom);
   const key = [QueryKeys.aiProjects, user?.id, projectId, 'knowledge'];
   const list = useQuery({
     queryKey: key,
     queryFn: () => projectKnowledge(token!, projectId),
-    enabled: expanded && !!token,
+    enabled: enabled && expanded && !!token,
     retry: false,
     refetchInterval: (data) =>
-      data?.revisions.some((r) => ['queued', 'indexing', 'deleting'].includes(r.state))
+      enabled && data?.revisions.some((r) => ['queued', 'indexing', 'deleting'].includes(r.state))
         ? 3000
         : false,
   });
@@ -45,6 +45,7 @@ export default function Knowledge({ projectId }: { projectId: string }) {
     },
     onSettled: () => {
       void cache.invalidateQueries(key);
+      void cache.invalidateQueries([QueryKeys.aiProjects, user?.id, projectId, 'trials']);
       void cache.invalidateQueries([QueryKeys.codechatCapacity, user?.id]);
     },
     retry: false,
@@ -94,12 +95,15 @@ export default function Knowledge({ projectId }: { projectId: string }) {
     }
     return t('com_knowledge_error');
   }
+  const Container = embedded ? 'section' : 'details';
   return (
-    <details
-      className="border-border-light rounded border p-2"
-      onToggle={(event) => setExpanded(event.currentTarget.open)}
+    <Container
+      className="border-border-light border-t pt-3"
+      onToggle={(event) => {
+        if (event.currentTarget instanceof HTMLDetailsElement) setExpanded(event.currentTarget.open);
+      }}
     >
-      <summary className="cursor-pointer text-sm font-medium">{t('com_knowledge_title')}</summary>
+      {embedded ? <h4 className="text-sm font-medium">{t('com_knowledge_title')}</h4> : <summary className="cursor-pointer text-sm font-medium">{t('com_knowledge_title')}</summary>}
       <div className="mt-2 space-y-2 text-xs">
         <p className="text-text-secondary">{t('com_knowledge_hint')}</p>
         <input
@@ -135,15 +139,15 @@ export default function Knowledge({ projectId }: { projectId: string }) {
         )}
         {list.isLoading && <p role="status">{t('com_knowledge_loading')}</p>}
         {list.data?.revisions.length === 0 && <p>{t('com_knowledge_empty')}</p>}
-        {list.data?.revisions.map((row) => (
-          <div key={row.id} className="border-border-light space-y-1 border-t pt-2">
-            <div className="flex justify-between gap-2">
+        {list.data?.revisions.map((row, index) => (
+          <details key={row.id} open={list.data?.active_revision_id === row.id || (index === 0 && row.state !== 'deleted')} className="border-border-light space-y-2 border-t py-2">
+            <summary className="cursor-pointer text-xs">
               <span>{new Date(row.created_at).toLocaleString()}</span>
               <span role="status">
                 {t(status[row.state])}
                 {list.data?.active_revision_id === row.id ? ' · ' + t('com_knowledge_current') : ''}
               </span>
-            </div>
+            </summary>
             {row.manifest.map((file) => (
               <div key={file.name} className="flex justify-between gap-2">
                 <span className="truncate" title={file.name}>
@@ -180,9 +184,9 @@ export default function Knowledge({ projectId }: { projectId: string }) {
                 </Button>
               )}
             </div>
-          </div>
+          </details>
         ))}
       </div>
-    </details>
+    </Container>
   );
 }

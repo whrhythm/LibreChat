@@ -57,6 +57,8 @@ it('keeps file navigation while separating applications and selects the browsed 
     </QueryClientProvider>,
   );
   expect(screen.queryByText(/Applications at/)).not.toBeVisible();
+  expect(screen.getByRole('tab', { name: 'com_codechat_projects_tab' })).toHaveAttribute('aria-selected', 'true');
+  fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_codechat_files_tab' }), { button: 0, ctrlKey: false });
   fireEvent.click(screen.getByRole('button', { name: 'Browse my project' }));
   fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_codechat_apps' }), {
     button: 0,
