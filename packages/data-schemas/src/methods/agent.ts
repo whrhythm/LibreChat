@@ -2806,14 +2806,18 @@ export function createAgentMethods(
     return ensurePrivateAgent(data);
   }
 
-  async function ensurePrivateTrialAgent(data: PrivateProjectAgentInput): Promise<PrivateProjectAgentIdentity> {
+  async function ensurePrivateTrialAgent(
+    data: PrivateProjectAgentInput,
+  ): Promise<PrivateProjectAgentIdentity> {
     if (!/^agent_trial_[0-9a-f]{32}$/.test(data.id) || !/^[0-9a-f]{24}$/.test(data.author)) {
       throw new Error('Invalid private trial identity');
     }
     return ensurePrivateAgent(data);
   }
 
-  async function ensurePrivateAgent(data: PrivateProjectAgentInput): Promise<PrivateProjectAgentIdentity> {
+  async function ensurePrivateAgent(
+    data: PrivateProjectAgentInput,
+  ): Promise<PrivateProjectAgentIdentity> {
     let record = await getAgent({ id: data.id });
     if (!record && !data.allowCreate) {
       throw new Error('Previously bound project Agent is unavailable');

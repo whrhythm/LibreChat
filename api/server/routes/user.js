@@ -69,14 +69,53 @@ const trials = createTrialHandlers({
   baseUrl: process.env.CODECHAT_WORKSPACE_URL,
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
   issuer: process.env.OPENID_ISSUER,
-  ensurePrivateTrialAgent, getAgent, getConvo, getMessages, grantPermission,
+  ensurePrivateTrialAgent,
+  getAgent,
+  getConvo,
+  getMessages,
+  grantPermission,
 });
-router.get('/workspace/ai-projects/:projectId/trials', requireJwtAuth, configMiddleware, trials.list);
-router.post('/workspace/ai-projects/:projectId/trials/initialize', requireJwtAuth, checkAIProjectCreate, configMiddleware, trials.initialize);
-router.post('/workspace/ai-projects/:projectId/trials/update', requireJwtAuth, checkAIProjectCreate, configMiddleware, trials.update);
-router.post('/workspace/ai-projects/:projectId/trials', requireJwtAuth, checkAIProjectCreate, configMiddleware, trials.create);
-router.post('/workspace/ai-projects/:projectId/trials/:trialId/resume', requireJwtAuth, checkAIProjectCreate, configMiddleware, trials.resume);
-router.post('/workspace/ai-projects/:projectId/trials/:trialId/acceptance', requireJwtAuth, checkAIProjectCreate, configMiddleware, trials.accept);
+router.get(
+  '/workspace/ai-projects/:projectId/trials',
+  requireJwtAuth,
+  configMiddleware,
+  trials.list,
+);
+router.post(
+  '/workspace/ai-projects/:projectId/trials/initialize',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  trials.initialize,
+);
+router.post(
+  '/workspace/ai-projects/:projectId/trials/update',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  trials.update,
+);
+router.post(
+  '/workspace/ai-projects/:projectId/trials',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  trials.create,
+);
+router.post(
+  '/workspace/ai-projects/:projectId/trials/:trialId/resume',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  trials.resume,
+);
+router.post(
+  '/workspace/ai-projects/:projectId/trials/:trialId/acceptance',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  trials.accept,
+);
 router.get(
   '/workspace/ai-projects/:projectId/knowledge/:revisionId/source',
   requireJwtAuth,

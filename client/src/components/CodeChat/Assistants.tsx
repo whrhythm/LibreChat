@@ -145,7 +145,9 @@ export default function Assistants({
             <p className="text-text-secondary text-xs">{t('com_ai_projects_knowledge_pending')}</p>
           )}
           <div className="flex flex-wrap gap-2">
-            {value.state === 'ready' && startup?.aiTrialsEnabled ? <Trials projectId={value.project.id} /> : value.state === 'ready' ? (
+            {value.state === 'ready' && startup?.aiTrialsEnabled ? (
+              <Trials projectId={value.project.id} />
+            ) : value.state === 'ready' ? (
               <Button size="xs" variant="outline" asChild>
                 <a href={'/c/new?endpoint=agents&agent_id=' + encodeURIComponent(value.agent_id)}>
                   {t('com_ai_projects_try')}

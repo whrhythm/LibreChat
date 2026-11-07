@@ -7,8 +7,8 @@ import {
 } from 'librechat-data-provider';
 import type { Response } from 'express';
 import type { ServerRequest } from '~/types';
-import { selectFileCitationSources } from '~/files/citations';
 import { getTrialContext, trialIdFromAgent } from './trialContext';
+import { selectFileCitationSources } from '~/files/citations';
 
 type Request = Omit<ServerRequest, 'body'> & { body?: unknown };
 type Dependencies = {
@@ -164,7 +164,10 @@ export function primeProjectKnowledge<T extends { req?: ServerRequest; agentId?:
   const trial = getTrialContext(options.req);
   if (trialIdFromAgent(options.agentId) && (!trial || trial.agentId !== options.agentId))
     return Promise.reject(new Error('ai_trials_context_required'));
-  if (!options.req?.config?.config?.aiProjects?.knowledgeEnabled || (!projectId(options.agentId) && !trial))
+  if (
+    !options.req?.config?.config?.aiProjects?.knowledgeEnabled ||
+    (!projectId(options.agentId) && !trial)
+  )
     return fallback(options);
   return Promise.resolve({
     files: [],
@@ -195,7 +198,10 @@ export function createProjectFileSearchTool<T extends SearchOptions, R>(
   fallback: (value: T) => R,
 ): R | DynamicStructuredTool<z.ZodObject<{ query: z.ZodString }>> {
   const trial = getTrialContext(options.req);
-  if (trialIdFromAgent(options.entity_id) && (!trial || trial.agentId !== options.entity_id || !trial.revisionId))
+  if (
+    trialIdFromAgent(options.entity_id) &&
+    (!trial || trial.agentId !== options.entity_id || !trial.revisionId)
+  )
     throw new Error('ai_trials_context_required');
   const id = trial?.projectId ?? projectId(options.entity_id);
   if (!id || !options.req?.config?.config?.aiProjects?.knowledgeEnabled) return fallback(options);
