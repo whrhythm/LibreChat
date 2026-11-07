@@ -95,7 +95,10 @@ export default function Knowledge({ projectId }: { projectId: string }) {
     return t('com_knowledge_error');
   }
   return (
-    <details className="border-border-light rounded border p-2" onToggle={(event) => setExpanded(event.currentTarget.open)}>
+    <details
+      className="border-border-light rounded border p-2"
+      onToggle={(event) => setExpanded(event.currentTarget.open)}
+    >
       <summary className="cursor-pointer text-sm font-medium">{t('com_knowledge_title')}</summary>
       <div className="mt-2 space-y-2 text-xs">
         <p className="text-text-secondary">{t('com_knowledge_hint')}</p>

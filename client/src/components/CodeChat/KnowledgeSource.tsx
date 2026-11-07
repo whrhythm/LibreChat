@@ -59,8 +59,13 @@ export default function KnowledgeSource({
         {source.data && (
           <div className="h-[60vh] overflow-hidden">
             <Suspense fallback={<EditorLoading />}>
-              <CodeEditor name={'knowledge://' + parts[1] + '/' + parts[2] + '/' + source.data.name}
-                value={source.data.content} readOnly onChange={() => undefined} label={t('com_knowledge_source')} />
+              <CodeEditor
+                name={'knowledge://' + parts[1] + '/' + parts[2] + '/' + source.data.name}
+                value={source.data.content}
+                readOnly
+                onChange={() => undefined}
+                label={t('com_knowledge_source')}
+              />
             </Suspense>
           </div>
         )}
