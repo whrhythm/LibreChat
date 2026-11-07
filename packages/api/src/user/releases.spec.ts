@@ -173,6 +173,7 @@ it('allows an explicit stable member ID and revokes it without mutable email loo
     res as unknown as Response,
   );
   expect(deps.findUser).not.toHaveBeenCalled();
-  const last = deps.request.mock.calls.at(-1) as unknown as [URL, RequestInit];
+  const calls = deps.request.mock.calls;
+  const last = calls[calls.length - 1] as unknown as [URL, RequestInit];
   expect(last[0].pathname).toContain('/members/revoke');
 });
