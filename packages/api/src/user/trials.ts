@@ -61,7 +61,10 @@ export class TrialFailure extends Error {
     super(code);
   }
 }
-export function trialClient(req: Request, deps: Transport): (suffix: string, body?: object) => Promise<unknown> {
+export function trialClient(
+  req: Request,
+  deps: Transport,
+): (suffix: string, body?: object) => Promise<unknown> {
   const user = req.user;
   if (
     user?.provider !== 'openid' ||
@@ -132,7 +135,12 @@ const messageSchema = z
   })
   .passthrough();
 
-export function createTrialHandlers(deps: Dependencies): Record<'list' | 'initialize' | 'update' | 'create' | 'resume' | 'accept', (req: Request, res: Response) => Promise<Response>> {
+export function createTrialHandlers(
+  deps: Dependencies,
+): Record<
+  'list' | 'initialize' | 'update' | 'create' | 'resume' | 'accept',
+  (req: Request, res: Response) => Promise<Response>
+> {
   const handler =
     (action: 'list' | 'initialize' | 'update' | 'create' | 'resume' | 'accept') =>
     async (req: Request, res: Response) => {
@@ -267,16 +275,14 @@ export function createTrialHandlers(deps: Dependencies): Record<'list' | 'initia
       } catch (error) {
         const status =
           error instanceof TrialFailure ? error.status : error instanceof z.ZodError ? 400 : 503;
-        return res
-          .status(status)
-          .json({
-            code:
-              error instanceof TrialFailure
-                ? error.code
-                : error instanceof z.ZodError
-                  ? 'ai_trials_invalid_request'
-                  : 'ai_trials_recovery_required',
-          });
+        return res.status(status).json({
+          code:
+            error instanceof TrialFailure
+              ? error.code
+              : error instanceof z.ZodError
+                ? 'ai_trials_invalid_request'
+                : 'ai_trials_recovery_required',
+        });
       }
     };
   return {
@@ -290,7 +296,9 @@ export function createTrialHandlers(deps: Dependencies): Record<'list' | 'initia
 }
 
 /** Runs after conversation ownership checks, before Agent loading. */
-export function createTrialConversationGuard(getConvo: Dependencies['getConvo']): (req: ServerRequest, res: Response, next: NextFunction) => Promise<void> {
+export function createTrialConversationGuard(
+  getConvo: Dependencies['getConvo'],
+): (req: ServerRequest, res: Response, next: NextFunction) => Promise<void> {
   return async (req: ServerRequest, res: Response, next: NextFunction) => {
     try {
       const body = req.body as Record<string, unknown>;
@@ -331,6 +339,7 @@ export async function prepareProjectTrial(
     req: ServerRequest;
     endpointOption: Record<string, unknown>;
     requestBody?: Record<string, unknown>;
+    foregroundRunId?: string;
   },
   deps: Transport,
 ): Promise<void> {
@@ -345,6 +354,7 @@ export async function prepareProjectTrial(
     'attachments',
     'skillIds',
     'invokeSkills',
+    'manualSkills',
     'subagentContext',
   ]) {
     const value = body[field];
@@ -358,7 +368,8 @@ export async function prepareProjectTrial(
     .uuid()
     .parse(params.requestBody?.conversationId ?? req.body.conversationId);
   const resolved = runtimeSchema.parse(
-    await trialClient(req, deps)('trials/' + id + '/resolve', { conversation_id: conversationId }),
+    await trialClient(req, deps)('trials/' + id + '/resolve', { conversation_id: conversationId,
+      message_id: z.string().min(1).max(100).parse(params.foregroundRunId ?? params.requestBody?.messageId) }),
   );
   if (resolved.id !== id || resolved.agent_id !== 'agent_trial_' + id.replace(/-/g, ''))
     throw new TrialFailure(503, 'ai_trials_unavailable');
@@ -388,6 +399,10 @@ export async function prepareProjectTrial(
   endpointOption.model_parameters = fixed.model_parameters;
   endpointOption.model = fixed.model;
   endpointOption.addedConvo = undefined;
+  endpointOption.chatProjectId = undefined;
+  req.chatProjectContext = undefined;
+  req.chatProjectContextEnabled = false;
+  body.chatProjectId = undefined;
   // Native ephemeral defaults can contain non-empty flags even for persistent Agents. Remove them.
   body.ephemeralAgent = undefined;
   if (params.requestBody) params.requestBody.ephemeralAgent = undefined;

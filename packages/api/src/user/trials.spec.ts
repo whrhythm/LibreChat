@@ -66,6 +66,7 @@ function setup() {
 it('uses an immutable snapshot instead of mutable native configuration or browser model flags', async () => {
   const { deps } = setup();
   const params = {
+    foregroundRunId: 'answer',
     req: req({
       agent_id: agentId,
       conversationId: conversation,
