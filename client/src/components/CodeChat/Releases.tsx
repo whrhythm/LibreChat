@@ -27,7 +27,7 @@ export default function Releases({
         confirmed: false,
         request: null as AIPublish | null,
       }),
-    [],
+    [embedded],
   );
   const [ui, setUI] = useAtom(state);
   const key = [QueryKeys.aiProjects, user?.id, projectId, 'releases'];

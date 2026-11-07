@@ -24,7 +24,7 @@ export default function Knowledge({
   const [draft, setDraft] = useAtom(draftAtom);
   const errorAtom = useMemo(() => atom(false), []);
   const [invalid, setInvalid] = useAtom(errorAtom);
-  const expandedAtom = useMemo(() => atom(embedded), []);
+  const expandedAtom = useMemo(() => atom(embedded), [embedded]);
   const [expanded, setExpanded] = useAtom(expandedAtom);
   const key = [QueryKeys.aiProjects, user?.id, projectId, 'knowledge'];
   const list = useQuery({

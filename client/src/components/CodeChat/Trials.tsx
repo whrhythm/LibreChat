@@ -50,7 +50,7 @@ export default function Trials({
           sources: boolean;
         } | null,
       }),
-    [],
+    [embedded],
   );
   const [ui, setUI] = useAtom(state);
   const [, setEditing] = useAtom(projectEditing(user?.id ?? 'anonymous'));
