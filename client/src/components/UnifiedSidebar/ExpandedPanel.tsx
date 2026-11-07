@@ -1,5 +1,4 @@
 import { memo, useCallback, Suspense } from 'react';
-import { useAtomValue } from 'jotai';
 import { SquarePen } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { Skeleton, Sidebar, Button, TooltipAnchor } from '@librechat/client';
@@ -10,9 +9,8 @@ import AgentMarketplaceButton from '~/components/Nav/AgentMarketplaceButton';
 import { CLOSE_SIDEBAR_ID } from '~/components/Chat/Menus/OpenSidebar';
 import useDirection, { inlineSide } from '~/hooks/Nav/useDirection';
 import useNewChat from '~/hooks/Conversations/useNewChat';
-import { spaceDock } from '~/components/CodeChat/dock';
-import { useAuthContext, useLocalize } from '~/hooks';
 import { lazyWithRecovery } from '~/lib/assets/lazy';
+import { useLocalize } from '~/hooks';
 
 const AccountSettings = lazyWithRecovery(() => import('~/components/Nav/AccountSettings'));
 
@@ -147,8 +145,6 @@ function ExpandedPanel({
   const effectiveActive = resolveActivePanel(active, links);
   const isInsightsRoute = location.pathname.startsWith('/insights');
   const workspace = links.find((link) => link.id === 'personal-space');
-  const { user } = useAuthContext();
-  const spaceOpen = useAtomValue(spaceDock(user?.id ?? 'anonymous'));
 
   const toggleLabel = expanded ? 'com_nav_close_sidebar' : 'com_nav_open_sidebar';
   const toggleClick = expanded ? onCollapse : onExpand;
@@ -179,7 +175,7 @@ function ExpandedPanel({
       {workspace && (
         <NavIconButton
           link={workspace}
-          isActive={spaceOpen}
+          isActive={!isInsightsRoute && effectiveActive === workspace.id}
           expanded={expanded}
           setActive={setActive}
           onExpand={onExpand}

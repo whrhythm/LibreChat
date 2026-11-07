@@ -18,6 +18,10 @@ import {
 import { ArchivedChatsModal } from '~/components/Nav/SettingsTabs/General/ArchivedChatsModal';
 import { filesDialogTriggerAtom, showFilesDialogAtom } from '~/store/filesDialog';
 import useDirection, { inlineSide } from '~/hooks/Nav/useDirection';
+import { isCodeChatEnabled } from '~/components/CodeChat/config';
+import { activePanelAtom } from '~/Providers/ActivePanelContext';
+import { spaceNavigation } from '~/components/CodeChat/dock';
+import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
 import { useGetStartupConfig } from '~/data-provider';
 import Capacity from '~/components/CodeChat/Capacity';
 import { useAuthContext } from '~/hooks/AuthContext';
@@ -113,6 +117,9 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
   const setShowShortcutsDialog = useSetRecoilState(store.showShortcutsDialog);
   const [showArchived, setShowArchived] = useState(false);
   const [showCapacity, setShowCapacity] = useAtom(capacityOpenAtom);
+  const setSpaceNavigation = useSetAtom(spaceNavigation(user?.id ?? 'anonymous'));
+  const setActivePanel = useSetAtom(activePanelAtom);
+  const { setSidebarOpen } = useSidebarToggle();
   const accountSettingsButtonRef = useRef<HTMLButtonElement>(null);
   /** The collapsed rail opens the menu beside it, toward the content. */
   const railSide = inlineSide(useDirection(), 'end');
@@ -179,6 +186,20 @@ function AccountSettings({ collapsed = false }: { collapsed?: boolean }) {
           <Files className="icon-md" aria-hidden="true" />
           {localize('com_nav_my_files')}
         </Menu.MenuItem>
+        {user?.id && isCodeChatEnabled() && (
+          <Menu.MenuItem
+            className="select-item text-sm"
+            data-testid="nav-personal-space"
+            onClick={() => {
+              setSpaceNavigation((current) => ({ ...current, pane: 'files' }));
+              setActivePanel('personal-space');
+              setSidebarOpen(true);
+            }}
+          >
+            <Files className="icon-md" aria-hidden="true" />
+            {localize('com_codechat_workspace')}
+          </Menu.MenuItem>
+        )}
         {startupConfig?.codechat?.capacity?.enabled && (
           <Menu.MenuItem onClick={() => setShowCapacity(true)} className="select-item text-sm">
             <Coins className="icon-md" aria-hidden="true" />

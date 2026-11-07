@@ -1,6 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRecoilValue } from 'recoil';
-import { useRemScale } from '@librechat/client';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { EModelEndpoint } from 'librechat-data-provider';
 import { activeSubagentPanel, useIsSubmitting } from '@librechat/chat/react';
@@ -9,20 +8,16 @@ import useArtifactsRegistryLifetime from '~/hooks/Artifacts/useArtifactsRegistry
 import { MessageSurfaceContext } from '~/components/Chat/Messages/ui/surface';
 import DragDropWrapper from '~/components/Chat/Input/Files/DragDropWrapper';
 import UndockedArtifacts from '~/components/Artifacts/UndockedArtifacts';
-import { EXPANDED_MIN } from '~/components/UnifiedSidebar/constants';
 import { artifactsUndocked } from '~/components/Artifacts/state';
 import { EditorProvider, ArtifactsProvider } from '~/Providers';
 import { SidePanelGroup } from '~/components/SidePanel';
 import AppChatSurface from '~/components/Chat/Surface';
-import { spaceDock } from '~/components/CodeChat/dock';
 import { useGetStartupConfig } from '~/data-provider';
 import { lazyWithRecovery } from '~/lib/assets/lazy';
 import { migrateStoredFileDeletions } from '~/utils';
-import { useAuthContext } from '~/hooks';
 import store from '~/store';
 
 const Artifacts = lazyWithRecovery(() => import('~/components/Artifacts/Artifacts'));
-const PersonalSpace = lazyWithRecovery(() => import('~/components/CodeChat/Space'));
 const SubagentThreadPanel = lazyWithRecovery(
   () => import('~/components/Chat/Subagents/SubagentThreadPanel'),
 );
@@ -35,11 +30,6 @@ export default function Presentation({
   routePending?: boolean;
 }) {
   const artifacts = useRecoilValue(store.artifactsState);
-  const { user } = useAuthContext();
-  const spaceOpen = useAtomValue(spaceDock(user?.id ?? 'anonymous'));
-  const remScale = useRemScale();
-  const defaultSpaceWidth =
-    Math.max(Number(localStorage.getItem('side:width')) || EXPANDED_MIN, EXPANDED_MIN) * remScale;
   const artifactsVisibility = useRecoilValue(store.artifactsVisibility);
   // Render-gating the panel on `currentArtifactId != null` (in addition
   // to visibility + non-empty artifacts) means the side panel only opens
@@ -133,13 +123,7 @@ export default function Presentation({
 
   /* Undocked, the pane renders into its own window: the side panel gives its
    * width back to the conversation instead of holding an empty column. */
-  const panelElement = spaceOpen ? (
-    <Suspense fallback={null}>
-      <PersonalSpace />
-    </Suspense>
-  ) : (
-    ((isUndocked ? null : artifactsElement) ?? subagentElement)
-  );
+  const panelElement = (isUndocked ? null : artifactsElement) ?? subagentElement;
 
   return (
     <DragDropWrapper className="bg-surface-canvas relative flex w-full grow overflow-hidden">
@@ -152,11 +136,7 @@ export default function Presentation({
             enabled={conversationEndpoint === EModelEndpoint.agents && conversationAgentId != null}
             isSubmitting={isSubmitting}
           >
-            <SidePanelGroup
-              panel={panelElement}
-              layoutId={spaceOpen ? 'personal-space-layout' : undefined}
-              defaultPanelSize={spaceOpen ? `${defaultSpaceWidth}px` : undefined}
-            >
+            <SidePanelGroup panel={panelElement}>
               <main className="flex h-full flex-col overflow-y-auto" role="main">
                 <MessageSurfaceContext.Provider value="bg-surface-canvas">
                   {children}

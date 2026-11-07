@@ -1,3 +1,4 @@
+import { Provider, createStore } from 'jotai';
 import { MemoryRouter } from 'react-router-dom';
 import { projectTrials } from 'librechat-data-provider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -27,13 +28,15 @@ const data = {
 };
 function mount() {
   render(
-    <MemoryRouter>
-      <QueryClientProvider
-        client={new QueryClient({ defaultOptions: { queries: { retry: false, cacheTime: 0 } } })}
-      >
-        <Trials projectId="project" />
-      </QueryClientProvider>
-    </MemoryRouter>,
+    <Provider store={createStore()}>
+      <MemoryRouter>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false, cacheTime: 0 } } })}
+        >
+          <Trials projectId="project" />
+        </QueryClientProvider>
+      </MemoryRouter>
+    </Provider>,
   );
   fireEvent.click(screen.getByRole('button', { name: 'com_trials_title' }));
 }
@@ -92,6 +95,6 @@ it('shows outdated accepted previews as historical rather than accepted current 
   expect(screen.queryByText('com_trials_passed')).not.toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'com_trials_open' })).toHaveAttribute(
     'href',
-    '/c/new?endpoint=agents&agent_id=agent_trial_old',
+    '/c/new?endpoint=agents&agent_id=agent_trial_old&workspaceProject=project',
   );
 });

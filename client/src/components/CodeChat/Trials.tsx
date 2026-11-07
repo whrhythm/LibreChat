@@ -1,11 +1,12 @@
-import { useEffect, useMemo } from 'react';
-import { atom, useAtom } from 'jotai';
+import { useEffect } from 'react';
+import { useAtom } from 'jotai';
 import { Button } from '@librechat/client';
-import { useParams } from 'react-router-dom';
+import { useMatch } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectTrials, AITrialError, QueryKeys } from 'librechat-data-provider';
 import type { TrialConfig, AITrial, AITrials } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
+import { trialEditor } from './navigation';
 import { projectEditing } from './dock';
 
 function statusKey(trial: AITrial, digest: string | null) {
@@ -27,32 +28,19 @@ export default function Trials({
   projectId,
   embedded = false,
   enabled = true,
+  mode = 'all',
 }: {
   projectId: string;
   embedded?: boolean;
   enabled?: boolean;
+  mode?: 'all' | 'settings' | 'preview';
 }) {
   const { user, token } = useAuthContext();
-  const { conversationId } = useParams();
+  const conversationId = useMatch('/c/:conversationId')?.params.conversationId;
   const t = useLocalize();
   const cache = useQueryClient();
-  const state = useMemo(
-    () =>
-      atom({
-        expanded: embedded,
-        config: null as TrialConfig | null,
-        baseDigest: '',
-        request: null as { request_id: string; expected_digest: string } | null,
-        acceptance: null as {
-          trial: AITrial;
-          note: string;
-          answer: boolean;
-          sources: boolean;
-        } | null,
-      }),
-    [embedded],
-  );
-  const [ui, setUI] = useAtom(state);
+  const [ui, setUI] = useAtom(trialEditor((user?.id ?? 'anonymous') + ':' + projectId));
+  const expanded = embedded || ui.expanded;
   const [, setEditing] = useAtom(projectEditing(user?.id ?? 'anonymous'));
   useEffect(() => {
     const dirty = !!ui.config || !!ui.acceptance;
@@ -73,7 +61,7 @@ export default function Trials({
   const list = useQuery({
     queryKey: key,
     queryFn: () => projectTrials(token!, projectId),
-    enabled: enabled && ui.expanded && !!token,
+    enabled: enabled && expanded && !!token,
     retry: false,
   });
   const change = useMutation({
@@ -116,10 +104,11 @@ export default function Trials({
           {t('com_trials_title')}
         </Button>
       )}
-      {ui.expanded && (
+      {expanded && (
         <div className="space-y-3 text-sm">
-          <h4 className="text-sm font-medium">{t('com_project_settings_heading')}</h4>
-          <p className="text-text-secondary text-xs">{t('com_trials_hint')}</p>
+          <h4 className="text-sm font-medium">
+            {t(mode === 'preview' ? 'com_ai_projects_try' : 'com_project_settings')}
+          </h4>
           {(list.isError || change.isError) && <p role="alert">{t(errorKey)}</p>}
           {list.isLoading && <p role="status">{t('com_ui_loading')}</p>}
           <Button size="xs" variant="ghost" onClick={() => void list.refetch()} disabled={busy}>
@@ -143,9 +132,11 @@ export default function Trials({
                 {data.knowledge_revision_id?.slice(0, 8) ?? t('com_trials_none')}
               </div>
               {data.unavailable_reason && <p role="alert">{t('com_trials_unavailable')}</p>}
+              {mode === 'preview' && ui.config && <p role="status">{t('com_project_unsaved')}</p>}
               {!ui.config ? (
                 <div className="flex flex-wrap gap-2">
                   <Button
+                    className={mode === 'preview' ? 'hidden' : undefined}
                     size="xs"
                     variant="outline"
                     disabled={busy}
@@ -161,6 +152,7 @@ export default function Trials({
                     {t('com_trials_edit')}
                   </Button>
                   <Button
+                    className={mode === 'settings' ? 'hidden' : undefined}
                     size="xs"
                     disabled={busy || !data.digest || !!data.unavailable_reason}
                     onClick={submitTrial}
@@ -171,6 +163,7 @@ export default function Trials({
               ) : (
                 <form
                   className="space-y-2"
+                  hidden={mode === 'preview'}
                   onSubmit={(event) => {
                     event.preventDefault();
                     change.mutate({
@@ -299,180 +292,198 @@ export default function Trials({
                   </div>
                 </form>
               )}
-              {!!data.trials.length && (
-                <h4 className="border-border-light border-t pt-3 text-sm font-medium">
-                  {t('com_project_previews')}
-                </h4>
-              )}
-              {data.trials.map((trial, index) => (
-                <details
-                  key={trial.id}
-                  open={
-                    index === 0 ||
-                    (!!conversationId && trial.conversation_ids?.includes(conversationId))
-                  }
-                  className="border-border-light space-y-2 border-b py-2"
-                  aria-label={t('com_trials_version') + ' ' + trial.number}
-                >
-                  <summary className="cursor-pointer text-xs">
-                    <strong>
-                      {t('com_trials_version')} {trial.number}
-                    </strong>
-                    <span className="text-text-secondary text-xs">
-                      {t(statusKey(trial, data.digest))}
-                    </span>
-                  </summary>
-                  <p className="text-text-secondary text-xs break-all">
-                    {trial.model} · {t('com_trials_knowledge')}{' '}
-                    {trial.knowledge_revision_id?.slice(0, 8) ?? t('com_trials_none')}
-                  </p>
-                  {trial.acceptance && <p className="text-xs">{trial.acceptance.note}</p>}
-                  <div className="flex flex-wrap gap-2">
-                    {trial.state === 'ready' ? (
-                      <Button size="xs" asChild>
-                        <a href={'/c/new?endpoint=agents&agent_id=' + trial.agent_id}>
-                          {t('com_trials_open')}
-                        </a>
-                      </Button>
-                    ) : (
-                      <Button
-                        size="xs"
-                        disabled={busy}
-                        onClick={() =>
-                          change.mutate({ suffix: '/' + trial.id + '/resume', body: {} })
-                        }
-                      >
-                        {t('com_trials_retry')}
-                      </Button>
-                    )}
-                    {trial.conversation_ids?.[0] && (
-                      <Button size="xs" variant="outline" asChild>
-                        <a href={'/c/' + trial.conversation_ids[0]}>{t('com_trials_continue')}</a>
-                      </Button>
-                    )}
-                    {!trial.acceptance &&
-                      conversationId &&
-                      trial.conversation_ids?.includes(conversationId) && (
+              <div hidden={mode === 'settings'} className="space-y-3">
+                {!!data.trials.length && (
+                  <h4 className="border-border-light border-t pt-3 text-sm font-medium">
+                    {t('com_project_previews')}
+                  </h4>
+                )}
+                {data.trials.map((trial, index) => (
+                  <details
+                    key={trial.id}
+                    open={
+                      index === 0 ||
+                      (!!conversationId && trial.conversation_ids?.includes(conversationId))
+                    }
+                    className="border-border-light space-y-2 border-b py-2"
+                    aria-label={t('com_trials_version') + ' ' + trial.number}
+                  >
+                    <summary className="cursor-pointer text-xs">
+                      <strong>
+                        {t('com_trials_version')} {trial.number}
+                      </strong>
+                      <span className="text-text-secondary text-xs">
+                        {t(statusKey(trial, data.digest))}
+                      </span>
+                    </summary>
+                    <p className="text-text-secondary text-xs break-all">
+                      {trial.model} · {t('com_trials_knowledge')}{' '}
+                      {trial.knowledge_revision_id?.slice(0, 8) ?? t('com_trials_none')}
+                    </p>
+                    {trial.acceptance && <p className="text-xs">{trial.acceptance.note}</p>}
+                    <div className="flex flex-wrap gap-2">
+                      {trial.state === 'ready' ? (
+                        <Button size="xs" asChild>
+                          <a
+                            href={
+                              '/c/new?endpoint=agents&agent_id=' +
+                              trial.agent_id +
+                              '&workspaceProject=' +
+                              encodeURIComponent(projectId)
+                            }
+                          >
+                            {t('com_trials_open')}
+                          </a>
+                        </Button>
+                      ) : (
                         <Button
                           size="xs"
-                          variant="outline"
                           disabled={busy}
                           onClick={() =>
-                            setUI({
-                              ...ui,
-                              acceptance: { trial, note: '', answer: false, sources: false },
-                            })
+                            change.mutate({ suffix: '/' + trial.id + '/resume', body: {} })
                           }
                         >
-                          {t('com_trials_review')}
+                          {t('com_trials_retry')}
                         </Button>
                       )}
-                  </div>
-                </details>
-              ))}
-              {ui.acceptance && (
-                <form
-                  className="border-border-light space-y-2 rounded border p-2"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    const outcome =
-                      (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') ===
-                      'failed'
-                        ? 'failed'
-                        : 'passed';
-                    change.mutate({
-                      suffix: '/' + ui.acceptance!.trial.id + '/acceptance',
-                      body: {
-                        conversation_id: conversationId,
-                        outcome,
-                        note: ui.acceptance!.note,
-                        answer_checked: ui.acceptance!.answer,
-                        sources_checked: ui.acceptance!.sources,
-                      },
-                    });
-                  }}
-                >
-                  <strong>
-                    {t('com_trials_review')} · {ui.acceptance.trial.number}
-                  </strong>
-                  <label className="flex items-start gap-2">
-                    <input
-                      type="checkbox"
-                      checked={ui.acceptance.answer}
-                      onChange={(event) =>
-                        setUI({
-                          ...ui,
-                          acceptance: { ...ui.acceptance!, answer: event.target.checked },
-                        })
-                      }
-                    />
-                    {t('com_trials_answer_check')}
-                  </label>
-                  <label className="flex items-start gap-2">
-                    <input
-                      type="checkbox"
-                      checked={ui.acceptance.sources}
-                      onChange={(event) =>
-                        setUI({
-                          ...ui,
-                          acceptance: { ...ui.acceptance!, sources: event.target.checked },
-                        })
-                      }
-                    />
-                    {t('com_trials_source_check')}
-                  </label>
-                  <label className="block">
-                    {t('com_trials_note')}
-                    <textarea
-                      className={inputClass}
-                      required
-                      maxLength={2000}
-                      aria-label={t('com_trials_note')}
-                      disabled={busy}
-                      rows={2}
-                      value={ui.acceptance.note}
-                      onChange={(event) =>
-                        setUI({
-                          ...ui,
-                          acceptance: { ...ui.acceptance!, note: event.target.value },
-                        })
-                      }
-                    />
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="xs"
-                      type="submit"
-                      value="passed"
-                      disabled={
-                        busy ||
-                        !ui.acceptance.answer ||
-                        !ui.acceptance.sources ||
-                        ui.acceptance.trial.digest !== data.digest
-                      }
-                    >
-                      {t('com_trials_pass')}
-                    </Button>
-                    <Button
-                      size="xs"
-                      variant="outline"
-                      type="submit"
-                      value="failed"
-                      disabled={busy}
-                    >
-                      {t('com_trials_fail')}
-                    </Button>
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      type="button"
-                      onClick={() => setUI({ ...ui, acceptance: null })}
-                    >
-                      {t('com_ui_cancel')}
-                    </Button>
-                  </div>
-                </form>
-              )}
+                      {trial.conversation_ids?.[0] && (
+                        <Button size="xs" variant="outline" asChild>
+                          <a
+                            href={
+                              '/c/' +
+                              trial.conversation_ids[0] +
+                              '?workspaceProject=' +
+                              encodeURIComponent(projectId)
+                            }
+                          >
+                            {t('com_trials_continue')}
+                          </a>
+                        </Button>
+                      )}
+                      {!trial.acceptance &&
+                        conversationId &&
+                        trial.conversation_ids?.includes(conversationId) && (
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            disabled={busy}
+                            onClick={() =>
+                              setUI({
+                                ...ui,
+                                acceptance: { trial, note: '', answer: false, sources: false },
+                              })
+                            }
+                          >
+                            {t('com_trials_review')}
+                          </Button>
+                        )}
+                    </div>
+                  </details>
+                ))}
+                {ui.acceptance && (
+                  <form
+                    className="border-border-light space-y-2 rounded border p-2"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const outcome =
+                        (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') ===
+                        'failed'
+                          ? 'failed'
+                          : 'passed';
+                      change.mutate({
+                        suffix: '/' + ui.acceptance!.trial.id + '/acceptance',
+                        body: {
+                          conversation_id: conversationId,
+                          outcome,
+                          note: ui.acceptance!.note,
+                          answer_checked: ui.acceptance!.answer,
+                          sources_checked: ui.acceptance!.sources,
+                        },
+                      });
+                    }}
+                  >
+                    <strong>
+                      {t('com_trials_review')} · {ui.acceptance.trial.number}
+                    </strong>
+                    <label className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        checked={ui.acceptance.answer}
+                        onChange={(event) =>
+                          setUI({
+                            ...ui,
+                            acceptance: { ...ui.acceptance!, answer: event.target.checked },
+                          })
+                        }
+                      />
+                      {t('com_trials_answer_check')}
+                    </label>
+                    <label className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        checked={ui.acceptance.sources}
+                        onChange={(event) =>
+                          setUI({
+                            ...ui,
+                            acceptance: { ...ui.acceptance!, sources: event.target.checked },
+                          })
+                        }
+                      />
+                      {t('com_trials_source_check')}
+                    </label>
+                    <label className="block">
+                      {t('com_trials_note')}
+                      <textarea
+                        className={inputClass}
+                        required
+                        maxLength={2000}
+                        aria-label={t('com_trials_note')}
+                        disabled={busy}
+                        rows={2}
+                        value={ui.acceptance.note}
+                        onChange={(event) =>
+                          setUI({
+                            ...ui,
+                            acceptance: { ...ui.acceptance!, note: event.target.value },
+                          })
+                        }
+                      />
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="xs"
+                        type="submit"
+                        value="passed"
+                        disabled={
+                          busy ||
+                          !ui.acceptance.answer ||
+                          !ui.acceptance.sources ||
+                          ui.acceptance.trial.digest !== data.digest
+                        }
+                      >
+                        {t('com_trials_pass')}
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        type="submit"
+                        value="failed"
+                        disabled={busy}
+                      >
+                        {t('com_trials_fail')}
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        type="button"
+                        onClick={() => setUI({ ...ui, acceptance: null })}
+                      >
+                        {t('com_ui_cancel')}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </div>
             </>
           )}
         </div>

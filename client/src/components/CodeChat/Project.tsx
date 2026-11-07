@@ -1,10 +1,10 @@
-import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { atom, useAtom, useAtomValue } from 'jotai';
-import { ArrowLeft, FolderOpen } from 'lucide-react';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { projectReleases, projectTrials, QueryKeys } from 'librechat-data-provider';
+import { ArrowLeft, BookOpen, FolderOpen, Play, Settings, Send } from 'lucide-react';
 import { Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@librechat/client';
 import type { AIProject } from 'librechat-data-provider';
+import { projectSection, discardProjectEdits } from './navigation';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { useGetStartupConfig } from '~/data-provider';
 import { projectEditing } from './dock';
@@ -28,8 +28,10 @@ export default function Project({
   const { user, token } = useAuthContext();
   const editing = useAtomValue(projectEditing(user?.id ?? 'anonymous'));
   const { data: startup } = useGetStartupConfig();
-  const state = useMemo(() => atom('settings'), []);
-  const [section, setSection] = useAtom(state);
+  const [section, setSection] = useAtom(
+    projectSection((user?.id ?? 'anonymous') + ':' + value.project.id),
+  );
+  const discard = useSetAtom(discardProjectEdits(user?.id ?? 'anonymous'));
   const id = value.project.id;
   const trials = useQuery({
     queryKey: [QueryKeys.aiProjects, user?.id, id, 'trials'],
@@ -51,7 +53,10 @@ export default function Project({
         size="xs"
         variant="ghost"
         onClick={() => {
-          if (!editing || window.confirm(t('com_project_unsaved'))) onBack();
+          if (!editing || window.confirm(t('com_project_unsaved'))) {
+            discard();
+            onBack();
+          }
         }}
       >
         <ArrowLeft className="size-3.5" aria-hidden="true" />
@@ -59,8 +64,10 @@ export default function Project({
       </Button>
       <header className="space-y-2">
         <h3 className="text-base font-semibold break-words">{value.project.name}</h3>
-        <p className="text-text-secondary text-xs break-words">{value.project.goal}</p>
-        <div className="bg-surface-secondary space-y-1 rounded-lg p-2.5 text-xs" role="status">
+        <p className="text-text-secondary line-clamp-2 text-xs" title={value.project.goal}>
+          {value.project.goal}
+        </p>
+        <div className="text-text-secondary space-y-1 text-xs" role="status">
           {releases.isError || trials.isError ? (
             <p>{t('com_project_status_error')}</p>
           ) : (
@@ -89,22 +96,38 @@ export default function Project({
           )}
         </div>
       </header>
-      <Tabs value={section} onValueChange={setSection}>
+      <Tabs value={section} onValueChange={setSection} orientation="vertical">
         <TabsList
           variant="segmented"
-          className="grid w-full grid-cols-3"
+          className="flex h-auto w-full flex-col items-stretch"
           aria-label={t('com_project_sections')}
         >
-          <TabsTrigger variant="segmented" value="materials">
+          <TabsTrigger className="justify-start" variant="segmented" value="preview">
+            <Play className="size-4" aria-hidden="true" />
+            {t('com_ai_projects_try')}
+          </TabsTrigger>
+          <TabsTrigger className="justify-start" variant="segmented" value="materials">
+            <BookOpen className="size-4" aria-hidden="true" />
             {t('com_project_materials')}
           </TabsTrigger>
-          <TabsTrigger variant="segmented" value="settings">
+          <TabsTrigger className="justify-start" variant="segmented" value="settings">
+            <Settings className="size-4" aria-hidden="true" />
             {t('com_project_settings')}
           </TabsTrigger>
-          <TabsTrigger variant="segmented" value="publish">
+          <TabsTrigger className="justify-start" variant="segmented" value="publish">
+            <Send className="size-4" aria-hidden="true" />
             {t('com_project_publish')}
           </TabsTrigger>
         </TabsList>
+        <Button
+          className="mt-2 w-full justify-start"
+          variant="ghost"
+          size="sm"
+          onClick={() => onFiles(value.project.path)}
+        >
+          <FolderOpen className="size-4" aria-hidden="true" />
+          {t('com_codechat_project_files')}
+        </Button>
         <TabsContent
           value="materials"
           forceMount
@@ -112,25 +135,22 @@ export default function Project({
           size="flush"
           className="mt-4"
         >
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">{t('com_project_files')}</h4>
-            <p className="text-text-secondary text-xs">{t('com_project_files_hint')}</p>
-            <Button variant="outline" size="xs" onClick={() => onFiles(value.project.path)}>
-              <FolderOpen className="size-3.5" aria-hidden="true" />
-              {t('com_codechat_project_files')}
-            </Button>
-          </div>
           <Knowledge projectId={id} embedded enabled={enabled && section === 'materials'} />
         </TabsContent>
         <TabsContent
-          value="settings"
+          value={section === 'settings' ? 'settings' : 'preview'}
           forceMount
-          hidden={section !== 'settings'}
+          hidden={section !== 'settings' && section !== 'preview'}
           size="flush"
           className="mt-4"
         >
           {startup?.aiTrialsEnabled ? (
-            <Trials projectId={id} embedded enabled={enabled && section === 'settings'} />
+            <Trials
+              projectId={id}
+              embedded
+              enabled={enabled && (section === 'settings' || section === 'preview')}
+              mode={section === 'settings' ? 'settings' : 'preview'}
+            />
           ) : (
             <Button size="sm" asChild>
               <a href={'/c/new?endpoint=agents&agent_id=' + encodeURIComponent(value.agent_id)}>

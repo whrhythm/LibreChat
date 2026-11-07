@@ -1,7 +1,10 @@
 /* eslint-disable i18next/no-literal-string -- Synthetic child components isolate navigation; these labels are test fixtures. */
+import { Provider, createStore } from 'jotai';
 import { personalFileRequest } from 'librechat-data-provider';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { activePanelAtom } from '~/Providers/ActivePanelContext';
+import { spaceNavigation } from './dock';
 import Space from './Space';
 
 jest.mock('~/hooks', () => ({
@@ -49,35 +52,27 @@ it('keeps file navigation while separating applications and selects the browsed 
             },
     }),
   );
+  const store = createStore();
+  store.set(activePanelAtom, 'personal-space');
   render(
-    <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-    >
-      <Space />
-    </QueryClientProvider>,
+    <Provider store={store}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <Space />
+      </QueryClientProvider>
+    </Provider>,
   );
   expect(screen.queryByText(/Applications at/)).not.toBeVisible();
-  expect(screen.getByRole('tab', { name: 'com_codechat_projects_tab' })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
-  fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_codechat_files_tab' }), {
-    button: 0,
-    ctrlKey: false,
-  });
+  expect(screen.getByRole('heading', { name: 'com_codechat_projects_tab' })).toBeVisible();
+  act(() => store.set(spaceNavigation('pane-test'), { pane: 'files', path: '' }));
   fireEvent.click(screen.getByRole('button', { name: 'Browse my project' }));
-  fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_codechat_apps' }), {
-    button: 0,
-    ctrlKey: false,
-  });
+  act(() => store.set(spaceNavigation('pane-test'), (current) => ({ ...current, pane: 'apps' })));
   await screen.findByText('Applications at my-project publish available');
   expect(screen.queryByRole('tab', { name: 'com_codechat_db_tab' })).not.toBeInTheDocument();
   expect(screen.queryByText('com_codechat_db_tab')).not.toBeInTheDocument();
   expect(screen.getByLabelText('com_codechat_publish_project')).toHaveValue('my-project');
   expect(screen.getByText('Files at my-project')).not.toBeVisible();
-  fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_codechat_files_tab' }), {
-    button: 0,
-    ctrlKey: false,
-  });
+  act(() => store.set(spaceNavigation('pane-test'), (current) => ({ ...current, pane: 'files' })));
   expect(screen.getByText('Files at my-project')).toBeVisible();
 });

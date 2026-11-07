@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { aiProjects, createAIProject, resumeAIProject, QueryKeys } from 'librechat-data-provider';
 import type { AIProjectCreateInput } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
+import { selectedProject } from './navigation';
 import Project from './Project';
 
 export default function Assistants({
@@ -19,8 +20,7 @@ export default function Assistants({
   const client = useQueryClient();
   const state = useMemo(() => atom<AIProjectCreateInput | null>(null), []);
   const [draft, setDraft] = useAtom(state);
-  const selection = useMemo(() => atom(''), []);
-  const [selected, setSelected] = useAtom(selection);
+  const [selected, setSelected] = useAtom(selectedProject(user?.id ?? 'anonymous'));
   const list = useQuery({
     queryKey: [QueryKeys.aiProjects, user?.id],
     queryFn: () => aiProjects(token!),
@@ -75,7 +75,6 @@ export default function Assistants({
           </Button>
         )}
       </div>
-      <p className="text-text-secondary text-xs">{t('com_ai_projects_hint')}</p>
       {list.isLoading && <p role="status">{t('com_ui_loading')}</p>}
       {list.isSuccess && list.data?.enabled && !list.data.projects.length && !draft && (
         <p className="text-text-secondary py-4 text-sm">{t('com_project_empty')}</p>

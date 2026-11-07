@@ -35,7 +35,6 @@ export default function Projects({
         <summary className="text-text-secondary cursor-pointer text-xs">
           {t('com_project_engineering')}
         </summary>
-        <p className="text-text-secondary my-3 text-xs">{t('com_project_engineering_hint')}</p>
         {engineering && list.isSuccess && (
           <Engineering
             enabled={enabled}

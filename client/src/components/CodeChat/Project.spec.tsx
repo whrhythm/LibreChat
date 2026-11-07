@@ -1,3 +1,4 @@
+import { Provider, createStore } from 'jotai';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -50,13 +51,15 @@ function mount() {
   const onBack = jest.fn();
   const onFiles = jest.fn();
   render(
-    <MemoryRouter>
-      <QueryClientProvider
-        client={new QueryClient({ defaultOptions: { queries: { retry: false, cacheTime: 0 } } })}
-      >
-        <Project value={value} enabled onBack={onBack} onFiles={onFiles} />
-      </QueryClientProvider>
-    </MemoryRouter>,
+    <Provider store={createStore()}>
+      <MemoryRouter>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false, cacheTime: 0 } } })}
+        >
+          <Project value={value} enabled onBack={onBack} onFiles={onFiles} />
+        </QueryClientProvider>
+      </MemoryRouter>
+    </Provider>,
   );
   return { onBack, onFiles };
 }
@@ -78,6 +81,7 @@ beforeEach(() => {
 });
 it('opens one task at a time and keeps unsaved settings while browsing materials', async () => {
   const { onFiles, onBack } = mount();
+  section('com_project_settings');
   fireEvent.click(await screen.findByRole('button', { name: 'com_trials_edit' }));
   fireEvent.change(screen.getByLabelText('com_trials_instructions'), {
     target: { value: 'Unsaved edit' },

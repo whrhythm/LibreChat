@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useAtom } from 'jotai';
+import { useEffect, useMemo } from 'react';
+import { useSetAtom } from 'jotai';
 import { useRecoilValue } from 'recoil';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserKeyQuery } from 'librechat-data-provider/react-query';
@@ -8,24 +8,38 @@ import { getConfigDefaults, getEndpointField } from 'librechat-data-provider';
 import type { TEndpointsConfig } from 'librechat-data-provider';
 import type { NavLink } from '~/common';
 import { useGetEndpointsQuery, useGetStartupConfig, useInsightsAccessQuery } from '~/data-provider';
-import { spaceDock, spaceDirty, spaceNavigation, projectEditing } from '~/components/CodeChat/dock';
 import ConversationsSection from '~/components/UnifiedSidebar/ConversationsSection';
+import { selectedProject } from '~/components/CodeChat/navigation';
+import { activePanelAtom } from '~/Providers/ActivePanelContext';
 import { isCodeChatEnabled } from '~/components/CodeChat/config';
+import { spaceNavigation } from '~/components/CodeChat/dock';
+import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
 import useSideNavLinks from '~/hooks/Nav/useSideNavLinks';
-import { useAuthContext, useLocalize } from '~/hooks';
+import { lazyWithRecovery } from '~/lib/assets/lazy';
+import { useAuthContext } from '~/hooks';
 import store from '~/store';
 
 const defaultInterface = getConfigDefaults().interface;
+const PersonalSpace = lazyWithRecovery(() => import('~/components/CodeChat/Space'));
 
 export default function useUnifiedSidebarLinks() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuthContext();
-  const [spaceOpen, setSpaceOpen] = useAtom(spaceDock(user?.id ?? 'anonymous'));
-  const [dirty, setDirty] = useAtom(spaceDirty(user?.id ?? 'anonymous'));
-  const [, setSpaceNavigation] = useAtom(spaceNavigation(user?.id ?? 'anonymous'));
-  const [editing] = useAtom(projectEditing(user?.id ?? 'anonymous'));
-  const t = useLocalize();
+  const setSpaceNavigation = useSetAtom(spaceNavigation(user?.id ?? 'anonymous'));
+  const setActive = useSetAtom(activePanelAtom);
+  const { setSidebarOpen } = useSidebarToggle();
+  const selectProject = useSetAtom(selectedProject(user?.id ?? 'anonymous'));
+  useEffect(() => {
+    const project = new URLSearchParams(location.search).get('workspaceProject');
+    if (!user?.id || !project || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(project))
+      return;
+    // This only restores navigation. The project list and trial APIs enforce ownership.
+    selectProject(project);
+    setSpaceNavigation((current) => ({ ...current, pane: 'projects' }));
+    setActive('personal-space');
+    setSidebarOpen(true);
+  }, [location.search, user?.id, selectProject, setSpaceNavigation, setActive, setSidebarOpen]);
   /** Selector instead of the full conversation atom: the links only depend on
    * the endpoint, so parameter edits and other conversation writes stay out. */
   const endpoint = useRecoilValue(store.conversationEndpointByIndex(0)) ?? undefined;
@@ -84,15 +98,14 @@ export default function useUnifiedSidebarLinks() {
         ? [
             {
               id: 'personal-space',
-              title: 'com_codechat_workspace',
+              title: 'com_codechat_projects_tab',
               label: '',
               icon: FolderKanban,
+              Component: PersonalSpace,
               onClick: () => {
-                if (spaceOpen && dirty && !window.confirm(t('com_codechat_file_unsaved'))) return;
-                if (spaceOpen && editing && !window.confirm(t('com_project_unsaved'))) return;
-                if (spaceOpen) setDirty(false);
-                if (!spaceOpen) setSpaceNavigation((view) => ({ ...view, pane: 'projects' }));
-                setSpaceOpen(!spaceOpen);
+                setSpaceNavigation((view) => ({ ...view, pane: 'projects' }));
+                setActive('personal-space');
+                setSidebarOpen(true);
                 if (!location.pathname.startsWith('/c/')) navigate('/c/new');
               },
             },
@@ -131,13 +144,9 @@ export default function useUnifiedSidebarLinks() {
     navigate,
     sideNavLinks,
     user?.id,
-    spaceOpen,
-    setSpaceOpen,
-    dirty,
-    setDirty,
     setSpaceNavigation,
-    editing,
-    t,
+    setActive,
+    setSidebarOpen,
   ]);
 
   return links;

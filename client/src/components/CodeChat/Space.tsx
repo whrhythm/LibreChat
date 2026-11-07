@@ -1,14 +1,15 @@
-import { useAtom } from 'jotai';
+import { Button } from '@librechat/client';
+import { ArrowLeft, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { Files, PanelsTopLeft, FolderOpen, X } from 'lucide-react';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { personalFileRequest, QueryKeys } from 'librechat-data-provider';
-import { Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@librechat/client';
 import type { PersonalSpace, WorkspaceEntry } from 'librechat-data-provider';
-import { spaceDock, spaceDirty, spaceNavigation, projectEditing } from './dock';
+import { activePanelAtom } from '~/Providers/ActivePanelContext';
 import { useAuthContext, useLocalize } from '~/hooks';
 import ApplicationNotice from './ApplicationNotice';
 import StorageSummary from './StorageSummary';
 import Applications from './Applications';
+import { spaceNavigation } from './dock';
 import PersonalFiles from './Files';
 import Projects from './Projects';
 
@@ -91,106 +92,72 @@ export default function PersonalSpacePanel() {
   const { user } = useAuthContext();
   const localize = useLocalize();
   const [view, setView] = useAtom(spaceNavigation(user?.id ?? 'anonymous'));
-  const [, setOpen] = useAtom(spaceDock(user?.id ?? 'anonymous'));
-  const [dirty, setDirty] = useAtom(spaceDirty(user?.id ?? 'anonymous'));
-  const [editing] = useAtom(projectEditing(user?.id ?? 'anonymous'));
-  const allowLeave = () => !dirty || window.confirm(localize('com_codechat_file_unsaved'));
-  const changePane = (pane: string) => {
-    if (pane === view.pane || !allowLeave()) return;
-    setDirty(false);
-    setView((current) => ({ ...current, pane }));
-  };
+  const active = useAtomValue(activePanelAtom) === 'personal-space';
+  const setActive = useSetAtom(activePanelAtom);
+  let title: 'com_codechat_workspace' | 'com_codechat_apps' | 'com_codechat_projects_tab' =
+    'com_codechat_projects_tab';
+  if (view.pane === 'files') title = 'com_codechat_workspace';
+  if (view.pane === 'apps') title = 'com_codechat_apps';
   const setPath = (path: string) => setView((current) => ({ ...current, path }));
   return (
     <section
       id="codechat-space-panel"
-      aria-label={localize('com_codechat_workspace')}
-      className="bg-surface-primary text-text-primary border-border-light flex h-full min-w-0 flex-col border-s text-sm"
+      aria-label={localize(title)}
+      className="bg-surface-sidebar text-text-primary flex h-full min-w-0 flex-col text-sm"
     >
       <header className="flex shrink-0 items-center justify-between px-4 py-3">
-        <h2 className="text-sm font-semibold">{localize('com_codechat_workspace')}</h2>
+        <h2 className="text-sm font-semibold">{localize(title)}</h2>
         <Button
           variant="ghost"
           size="icon-sm"
           aria-label={localize('com_codechat_space_close')}
-          onClick={() => {
-            if (!allowLeave()) return;
-            if (editing && !window.confirm(localize('com_project_unsaved'))) return;
-            setDirty(false);
-            setOpen(false);
-          }}
+          onClick={() => setActive('conversations')}
         >
           <X className="size-4" aria-hidden="true" />
         </Button>
       </header>
-      <div className="shrink-0 px-4 pb-3">
-        <StorageSummary />
-      </div>
-      <ApplicationNotice
-        onOpen={() => {
-          changePane('apps');
-        }}
-      />
-      <Tabs value={view.pane} onValueChange={changePane} className="flex min-h-0 flex-1 flex-col">
-        <TabsList
-          variant="segmented"
-          className="mx-4 mb-2 grid shrink-0 grid-cols-3"
-          aria-label={localize('com_codechat_workspace')}
-        >
-          <TabsTrigger variant="segmented" value="projects">
-            <FolderOpen className="size-4" aria-hidden="true" />
+      {view.pane !== 'projects' && (
+        <div className="px-4 pb-3">
+          <Button
+            size="xs"
+            variant="ghost"
+            onClick={() => setView((current) => ({ ...current, pane: 'projects' }))}
+          >
+            <ArrowLeft className="size-3.5" aria-hidden="true" />
             {localize('com_codechat_projects_tab')}
-          </TabsTrigger>
-          <TabsTrigger variant="segmented" value="files">
-            <Files className="size-4" aria-hidden="true" />
-            {localize('com_codechat_files_tab')}
-          </TabsTrigger>
-          <TabsTrigger variant="segmented" value="apps">
-            <PanelsTopLeft className="size-4" aria-hidden="true" />
-            {localize('com_codechat_apps')}
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent
-          className="mx-4 mb-4 min-h-0 overflow-auto"
-          value="projects"
-          forceMount
-          hidden={view.pane !== 'projects'}
-          size="flush"
-        >
+          </Button>
+          {view.pane === 'files' && active && <StorageSummary />}
+        </div>
+      )}
+      {active && (
+        <ApplicationNotice onOpen={() => setView((current) => ({ ...current, pane: 'apps' }))} />
+      )}
+      <div className="min-h-0 flex-1 overflow-auto px-4 pb-4">
+        <div hidden={view.pane !== 'projects'}>
           <Projects
             key={user?.id}
-            enabled={view.pane === 'projects'}
+            enabled={active && view.pane === 'projects'}
             path={view.path}
             onOpen={(pane, path) => {
-              if (!allowLeave()) return;
-              setDirty(false);
               setView({ pane, path });
             }}
           />
-        </TabsContent>
-        <TabsContent
-          className="mx-4 mb-4 min-h-0 overflow-auto"
-          value="files"
-          forceMount
-          hidden={view.pane !== 'files'}
-          size="flush"
-        >
-          <PersonalFiles expanded={view.pane === 'files'} path={view.path} onPathChange={setPath} />
-        </TabsContent>
-        <TabsContent
-          className="mx-4 mb-4 min-h-0 overflow-auto"
-          value="apps"
-          forceMount
-          hidden={view.pane !== 'apps'}
-          size="flush"
-        >
-          <ApplicationProjects
-            enabled={view.pane === 'apps'}
+        </div>
+        <div hidden={view.pane !== 'files'}>
+          <PersonalFiles
+            expanded={active && view.pane === 'files'}
             path={view.path}
             onPathChange={setPath}
           />
-        </TabsContent>
-      </Tabs>
+        </div>
+        <div hidden={view.pane !== 'apps'}>
+          <ApplicationProjects
+            enabled={active && view.pane === 'apps'}
+            path={view.path}
+            onPathChange={setPath}
+          />
+        </div>
+      </div>
     </section>
   );
 }
