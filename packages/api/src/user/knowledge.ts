@@ -7,7 +7,8 @@ import {
 } from 'librechat-data-provider';
 import type { Response } from 'express';
 import type { ServerRequest } from '~/types';
-import { getTrialContext, trialIdFromAgent } from './trialContext';
+import { getTrialContext, trialIdFromAgent, appIdFromAgent } from './trialContext';
+import { releaseClient } from './releases';
 import { selectFileCitationSources } from '~/files/citations';
 
 type Request = Omit<ServerRequest, 'body'> & { body?: unknown };
@@ -162,7 +163,7 @@ export function primeProjectKnowledge<T extends { req?: ServerRequest; agentId?:
   fallback: (value: T) => Promise<Prime>,
 ): Promise<Prime> {
   const trial = getTrialContext(options.req);
-  if (trialIdFromAgent(options.agentId) && (!trial || trial.agentId !== options.agentId))
+  if ((trialIdFromAgent(options.agentId) || appIdFromAgent(options.agentId)) && (!trial || trial.agentId !== options.agentId))
     return Promise.reject(new Error('ai_trials_context_required'));
   if (
     !options.req?.config?.config?.aiProjects?.knowledgeEnabled ||
@@ -199,7 +200,7 @@ export function createProjectFileSearchTool<T extends SearchOptions, R>(
 ): R | DynamicStructuredTool<z.ZodObject<{ query: z.ZodString }>> {
   const trial = getTrialContext(options.req);
   if (
-    trialIdFromAgent(options.entity_id) &&
+    (trialIdFromAgent(options.entity_id) || appIdFromAgent(options.entity_id)) &&
     (!trial || trial.agentId !== options.entity_id || !trial.revisionId)
   )
     throw new Error('ai_trials_context_required');
@@ -212,7 +213,7 @@ export function createProjectFileSearchTool<T extends SearchOptions, R>(
       try {
         if (!req.user) throw new KnowledgeFailure(403, 'knowledge_identity_required');
         const result = searchResultSchema.parse(
-          await client(req, deps)(id, '/search', {
+          trial?.entryId ? await releaseClient(req, deps)('entries/'+trial.entryId+'/search', {query}) : await client(req, deps)(id, '/search', {
             query,
             native_owner_id: req.user.id,
             ...(revisionId ? { revision_id: revisionId } : {}),
@@ -225,7 +226,7 @@ export function createProjectFileSearchTool<T extends SearchOptions, R>(
           return ['当前项目没有可检索的就绪资料。请说明缺少依据，不能编造答案或引用。', undefined];
         const sources = result.sources.map((s) => ({
           type: 'file',
-          fileId: 'knowledge:' + id + ':' + result.revision_id! + ':' + encodeURIComponent(s.name),
+          fileId: (trial?.entryId ? 'appknowledge:'+trial.entryId : 'knowledge:' + id) + ':' + result.revision_id! + ':' + encodeURIComponent(s.name),
           fileName: s.name,
           content: s.content,
           relevance: 1 - s.distance,

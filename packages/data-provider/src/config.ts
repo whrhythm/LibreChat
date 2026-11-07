@@ -3655,6 +3655,7 @@ export function supportsConversationTitleOwnership(config?: {
 
 export type TStartupConfig = {
   aiTrialsEnabled?: boolean;
+  aiReleasesEnabled?: boolean;
   codechat?: {
     filePreviewMaxBytes?: number;
     capabilities?: CodeChatCapabilities;
@@ -4444,6 +4445,7 @@ export const configSchema = z.object({
       requestTimeoutMs: z.number().int().min(1000).max(120000).default(35000),
       knowledgeEnabled: z.boolean().default(false),
       trialsEnabled: z.boolean().default(false),
+      releasesEnabled: z.boolean().default(false),
     })
     .optional(),
   version: z.string(),

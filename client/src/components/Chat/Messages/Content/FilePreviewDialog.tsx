@@ -95,7 +95,7 @@ export function getDisplayType(
 }
 
 export default function FilePreviewDialog(props: FilePreviewDialogProps) {
-  if (props.fileId?.startsWith('knowledge:'))
+  if (props.fileId?.startsWith('knowledge:') || props.fileId?.startsWith('appknowledge:'))
     return (
       <KnowledgeSource
         open={props.open}

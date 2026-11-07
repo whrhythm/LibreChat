@@ -3,6 +3,7 @@ const { createContentAggregator, GraphNodeKeys } = require('@librechat/agents');
 const {
   resolveSender,
   prepareProjectTrial,
+  preparePublishedApp,
   copyToolApprovalAdmissionMetadata,
   resolveRunConversation,
   resolveAdmittedCodeEnvironmentDecision,
@@ -2148,6 +2149,11 @@ const initializeClientWithProvider = async ({
  */
 function createInitializeClient(dependencies = {}) {
   return async (params) => {
+    await preparePublishedApp(params, {
+      baseUrl: process.env.CODECHAT_WORKSPACE_URL,
+      serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
+      issuer: process.env.OPENID_ISSUER,
+    });
     await prepareProjectTrial(params, {
       baseUrl: process.env.CODECHAT_WORKSPACE_URL,
       serviceToken: process.env.CODECHAT_SERVICE_TOKEN,

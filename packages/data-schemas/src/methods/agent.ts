@@ -2809,7 +2809,7 @@ export function createAgentMethods(
   async function ensurePrivateTrialAgent(
     data: PrivateProjectAgentInput,
   ): Promise<PrivateProjectAgentIdentity> {
-    if (!/^agent_trial_[0-9a-f]{32}$/.test(data.id) || !/^[0-9a-f]{24}$/.test(data.author)) {
+    if (!/^agent_(trial|app)_[0-9a-f]{32}$/.test(data.id) || !/^[0-9a-f]{24}$/.test(data.author)) {
       throw new Error('Invalid private trial identity');
     }
     return ensurePrivateAgent(data);

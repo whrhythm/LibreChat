@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { projectKnowledge, QueryKeys } from 'librechat-data-provider';
+import { projectKnowledge, applicationSource, QueryKeys } from 'librechat-data-provider';
 import {
   OGDialog,
   OGDialogContent,
@@ -34,7 +34,7 @@ export default function KnowledgeSource({
     queryKey: [QueryKeys.aiProjects, user?.id, 'source', fileId],
     enabled: open && !!token && valid,
     queryFn: () =>
-      projectKnowledge<{ name: string; content: string; revision_id: string }>(
+      parts[0] === 'appknowledge' ? applicationSource(token!, parts[1], parts[3]) : projectKnowledge<{ name: string; content: string; revision_id: string }>(
         token!,
         parts[1],
         '/' + parts[2] + '/source?name=' + parts[3],

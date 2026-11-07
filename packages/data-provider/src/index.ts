@@ -124,3 +124,5 @@ export * from './codechatTemplates';
 export * from './aiProjects';
 export * from './aiTrials';
 export * from './knowledge';
+
+export * from './aiReleases';

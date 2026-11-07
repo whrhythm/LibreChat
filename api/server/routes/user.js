@@ -10,6 +10,7 @@ const {
   createAIProjectHandlers,
   createKnowledgeHandlers,
   createTrialHandlers,
+  createReleaseHandlers,
   generateCheckAccess,
   createBusinessTemplateHandlers,
   createProjectDatabaseHandlers,
@@ -42,7 +43,7 @@ const {
 const settings = require('./settings');
 const { updateUserStatefulCodeEnvironment } = require('~/models');
 const { ensurePrivateProjectAgent, enableProjectKnowledge, getRoleByName } = require('~/models');
-const { ensurePrivateTrialAgent, getAgent, getConvo, getMessages } = require('~/models');
+const { ensurePrivateTrialAgent, getAgent, getConvo, getMessages, findUser } = require('~/models');
 const { grantPermission } = require('~/server/services/PermissionService');
 const { PermissionTypes, Permissions } = require('librechat-data-provider');
 
@@ -65,6 +66,18 @@ const knowledge = createKnowledgeHandlers({
   issuer: process.env.OPENID_ISSUER,
   enableProjectKnowledge,
 });
+const releases = createReleaseHandlers({
+  baseUrl: process.env.CODECHAT_WORKSPACE_URL,
+  serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
+  issuer: process.env.OPENID_ISSUER,
+  ensurePrivateTrialAgent, getAgent, getConvo, getMessages, grantPermission, findUser,
+});
+router.get('/workspace/ai-projects/:projectId/releases', requireJwtAuth, configMiddleware, releases.list);
+router.post('/workspace/ai-projects/:projectId/releases', requireJwtAuth, configMiddleware, releases.publish);
+router.post('/workspace/ai-projects/:projectId/releases/access', requireJwtAuth, configMiddleware, releases.access);
+router.post('/workspace/ai-projects/:projectId/releases/members', requireJwtAuth, configMiddleware, releases.member);
+router.post('/workspace/ai-projects/:projectId/releases/launch', requireJwtAuth, configMiddleware, releases.launch);
+router.get('/workspace/ai-projects/entries/:entryId/source', requireJwtAuth, configMiddleware, releases.source);
 const trials = createTrialHandlers({
   baseUrl: process.env.CODECHAT_WORKSPACE_URL,
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
