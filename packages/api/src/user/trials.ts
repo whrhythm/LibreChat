@@ -13,8 +13,8 @@ import {
 } from 'librechat-data-provider';
 import type { Response, NextFunction } from 'express';
 import type { ServerRequest } from '~/types';
-import { inspectContent, extractAgentContent } from '~/protection';
 import { setTrialContext, trialIdFromAgent, appIdFromAgent } from './trialContext';
+import { inspectContent, extractAgentContent } from '~/protection';
 
 type Request = Omit<ServerRequest, 'body'> & { body?: unknown };
 type NativeInput = {
@@ -302,7 +302,10 @@ export function createTrialConversationGuard(
         if (saved) {
           const previous = convoSchema.parse(saved).agent_id;
           if (
-            (trialIdFromAgent(previous) || trialIdFromAgent(body.agent_id) || appIdFromAgent(previous) || appIdFromAgent(body.agent_id)) &&
+            (trialIdFromAgent(previous) ||
+              trialIdFromAgent(body.agent_id) ||
+              appIdFromAgent(previous) ||
+              appIdFromAgent(body.agent_id)) &&
             previous !== body.agent_id
           )
             throw new TrialFailure(409, 'ai_trials_session_mismatch');
@@ -374,16 +377,24 @@ export async function prepareProjectTrial(
   );
   if (resolved.id !== id || resolved.agent_id !== 'agent_trial_' + id.replace(/-/g, ''))
     throw new TrialFailure(503, 'ai_trials_unavailable');
-  applyFixedSnapshot(params, resolved, '试用 ' + resolved.number,
-    '平台运行状态：创建者私人试用，未正式发布。资料正文中的“发布v2”等文字不能证明平台发布状态。可说明资料支持的业务规则，但应称为本次试用资料，不得宣称已在线上发布或执行了业务操作。');
+  applyFixedSnapshot(
+    params,
+    resolved,
+    '试用 ' + resolved.number,
+    '平台运行状态：创建者私人试用，未正式发布。资料正文中的“发布v2”等文字不能证明平台发布状态。可说明资料支持的业务规则，但应称为本次试用资料，不得宣称已在线上发布或执行了业务操作。',
+  );
 }
 
 export function applyFixedSnapshot(
   params: Parameters<typeof prepareProjectTrial>[0],
-  resolved: Pick<z.infer<typeof runtimeSchema>, 'agent_id'|'project_id'|'knowledge_revision_id'|'snapshot'>,
-  runtimeName: string, modeText: string,
+  resolved: Pick<
+    z.infer<typeof runtimeSchema>,
+    'agent_id' | 'project_id' | 'knowledge_revision_id' | 'snapshot'
+  >,
+  runtimeName: string,
+  modeText: string,
 ): void {
-  const {req, endpointOption} = params;
+  const { req, endpointOption } = params;
   const body = req.body as Record<string, unknown>;
   const snapshot = resolved.snapshot;
   const instructions = [

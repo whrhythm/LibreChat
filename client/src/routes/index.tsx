@@ -9,6 +9,7 @@ import {
   RequestPasswordReset,
 } from '~/components/Auth';
 import { OAuthSuccess, OAuthError } from '~/components/OAuth';
+import Application from '~/components/CodeChat/Application';
 import { AuthContextProvider } from '~/hooks/AuthContext';
 import { importWithRecovery } from '~/lib/assets/lazy';
 import RouteErrorBoundary from './RouteErrorBoundary';
@@ -22,7 +23,6 @@ import ShareRoute from './ShareRoute';
 import ChatRoute from './ChatRoute';
 import Search from './Search';
 import Root from './Root';
-import Application from '~/components/CodeChat/Application';
 
 const AuthLayout = () => (
   <AuthContextProvider>
@@ -149,7 +149,7 @@ export const router = createBrowserRouter(
                   path: 'c/:conversationId?',
                   element: <ChatRoute />,
                 },
-                {path:'application/:projectId',element:<Application />},
+                { path: 'application/:projectId', element: <Application /> },
                 {
                   path: 'search',
                   element: <Search />,

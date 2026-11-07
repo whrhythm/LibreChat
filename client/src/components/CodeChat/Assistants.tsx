@@ -7,8 +7,8 @@ import type { AIProjectCreateInput } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { useGetStartupConfig } from '~/data-provider';
 import Knowledge from './Knowledge';
-import Trials from './Trials';
 import Releases from './Releases';
+import Trials from './Trials';
 
 export default function Assistants({
   enabled,
@@ -148,7 +148,9 @@ export default function Assistants({
           {value.state === 'ready' && startup?.aiTrialsEnabled && (
             <Trials projectId={value.project.id} />
           )}
-          {value.state === 'ready' && startup?.aiReleasesEnabled && <Releases projectId={value.project.id} />}
+          {value.state === 'ready' && startup?.aiReleasesEnabled && (
+            <Releases projectId={value.project.id} />
+          )}
           <div className="flex flex-wrap gap-2">
             {value.state === 'ready' && !startup?.aiTrialsEnabled && (
               <Button size="xs" variant="outline" asChild>
