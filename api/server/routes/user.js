@@ -8,6 +8,7 @@ const {
   createVersionHandlers,
   createWorkspaceProjectHandlers,
   createAIProjectHandlers,
+  createKnowledgeHandlers,
   generateCheckAccess,
   createBusinessTemplateHandlers,
   createProjectDatabaseHandlers,
@@ -39,7 +40,7 @@ const {
 
 const settings = require('./settings');
 const { updateUserStatefulCodeEnvironment } = require('~/models');
-const { ensurePrivateProjectAgent, getRoleByName } = require('~/models');
+const { ensurePrivateProjectAgent, enableProjectKnowledge, getRoleByName } = require('~/models');
 const { grantPermission } = require('~/server/services/PermissionService');
 const { PermissionTypes, Permissions } = require('librechat-data-provider');
 
@@ -56,6 +57,16 @@ const checkAIProjectCreate = generateCheckAccess({
   permissions: [Permissions.USE, Permissions.CREATE],
   getRoleByName,
 });
+const knowledge = createKnowledgeHandlers({
+  baseUrl: process.env.CODECHAT_WORKSPACE_URL,
+  serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
+  issuer: process.env.OPENID_ISSUER,
+  enableProjectKnowledge,
+});
+router.get('/workspace/ai-projects/:projectId/knowledge', requireJwtAuth, configMiddleware, knowledge.list);
+router.post('/workspace/ai-projects/:projectId/knowledge', requireJwtAuth, checkAIProjectCreate, configMiddleware, knowledge.import);
+router.post('/workspace/ai-projects/:projectId/knowledge/:revisionId/retry', requireJwtAuth, checkAIProjectCreate, configMiddleware, knowledge.retry);
+router.post('/workspace/ai-projects/:projectId/knowledge/:revisionId/remove', requireJwtAuth, checkAIProjectCreate, configMiddleware, knowledge.remove);
 router.get('/workspace/ai-projects', requireJwtAuth, aiProjects.list);
 router.post(
   '/workspace/ai-projects',

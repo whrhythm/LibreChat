@@ -7,6 +7,7 @@ export * from './capacity';
 export * from './versions';
 export * from './projects';
 export * from './assistants';
+export * from './knowledge';
 export * from './templates';
 export * from './databases';
 export * from './erasure';

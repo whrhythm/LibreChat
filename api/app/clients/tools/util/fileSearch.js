@@ -6,6 +6,8 @@ const {
   selectFileCitationSources,
   generateShortLivedToken,
   executeFileSearchQuery,
+  primeProjectKnowledge,
+  createProjectFileSearchTool,
 } = require('@librechat/api');
 const { Tools, EToolResources } = require('librechat-data-provider');
 const { filterFilesByAgentAccess } = require('~/server/services/Files/permissions');
@@ -139,4 +141,12 @@ Use the EXACT anchor markers shown below (copy them verbatim) immediately after 
   );
 };
 
-module.exports = { createFileSearchTool, primeFiles, fileSearchJsonSchema };
+module.exports = {
+  createFileSearchTool: (options) => createProjectFileSearchTool(options, {
+    baseUrl: process.env.CODECHAT_WORKSPACE_URL,
+    serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
+    issuer: process.env.OPENID_ISSUER,
+  }, createFileSearchTool),
+  primeFiles: (options) => primeProjectKnowledge(options, primeFiles),
+  fileSearchJsonSchema,
+};

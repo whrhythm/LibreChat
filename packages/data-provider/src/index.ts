@@ -122,3 +122,4 @@ export * from './codechatDatabases';
 export * from './codechatProjects';
 export * from './codechatTemplates';
 export * from './aiProjects';
+export * from './knowledge';
