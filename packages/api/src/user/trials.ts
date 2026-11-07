@@ -61,7 +61,7 @@ export class TrialFailure extends Error {
     super(code);
   }
 }
-export function trialClient(req: Request, deps: Transport) {
+export function trialClient(req: Request, deps: Transport): (suffix: string, body?: object) => Promise<unknown> {
   const user = req.user;
   if (
     user?.provider !== 'openid' ||
@@ -132,7 +132,7 @@ const messageSchema = z
   })
   .passthrough();
 
-export function createTrialHandlers(deps: Dependencies) {
+export function createTrialHandlers(deps: Dependencies): Record<'list' | 'initialize' | 'update' | 'create' | 'resume' | 'accept', (req: Request, res: Response) => Promise<Response>> {
   const handler =
     (action: 'list' | 'initialize' | 'update' | 'create' | 'resume' | 'accept') =>
     async (req: Request, res: Response) => {
@@ -290,7 +290,7 @@ export function createTrialHandlers(deps: Dependencies) {
 }
 
 /** Runs after conversation ownership checks, before Agent loading. */
-export function createTrialConversationGuard(getConvo: Dependencies['getConvo']) {
+export function createTrialConversationGuard(getConvo: Dependencies['getConvo']): (req: ServerRequest, res: Response, next: NextFunction) => Promise<void> {
   return async (req: ServerRequest, res: Response, next: NextFunction) => {
     try {
       const body = req.body as Record<string, unknown>;
@@ -333,7 +333,7 @@ export async function prepareProjectTrial(
     requestBody?: Record<string, unknown>;
   },
   deps: Transport,
-) {
+): Promise<void> {
   const { req, endpointOption } = params;
   const id = trialIdFromAgent(endpointOption.agent_id ?? req.body.agent_id);
   if (!id) return;
