@@ -132,7 +132,11 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
           }
         }}
       >
-        <Controls showInteractive={false} position="bottom-right" />
+        <Controls
+          showInteractive={false}
+          position="bottom-right"
+          className="[&_button]:border-border-light! [&_button]:bg-surface-primary! [&_button]:text-text-primary! [&_button:hover]:bg-surface-hover! shadow-none!"
+        />
       </ReactFlow>
     </div>
   );
