@@ -76,7 +76,7 @@ export default function ProjectInspector() {
   );
   const recentTrial = currentTrial ?? trials.data?.trials.find((v) => v.state === 'ready');
   const selectedTrial = pinned ?? recentTrial;
-  const { frame, activity } = useTrialActivity(selectedTrial?.agent_id);
+  const { frame, activity, resetActivity } = useTrialActivity(selectedTrial?.agent_id);
   useEffect(() => {
     if (!pinned && recentTrial) setPinned(recentTrial);
   }, [recentTrial, pinned, setPinned]);
@@ -225,6 +225,11 @@ export default function ProjectInspector() {
                       {t('com_project_materials')}
                     </Button>
                     <span className="flex-1" />
+                    {selectedTrial && selectedTrial.digest !== trials.data?.digest && (
+                      <span className="text-text-secondary text-xs">
+                        {t('com_project_graph_previous')}
+                      </span>
+                    )}
                     {currentTrial && selectedTrial?.id !== currentTrial.id ? (
                       <Button size="xs" variant="outline" onClick={() => setPinned(currentTrial)}>
                         {t('com_project_trial_switch')}
@@ -263,6 +268,7 @@ export default function ProjectInspector() {
                   {trialPath ? (
                     <iframe
                       ref={frame}
+                      onLoad={resetActivity}
                       name={'starbridge-trial:' + selectedTrial?.agent_id}
                       key={selectedTrial?.id}
                       title={t('com_project_trial_frame')}
