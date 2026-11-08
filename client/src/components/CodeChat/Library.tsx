@@ -18,10 +18,10 @@ import { storageSize } from './storage';
 
 const CodeEditor = lazyWithRecovery(() => import('./CodeEditor'));
 const states = {
-  queued: 'com_knowledge_indexing',
-  indexing: 'com_knowledge_indexing',
-  ready: 'com_knowledge_ready',
-  failed: 'com_knowledge_failed',
+  queued: 'com_library_indexing',
+  indexing: 'com_library_indexing',
+  ready: 'com_library_ready',
+  failed: 'com_library_failed',
   deleting: 'com_knowledge_deleting',
   deleted: 'com_knowledge_deleted',
 } as const;
@@ -323,7 +323,16 @@ export default function Library({
           <div className="text-text-secondary flex flex-wrap gap-3 text-xs">
             <span>{head ? t(states[head.state]) : t('com_library_empty')}</span>
             <span>{t('com_library_file_count', { count: head?.manifest.length ?? 0 })}</span>
-            <span>{head ? storageSize(head.source_bytes + head.index_bytes) : '0 B'}</span>
+            <span>
+              {t('com_library_storage', {
+                size: storageSize(
+                  data.revisions.reduce(
+                    (sum, revision) => sum + revision.source_bytes + revision.index_bytes,
+                    0,
+                  ),
+                ),
+              })}
+            </span>
           </div>
           <p className="text-text-secondary text-xs">
             {t('com_library_formats', {
