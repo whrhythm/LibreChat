@@ -8,6 +8,7 @@ import {
   MarkerType,
   useReactFlow,
   useNodesInitialized,
+  useStore,
 } from '@xyflow/react';
 import type { Edge, Node, NodeProps, NodeMouseHandler, XYPosition } from '@xyflow/react';
 import type { AITrials } from 'librechat-data-provider';
@@ -38,16 +39,28 @@ type Props = {
   onEdit: (id: 'assistant' | 'knowledge') => void;
 };
 
-function Step({ data }: NodeProps<FlowNode>) {
+function Step({ id, data }: NodeProps<FlowNode>) {
   const t = useLocalize();
   const Icon = data.icon;
+  let target = Position.Left;
+  let source = Position.Right;
+  if (id === 'knowledge') {
+    target = Position.Top;
+    source = Position.Left;
+  }
+  if (id === 'result') {
+    target = Position.Right;
+    source = Position.Top;
+  }
   return (
     <div
       data-status={data.status ?? 'idle'}
       className={`bg-surface-primary text-text-primary w-[126px] rounded-md border px-2 py-2 text-xs ${data.status === 'running' ? 'border-text-primary ring-border-heavy ring-1' : 'border-border-light'} ${data.editable ? 'cursor-pointer' : ''}`}
     >
-      <Handle type="target" position={Position.Left} id="in" />
-      <Handle type="target" position={Position.Top} id="feedback" />
+      {id !== 'input' && <Handle type="target" position={target} id="in" />}
+      {id === 'assistant' && (
+        <Handle type="target" position={Position.Bottom} id="return" style={{ left: '25%' }} />
+      )}
       <div className="flex items-center gap-1.5">
         <Icon aria-hidden="true" className="size-3.5 shrink-0" />
         <span className="flex-1 truncate font-medium">{data.label}</span>
@@ -66,8 +79,10 @@ function Step({ data }: NodeProps<FlowNode>) {
           {data.detail}
         </div>
       )}
-      <Handle type="source" position={Position.Right} id="out" />
-      <Handle type="source" position={Position.Bottom} id="call" />
+      {id !== 'answer' && <Handle type="source" position={source} id="out" />}
+      {id === 'assistant' && (
+        <Handle type="source" position={Position.Bottom} id="call" style={{ left: '75%' }} />
+      )}
     </div>
   );
 }
@@ -75,10 +90,12 @@ const nodeTypes = { step: Step };
 
 function Fit({ knowledge }: { knowledge: boolean }) {
   const ready = useNodesInitialized();
+  const width = useStore((state) => state.width);
+  const height = useStore((state) => state.height);
   const { fitView } = useReactFlow();
   useEffect(() => {
     if (ready) void fitView({ padding: 0.2, maxZoom: 1 });
-  }, [ready, knowledge, fitView]);
+  }, [ready, knowledge, width, height, fitView]);
   return null;
 }
 
@@ -132,15 +149,15 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
       result.push(
         make(
           'knowledge',
-          120,
-          112,
+          240,
+          130,
           Database,
           t('com_project_graph_search'),
           activity?.calls
             ? t('com_project_graph_calls', { count: activity.calls })
             : t('com_project_graph_on_demand'),
         ),
-        make('result', 330, 112, CornerUpLeft, t('com_project_graph_result')),
+        make('result', 40, 130, CornerUpLeft, t('com_project_graph_result')),
       );
     }
     return result;
@@ -186,7 +203,7 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
         !!activity?.calls,
         t('com_project_graph_call'),
         'call',
-        'feedback',
+        'in',
       ),
       edge('knowledge-result', 'knowledge', 'result', !!activity?.result),
       edge(
@@ -196,7 +213,7 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
         !!activity?.result,
         t('com_project_graph_feedback'),
         'out',
-        'feedback',
+        'return',
       ),
     );
   }
