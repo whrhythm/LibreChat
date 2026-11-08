@@ -143,7 +143,7 @@ export default function ProjectInspector() {
   }
   return (
     <aside
-      className="bg-surface-primary border-border-light absolute inset-0 z-20 flex min-h-0 min-w-0 flex-col border-s text-sm lg:static lg:z-auto lg:w-2/5 lg:max-w-3xl lg:shrink-0"
+      className="bg-surface-primary text-text-primary border-border-light absolute inset-0 z-20 flex min-h-0 min-w-0 flex-col border-s text-sm lg:static lg:z-auto lg:w-2/5 lg:max-w-3xl lg:shrink-0"
       aria-label={t('com_project_workbench')}
     >
       <header className="border-border-light flex items-center justify-between gap-2 border-b px-3 py-2">

@@ -8,6 +8,8 @@ import { useAuthContext, useLocalize } from '~/hooks';
 
 // An editable HTML file must never run with the chat application's origin or credentials.
 const offlinePolicy = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'">`;
+const defaultCanvas =
+  '<style>:where(html) { color-scheme: light; color: CanvasText; background: Canvas; }</style>';
 
 export default function ProjectWeb({ path, deployed }: { path: string; deployed: string | null }) {
   const { user, token } = useAuthContext();
@@ -25,7 +27,7 @@ export default function ProjectWeb({ path, deployed }: { path: string; deployed:
       const response = await personalFileRequest(token!, 'file', 'GET', path + '/index.html');
       const blob = await response.blob();
       if (blob.size > 1024 * 1024) throw new Error('preview_too_large');
-      return offlinePolicy + (await blob.text());
+      return '<!doctype html>' + offlinePolicy + defaultCanvas + (await blob.text());
     },
     enabled: !!token,
     retry: false,

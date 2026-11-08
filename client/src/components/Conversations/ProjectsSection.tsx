@@ -352,7 +352,7 @@ const ProjectItem = memo(
           <a
             href={projectChatPath}
             onClick={startChat}
-            className="focus-visible:ring-text-primary flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1.5 pe-16 outline-hidden focus-visible:ring-2"
+            className="text-text-primary focus-visible:ring-text-primary flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1.5 pe-16 no-underline outline-hidden focus-visible:ring-2"
           >
             <ProjectIcon className="text-text-secondary size-4 shrink-0" aria-hidden="true" />
             {kind && (
