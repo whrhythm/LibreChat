@@ -74,11 +74,12 @@ export default function ProjectInspector() {
   const currentTrial = trials.data?.trials.find(
     (v) => v.state === 'ready' && v.digest === trials.data.digest,
   );
-  const selectedTrial = pinned ?? currentTrial;
+  const recentTrial = currentTrial ?? trials.data?.trials.find((v) => v.state === 'ready');
+  const selectedTrial = pinned ?? recentTrial;
   const { frame, activity } = useTrialActivity(selectedTrial?.agent_id);
   useEffect(() => {
-    if (!pinned && currentTrial) setPinned(currentTrial);
-  }, [currentTrial, pinned, setPinned]);
+    if (!pinned && recentTrial) setPinned(recentTrial);
+  }, [recentTrial, pinned, setPinned]);
   const app = context.data?.application;
   const address = app ? deliveryAddress(app) : null;
   const path = context.data?.path ?? assistant?.project.path;

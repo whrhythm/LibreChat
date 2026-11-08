@@ -123,6 +123,17 @@ it('opens publishing from the header and returns without replacing the chat', as
   expect(screen.getByLabelText('chat draft')).toHaveValue('Keep this unsent request');
 });
 
+it('restores the last ready trial when the current draft has no trial yet', async () => {
+  (projectTrials as jest.Mock).mockResolvedValue({
+    digest: 'updated',
+    trials: [{ id: 'older', state: 'ready', digest: 'prior', agent_id: 'agent_trial_prior' }],
+  });
+  mount();
+  const frame = await screen.findByTitle('com_project_trial_frame');
+  expect(frame).toHaveAttribute('src', expect.stringContaining('agent_id=agent_trial_prior'));
+  expect(screen.getByRole('button', { name: 'com_project_trial_switch' })).toBeVisible();
+});
+
 it('does not report missing resources when the service failed and can retry', async () => {
   (workspaceProject as jest.Mock).mockRejectedValueOnce(new Error('offline'));
   mount();
