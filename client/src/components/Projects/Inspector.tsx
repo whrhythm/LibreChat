@@ -38,7 +38,6 @@ import Trials from '~/components/CodeChat/Trials';
 import { projectInspector } from './navigation';
 import ProjectApplication from './Application';
 import useProjectChat from './useProjectChat';
-import ProjectUsage from './Usage';
 
 const sections = [
   { id: 'assistant', label: 'com_project_assistant', icon: Bot },
@@ -150,7 +149,6 @@ export default function ProjectInspector() {
         </h2>
       </header>
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-        <ProjectUsage compact />
         <div className="space-y-4 px-3 py-3">
           {section === 'overview' ? (
             <>

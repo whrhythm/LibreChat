@@ -176,7 +176,7 @@ function ExpandedPanel({
       <div className="border-border-inset mx-2 border-b" />
       <div className="flex flex-col gap-1 overflow-y-auto">
         {links
-          .filter((link) => link.id !== 'personal-space')
+          .filter((link) => link.id !== 'resource-usage')
           .map((link) => (
             <NavIconButton
               key={link.id}
@@ -196,7 +196,22 @@ function ExpandedPanel({
           ))}
       </div>
 
-      <div className="mt-auto">
+      <div className="mt-auto flex flex-col gap-1">
+        {links
+          .filter((link) => link.id === 'resource-usage')
+          .map((link) => (
+            <NavIconButton
+              key={link.id}
+              link={link}
+              isActive={!isInsightsRoute && link.id === effectiveActive}
+              expanded={expanded}
+              setActive={setActive}
+              onExpand={onExpand}
+              onCollapse={onCollapse}
+              onNavigate={onNavigate}
+              onLeaveInsights={isInsightsRoute ? onLeaveInsights : undefined}
+            />
+          ))}
         <Suspense fallback={<Skeleton className="h-9 w-9 rounded-lg" />}>
           <AccountSettings collapsed />
         </Suspense>

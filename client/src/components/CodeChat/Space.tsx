@@ -1,16 +1,21 @@
+import { X } from 'lucide-react';
+import { atomFamily } from 'jotai/utils';
 import { Button } from '@librechat/client';
-import { ArrowLeft, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { atom, useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { personalFileRequest, QueryKeys } from 'librechat-data-provider';
 import type { PersonalSpace, WorkspaceEntry } from 'librechat-data-provider';
 import { activePanelAtom } from '~/Providers/ActivePanelContext';
 import { useAuthContext, useLocalize } from '~/hooks';
 import ApplicationNotice from './ApplicationNotice';
 import StorageSummary from './StorageSummary';
+import KnowledgeList from './KnowledgeList';
 import Applications from './Applications';
 import { spaceNavigation } from './dock';
+import { StorageDetails } from './Usage';
+
+const assetSection = atomFamily((_owner: string) => atom('files'));
+import useAccount from './useAccount';
 import PersonalFiles from './Files';
 
 function ApplicationProjects({
@@ -29,7 +34,7 @@ function ApplicationProjects({
     queryFn: async () => (await personalFileRequest(token!, 'ensure', 'POST')).json(),
     enabled: enabled && !!token && !!user?.id,
     retry: false,
-    refetchInterval: (data) => (data?.status === 'ready' ? 30000 : 5000),
+    refetchInterval: enabled ? (data) => (data?.status === 'ready' ? 30000 : 5000) : false,
   });
   const ready = enabled && !!token && space.data?.status === 'ready';
   const root = useQuery<{ entries: WorkspaceEntry[] }>({
@@ -89,12 +94,13 @@ function ApplicationProjects({
 }
 
 export default function PersonalSpacePanel() {
-  const navigate = useNavigate();
   const { user } = useAuthContext();
   const localize = useLocalize();
   const [view, setView] = useAtom(spaceNavigation(user?.id ?? 'anonymous'));
   const active = useAtomValue(activePanelAtom) === 'personal-space';
   const setActive = useSetAtom(activePanelAtom);
+  const [section, setSection] = useAtom(assetSection(user?.id ?? 'anonymous'));
+  const account = useAccount(active);
   let title: 'com_codechat_workspace' | 'com_codechat_apps' | 'com_codechat_projects_tab' =
     'com_codechat_projects_tab';
   if (view.pane === 'files') title = 'com_codechat_workspace';
@@ -118,31 +124,50 @@ export default function PersonalSpacePanel() {
         </Button>
       </header>
       {view.pane !== 'projects' && (
-        <div className="px-4 pb-3">
-          <Button
-            size="xs"
-            variant="ghost"
-            onClick={() => {
-              setActive('conversations');
-              navigate('/projects');
-            }}
-          >
-            <ArrowLeft className="size-3.5" aria-hidden="true" />
-            {localize('com_codechat_projects_tab')}
-          </Button>
-          {view.pane === 'files' && active && <StorageSummary />}
-        </div>
+        <div className="px-4 pb-3">{view.pane === 'files' && active && <StorageSummary />}</div>
       )}
-      {active && (
+      {active && view.pane === 'apps' && (
         <ApplicationNotice onOpen={() => setView((current) => ({ ...current, pane: 'apps' }))} />
       )}
       <div className="min-h-0 flex-1 overflow-auto px-4 pb-4">
         <div hidden={view.pane !== 'files'}>
-          <PersonalFiles
-            expanded={active && view.pane === 'files'}
-            path={view.path}
-            onPathChange={setPath}
-          />
+          <nav className="mb-3 flex gap-1" aria-label={localize('com_assets_sections')}>
+            <Button
+              size="xs"
+              variant={section === 'files' ? 'outline' : 'ghost'}
+              aria-pressed={section === 'files'}
+              onClick={() => setSection('files')}
+            >
+              {localize('com_assets_files')}
+            </Button>
+            <Button
+              size="xs"
+              variant={section === 'knowledge' ? 'outline' : 'ghost'}
+              aria-pressed={section === 'knowledge'}
+              onClick={() => setSection('knowledge')}
+            >
+              {localize('com_assets_project_knowledge')}
+            </Button>
+          </nav>
+          <div hidden={section !== 'files'}>
+            <PersonalFiles
+              expanded={active && view.pane === 'files' && section === 'files'}
+              path={view.path}
+              onPathChange={setPath}
+            />
+          </div>
+          {section === 'knowledge' && <KnowledgeList enabled={active && view.pane === 'files'} />}
+          <details className="border-border-light mt-4 border-t py-3">
+            <summary className="cursor-pointer text-xs">
+              {localize('com_assets_storage_details')}
+            </summary>
+            <div className="space-y-3 pt-3">
+              <StorageDetails data={account.data} />
+              <p className="text-text-secondary text-xs">
+                {localize('com_assets_readonly_assets')}
+              </p>
+            </div>
+          </details>
         </div>
         <div hidden={view.pane !== 'apps'}>
           <ApplicationProjects
@@ -151,6 +176,30 @@ export default function PersonalSpacePanel() {
             onPathChange={setPath}
           />
         </div>
+      </div>
+    </section>
+  );
+}
+
+export function DeploymentPanel() {
+  const { user } = useAuthContext();
+  const t = useLocalize();
+  const active = useAtomValue(activePanelAtom) === 'deployed-apps';
+  const [view, setView] = useAtom(spaceNavigation(user?.id ?? 'anonymous'));
+  return (
+    <section
+      className="flex h-full min-h-0 flex-col text-sm"
+      aria-label={t('com_assets_deployments')}
+    >
+      <header className="px-4 py-3">
+        <h2 className="font-semibold">{t('com_assets_deployments')}</h2>
+      </header>
+      <div className="min-h-0 flex-1 overflow-auto px-4 pb-4">
+        <ApplicationProjects
+          path={view.path}
+          onPathChange={(path) => setView((current) => ({ ...current, path }))}
+          enabled={active}
+        />
       </div>
     </section>
   );

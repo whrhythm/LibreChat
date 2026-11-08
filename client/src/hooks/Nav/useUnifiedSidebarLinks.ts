@@ -3,23 +3,23 @@ import { useSetAtom } from 'jotai';
 import { useRecoilValue } from 'recoil';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserKeyQuery } from 'librechat-data-provider/react-query';
-import { BarChart3, FolderKanban, MessagesSquare } from 'lucide-react';
 import { getConfigDefaults, getEndpointField } from 'librechat-data-provider';
+import { BarChart3, FolderKanban, MessagesSquare, Rocket } from 'lucide-react';
 import type { TEndpointsConfig } from 'librechat-data-provider';
 import type { NavLink } from '~/common';
 import { useGetEndpointsQuery, useGetStartupConfig, useInsightsAccessQuery } from '~/data-provider';
 import ConversationsSection from '~/components/UnifiedSidebar/ConversationsSection';
+import PersonalSpace, { DeploymentPanel } from '~/components/CodeChat/Space';
+import UsagePanel, { UsageIcon } from '~/components/CodeChat/Usage';
 import { activePanelAtom } from '~/Providers/ActivePanelContext';
 import { isCodeChatEnabled } from '~/components/CodeChat/config';
 import { spaceNavigation } from '~/components/CodeChat/dock';
 import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
 import useSideNavLinks from '~/hooks/Nav/useSideNavLinks';
-import { lazyWithRecovery } from '~/lib/assets/lazy';
 import { useAuthContext } from '~/hooks';
 import store from '~/store';
 
 const defaultInterface = getConfigDefaults().interface;
-const PersonalSpace = lazyWithRecovery(() => import('~/components/CodeChat/Space'));
 
 export default function useUnifiedSidebarLinks() {
   const navigate = useNavigate();
@@ -94,16 +94,38 @@ export default function useUnifiedSidebarLinks() {
                 setSpaceNavigation((view) => ({ ...view, pane: 'files' }));
                 setActive('personal-space');
                 setSidebarOpen(true);
-                if (!location.pathname.startsWith('/c/')) navigate('/c/new');
               },
             },
+            {
+              id: 'deployed-apps',
+              title: 'com_assets_deployments',
+              label: '',
+              icon: Rocket,
+              Component: DeploymentPanel,
+            },
+            ...(startupConfig?.codechat?.capacity?.enabled
+              ? [
+                  {
+                    id: 'resource-usage',
+                    title: 'com_assets_usage' as const,
+                    label: '',
+                    icon: UsageIcon,
+                    Component: UsagePanel,
+                  },
+                ]
+              : []),
           ]
         : [];
     if (
       !insightsFeatureEnabled ||
       (!isInsightsRoute && !isInsightsAccessLoading && insightsAccess?.access !== true)
     ) {
-      return [conversationLink, ...workspace, ...sideNavLinks];
+      return [
+        conversationLink,
+        ...sideNavLinks.filter((link) => ['agents', 'skills'].includes(link.id)),
+        ...workspace,
+        ...sideNavLinks.filter((link) => !['agents', 'skills'].includes(link.id)),
+      ];
     }
 
     const insightsLink: NavLink = {
@@ -135,6 +157,7 @@ export default function useUnifiedSidebarLinks() {
     setSpaceNavigation,
     setActive,
     setSidebarOpen,
+    startupConfig?.codechat?.capacity?.enabled,
   ]);
 
   return links;

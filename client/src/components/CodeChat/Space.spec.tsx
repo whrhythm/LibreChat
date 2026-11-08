@@ -38,6 +38,7 @@ jest.mock('./Applications', () => ({ path, canPublish }: { path: string; canPubl
 jest.mock('librechat-data-provider', () => ({
   ...jest.requireActual('librechat-data-provider'),
   personalFileRequest: jest.fn(),
+  personalCapacityRequest: jest.fn(async () => ({ storage: { components: [], complete: false } })),
 }));
 
 it('keeps file navigation while separating applications and selects the browsed project', async () => {

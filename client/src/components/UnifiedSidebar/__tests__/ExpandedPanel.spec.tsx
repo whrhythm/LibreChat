@@ -225,6 +225,24 @@ describe('ExpandedPanel', () => {
     });
   });
 
+  it('opens resource panels without resetting the conversation and keeps usage by the account', () => {
+    const resourceLinks = [
+      { id: 'personal-space', title: 'com_codechat_workspace' as const },
+      { id: 'deployed-apps', title: 'com_assets_deployments' as const },
+      { id: 'resource-usage', title: 'com_assets_usage' as const },
+    ].map((link) => ({ ...link, icon: NotebookPen }));
+    renderPanel({ links: [...createLinks(), ...resourceLinks] });
+    for (const link of resourceLinks) {
+      fireEvent.click(screen.getByRole('button', { name: link.title }));
+      expect(getDefaultStore().get(activePanelAtom)).toBe(link.id);
+    }
+    expect(mockNewConversation).not.toHaveBeenCalled();
+    expect(mockClearMessagesCache).not.toHaveBeenCalled();
+    expect(screen.getByTestId('account-settings').parentElement).toContainElement(
+      screen.getByRole('button', { name: 'com_assets_usage' }),
+    );
+  });
+
   describe('NewChatButton panel switch', () => {
     it('switches to chat history panel on new chat click when setting is enabled', () => {
       renderPanel({ expanded: true, initialPanel: 'prompts' });
