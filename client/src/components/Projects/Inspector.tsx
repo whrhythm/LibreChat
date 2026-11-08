@@ -3,23 +3,13 @@ import { atom, useAtom } from 'jotai';
 import { atomFamily } from 'jotai/utils';
 import { useQuery } from '@tanstack/react-query';
 import { X, ExternalLink, Maximize2, Minimize2, Send } from 'lucide-react';
-import {
-  aiProjects,
-  workspaceProject,
-  projectTrials,
-  projectReleases,
-  QueryKeys,
-} from 'librechat-data-provider';
+import { aiProjects, workspaceProject, projectTrials, QueryKeys } from 'librechat-data-provider';
 import {
   Button,
   OGDialog,
   OGDialogContent,
   OGDialogTitle,
   OGDialogDescription,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
 } from '@librechat/client';
 import type { AITrial } from 'librechat-data-provider';
 import { useProjectQuery, useGetStartupConfig } from '~/data-provider';
@@ -32,8 +22,17 @@ import Releases from '~/components/CodeChat/Releases';
 import Trials from '~/components/CodeChat/Trials';
 import { projectInspector } from './navigation';
 import ProjectApplication from './Application';
+import { useTrialActivity } from './Activity';
 import ProjectWeb from './Web';
-type WorkView = 'prepareAssistant' | 'prepareCode' | 'preview' | 'publish' | 'operations';
+import Graph from './Graph';
+type WorkView =
+  | 'prepareAssistant'
+  | 'prepareCode'
+  | 'preview'
+  | 'publish'
+  | 'operations'
+  | 'settings'
+  | 'materials';
 const workbenchTrial = atomFamily((_key: string) => atom<AITrial | null>(null));
 
 /** Side navigation is independent from the central chat, including its unsent input. */
@@ -72,22 +71,14 @@ export default function ProjectInspector() {
     enabled: !!token && !!id && !!assistant && !!startup?.aiTrialsEnabled,
     retry: false,
   });
-  const releases = useQuery({
-    queryKey: [QueryKeys.aiProjects, user?.id, id, 'releases'],
-    queryFn: () => projectReleases(token!, id!),
-    enabled: !!token && !!id && !!assistant && !!startup?.aiReleasesEnabled,
-    retry: false,
-  });
   const currentTrial = trials.data?.trials.find(
     (v) => v.state === 'ready' && v.digest === trials.data.digest,
   );
   const selectedTrial = pinned ?? currentTrial;
+  const { frame, activity } = useTrialActivity(selectedTrial?.agent_id);
   useEffect(() => {
     if (!pinned && currentTrial) setPinned(currentTrial);
   }, [currentTrial, pinned, setPinned]);
-  const activeRelease = releases.data?.releases.find(
-    (v) => v.id === releases.data.application?.active_release_id,
-  );
   const app = context.data?.application;
   const address = app ? deliveryAddress(app) : null;
   const path = context.data?.path ?? assistant?.project.path;
@@ -113,19 +104,11 @@ export default function ProjectInspector() {
     operations: 'com_project_operations',
     prepareCode: 'com_project_bind_code',
     prepareAssistant: 'com_project_prepare_assistant',
-    preview: 'com_ai_projects_try',
+    preview: 'com_project_trial_records',
+    settings: 'com_project_settings',
+    materials: 'com_knowledge_title',
   } as const;
   const title = t(titles[work ?? 'preview']);
-  let releaseStatus = t('com_project_unpublished');
-  if (activeRelease)
-    releaseStatus =
-      t('com_project_online', { number: activeRelease.number }) +
-      ' · ' +
-      t(releases.data?.application?.enabled ? 'com_releases_enabled' : 'com_releases_disabled');
-  if (releases.isLoading && startup?.aiReleasesEnabled) releaseStatus = t('com_ui_loading');
-  if (releases.isError) releaseStatus = t('com_project_status_error');
-  const style = trials.data?.config?.response_style;
-  const styleKey = style === 'support' ? 'com_trials_support' : 'com_trials_grounded';
   const assistantWorkbench = ready && section === 'assistant' && !!assistant;
   let trialPath = '';
   if (selectedTrial && project) {
@@ -140,7 +123,7 @@ export default function ProjectInspector() {
   }
   return (
     <aside
-      className={`bg-surface-primary text-text-primary border-border-light absolute inset-0 z-20 flex min-h-0 min-w-0 flex-col border-s text-sm lg:static lg:z-auto lg:shrink-0 ${expanded ? 'lg:w-3/5' : 'lg:w-2/5 lg:max-w-3xl'}`}
+      className={`text-text-primary border-border-light absolute inset-0 z-20 flex min-h-0 min-w-0 flex-col border-s text-sm lg:static lg:z-auto lg:shrink-0 ${assistantWorkbench ? 'bg-surface-canvas' : 'bg-surface-primary'} ${expanded ? 'lg:w-3/5' : 'lg:w-2/5 lg:max-w-3xl'}`}
       aria-label={t('com_project_workbench')}
     >
       <header className="border-border-light flex items-center justify-between gap-2 border-b px-3 py-2">
@@ -150,12 +133,6 @@ export default function ProjectInspector() {
             {!assistantWorkbench &&
               ' · ' + t(section === 'files' ? 'com_project_files' : 'com_project_try_pane')}
           </h2>
-          {assistantWorkbench && (
-            <p className="text-text-secondary text-xs" role="status">
-              {trials.data?.config && t('com_trials_draft') + ' #' + trials.data.revision + ' · '}
-              {releaseStatus}
-            </p>
-          )}
         </div>
         {assistantWorkbench && (
           <>
@@ -223,146 +200,73 @@ export default function ProjectInspector() {
             section === 'assistant' &&
             (assistant ? (
               <div className="flex h-full min-h-0 flex-col">
-                <div className="border-border-light flex max-h-[42%] min-h-0 shrink-0 flex-col border-b">
-                  <Tabs
-                    key={project._id}
-                    defaultValue="trial"
-                    className={work === 'publish' ? 'hidden' : 'flex min-h-0 flex-col'}
-                  >
-                    <div className="shrink-0 px-3 pt-2">
-                      <TabsList variant="segmented" aria-label={t('com_project_workbench')}>
-                        <TabsTrigger variant="segmented" value="trial">
-                          {t('com_project_trial_overview')}
-                        </TabsTrigger>
-                        <TabsTrigger variant="segmented" value="capabilities">
-                          {t('com_project_capabilities')}
-                        </TabsTrigger>
-                        <TabsTrigger variant="segmented" value="materials">
-                          {t('com_project_materials')}
-                        </TabsTrigger>
-                      </TabsList>
-                    </div>
-                    <TabsContent value="trial" size="flush" className="min-h-0 overflow-y-auto">
-                      <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
-                        {!selectedTrial ? (
-                          <Button
-                            size="xs"
-                            disabled={!startup?.aiTrialsEnabled}
-                            onClick={(e) => open('preview', e.currentTarget)}
-                          >
-                            {t('com_ai_projects_try')}
-                          </Button>
-                        ) : (
-                          <>
-                            <span className="bg-surface-secondary text-text-secondary rounded-md px-2 py-1 text-xs">
-                              {t('com_trials_version')} {selectedTrial.number}
-                            </span>
-                            {currentTrial && currentTrial.id !== selectedTrial.id && (
-                              <Button
-                                size="xs"
-                                variant="outline"
-                                onClick={() => setPinned(currentTrial)}
-                              >
-                                {t('com_project_trial_switch')}
-                              </Button>
-                            )}
-                            {!currentTrial && trials.data?.digest && (
-                              <Button
-                                size="xs"
-                                variant="outline"
-                                onClick={(e) => open('preview', e.currentTarget)}
-                              >
-                                {t('com_project_trial_switch')}
-                              </Button>
-                            )}
-                            <Button
-                              size="xs"
-                              variant="ghost"
-                              onClick={(e) => open('preview', e.currentTarget)}
-                            >
-                              {t('com_project_trial_records')}
-                            </Button>
-                            <Button asChild size="icon-sm" variant="ghost">
-                              <a
-                                href={trialPath.replace(/&trialPane=1$/, '')}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title={t('com_project_trial_new_tab')}
-                                aria-label={t('com_project_trial_new_tab')}
-                              >
-                                <ExternalLink className="size-4" aria-hidden="true" />
-                              </a>
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TabsContent>
-                    <TabsContent
-                      value="capabilities"
-                      size="flush"
-                      className="min-h-0 flex-1 overflow-y-auto"
+                <div className="border-border-light flex h-[clamp(9rem,27dvh,16.25rem)] min-h-0 shrink-0 flex-col border-b">
+                  <Graph
+                    key={(user?.id ?? 'anonymous') + ':' + project._id}
+                    layoutKey={(user?.id ?? 'anonymous') + ':' + project._id}
+                    draft={trials.data}
+                    activity={selectedTrial?.digest === trials.data?.digest ? activity : undefined}
+                    onEdit={(node) => setWork(node === 'assistant' ? 'settings' : 'materials')}
+                  />
+                  <div className="flex shrink-0 flex-wrap items-center gap-1 px-2 pb-1">
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      onClick={(e) => open('settings', e.currentTarget)}
                     >
-                      <div className="space-y-3 p-3">
-                        <div className="border-border-light rounded-lg border p-2">
-                          <dl className="text-text-secondary mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2">
-                            <dt>{t('com_project_capability_tool')}</dt>
-                            <dd>
-                              {t(
-                                trials.data?.knowledge_revision_id
-                                  ? 'com_project_tool_linked'
-                                  : 'com_project_tool_missing',
-                              )}
-                            </dd>
-                            <dt>{t('com_project_capability_skill')}</dt>
-                            <dd>{t(style ? styleKey : 'com_project_capability_none')}</dd>
-                            <dt>{t('com_project_capability_mcp')}</dt>
-                            <dd>{t('com_project_mcp_missing')}</dd>
-                          </dl>
-                        </div>
-                        {id && startup?.aiTrialsEnabled && (
-                          <Trials
-                            projectId={id}
-                            nativeProjectId={project._id}
-                            embedded
-                            mode="settings"
-                          />
-                        )}
-                      </div>
-                    </TabsContent>
-                    <TabsContent
-                      value="materials"
-                      size="flush"
-                      className="min-h-0 flex-1 overflow-y-auto"
+                      {t('com_project_settings')}
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      onClick={(e) => open('materials', e.currentTarget)}
                     >
-                      <div className="p-3">{id && <Knowledge projectId={id} embedded />}</div>
-                    </TabsContent>
-                  </Tabs>
-                  {work === 'publish' && id && (
-                    <div className="flex min-h-0 flex-col overflow-hidden">
-                      <div className="shrink-0 px-3 pt-2">
-                        <Button size="xs" variant="ghost" onClick={() => setWork(null)}>
-                          {t('com_project_back_to_workbench')}
-                        </Button>
-                      </div>
-                      <div className="min-h-0 overflow-y-auto px-3 pb-3">
-                        <Releases projectId={id} embedded />
-                      </div>
-                    </div>
-                  )}
+                      {t('com_project_materials')}
+                    </Button>
+                    <span className="flex-1" />
+                    {currentTrial && selectedTrial?.id !== currentTrial.id ? (
+                      <Button size="xs" variant="outline" onClick={() => setPinned(currentTrial)}>
+                        {t('com_project_trial_switch')}
+                      </Button>
+                    ) : (
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        disabled={!startup?.aiTrialsEnabled}
+                        onClick={(e) => open('preview', e.currentTarget)}
+                      >
+                        {selectedTrial && !currentTrial
+                          ? t('com_project_trial_switch')
+                          : t('com_project_trial_records')}
+                      </Button>
+                    )}
+                    {trialPath && (
+                      <Button asChild size="icon-sm" variant="ghost">
+                        <a
+                          href={trialPath.replace(/&trialPane=1$/, '')}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={t('com_project_trial_new_tab')}
+                          aria-label={t('com_project_trial_new_tab')}
+                        >
+                          <ExternalLink className="size-4" aria-hidden="true" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <section
                   aria-label={t('com_project_trial_frame')}
-                  className="flex min-h-0 flex-1 flex-col gap-2 p-3"
+                  className="flex min-h-0 flex-1 flex-col"
                 >
-                  <h3 className="text-text-secondary text-xs font-medium">
-                    {t('com_project_try_pane')}
-                  </h3>
                   {trialPath ? (
                     <iframe
+                      ref={frame}
+                      name={'starbridge-trial:' + selectedTrial?.agent_id}
                       key={selectedTrial?.id}
                       title={t('com_project_trial_frame')}
                       src={trialPath}
-                      className="border-border-light min-h-0 w-full flex-1 rounded-lg border"
+                      className="bg-surface-canvas min-h-0 w-full flex-1 border-0"
                     />
                   ) : (
                     <div className="border-border-light text-text-secondary grid min-h-0 flex-1 place-items-center rounded-lg border border-dashed px-3 text-center text-xs">
@@ -416,7 +320,7 @@ export default function ProjectInspector() {
         </div>
       </div>
       <OGDialog
-        open={work !== null && work !== 'publish'}
+        open={work !== null}
         triggerRef={trigger}
         onOpenChange={(value) => {
           if (!value) setWork(null);
@@ -431,7 +335,9 @@ export default function ProjectInspector() {
               focus={work === 'prepareAssistant' ? 'assistant' : 'code'}
             />
           )}
-          {id && work === 'preview' && (
+          {id && work === 'publish' && <Releases projectId={id} embedded />}
+          {id && work === 'materials' && <Knowledge projectId={id} embedded />}
+          {id && (work === 'preview' || work === 'settings') && (
             <Trials
               projectId={id}
               nativeProjectId={project?._id}

@@ -17,6 +17,7 @@ import type { ChatFormValues } from '~/common';
 import { AddedChatContext, ChatFormProvider, useChatContext, useFileMapContext } from '~/Providers';
 import { useScrollbarGutterSeed, useAddedResponse, useLocalize } from '~/hooks';
 import Footer, { useLandingFooter, useConfiguredFooter } from './Footer';
+import { useSendTrialActivity } from '~/components/Projects/Activity';
 import { useChatSettings } from '~/Providers/ChatSettingsContext';
 import ApprovalProvider from './Messages/Content/ApprovalContext';
 import AssistantDraft from '~/components/Projects/AssistantDraft';
@@ -108,6 +109,12 @@ function ChatPane({
 
   const activeConversation =
     chat.conversation?.conversationId === conversationId ? chat.conversation : undefined;
+  const lastMessage = messages?.at(-1);
+  useSendTrialActivity(
+    activeConversation?.agent_id,
+    chat.isSubmitting,
+    lastMessage && !lastMessage.isCreatedByUser ? lastMessage : undefined,
+  );
   const activeSubagentThread = activeConversation?.subagentThread;
   const chatProjectId = activeConversation?.chatProjectId || undefined;
   const authoringProjectId =
@@ -233,6 +240,7 @@ function ChatPane({
                                 key={authoringProjectId + ':' + conversationId}
                                 projectId={authoringProjectId}
                                 conversationId={conversationId}
+                                messages={messages}
                                 busy={chat.isSubmitting}
                                 insertPrompt={(instruction) => {
                                   const text = methods.getValues('text');

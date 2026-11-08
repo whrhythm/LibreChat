@@ -15,7 +15,7 @@ import {
   projectTrials,
   QueryKeys,
 } from 'librechat-data-provider';
-import type { AITrials } from 'librechat-data-provider';
+import type { AITrials, TMessage } from 'librechat-data-provider';
 import { useGetStartupConfig, useProjectQuery } from '~/data-provider';
 import { useLatestMessage } from '~/hooks/Messages/useLatestMessage';
 import { useAuthContext, useLocalize } from '~/hooks';
@@ -26,11 +26,13 @@ const proposalPattern = /^```assistant-draft[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$
 export default function AssistantDraft({
   projectId,
   conversationId,
+  messages,
   busy,
   insertPrompt,
 }: {
   projectId: string;
   conversationId?: string;
+  messages: TMessage[] | null;
   busy: boolean;
   insertPrompt: (instruction: string) => void;
 }) {
@@ -94,20 +96,42 @@ export default function AssistantDraft({
       ? Array.from(getSpeechText(latest).matchAll(proposalPattern))
       : [];
   const proposal = proposals.length === 1 ? proposals[0][1].trim() : '';
-  const canReview = proposal.length > 0 && proposal.length <= 32000 && saved !== latest?.messageId;
+  const source = messages?.find(
+    (message) => message.isCreatedByUser && message.messageId === latest?.parentMessageId,
+  );
+  const base =
+    source && /^\[starbridge-draft:(new|[a-f0-9]{64})\]$/m.exec(getSpeechText(source))?.[1];
+  const canReview =
+    !!base && proposal.length > 0 && proposal.length <= 32000 && saved !== latest?.messageId;
+  const outdated = canReview && base !== (current.data.digest ?? 'new');
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-2 px-4 pb-1">
       <Button
         size="xs"
         variant="outline"
-        disabled={busy}
-        onClick={() => {
-          const instructions = current.data?.config?.instructions;
+        disabled={busy || current.isFetching}
+        onClick={async () => {
+          const { data, isSuccess } = await current.refetch();
+          if (!isSuccess || !data || (data.config && !data.digest)) return;
+          const config = data.config;
+          const context = {
+            revision: data.revision,
+            model: config?.model,
+            temperature: config?.temperature,
+            max_output_tokens: config?.max_output_tokens,
+            response_style: config?.response_style,
+            knowledge_revision: data.knowledge_revision_id,
+            instructions: config?.instructions,
+          };
           insertPrompt(
-            t('com_project_authoring_prompt') +
-              (instructions
-                ? '\n\n' + t('com_project_authoring_current') + '\n' + instructions
-                : '') +
+            '[starbridge-draft:' +
+              (data.digest ?? 'new') +
+              ']\n' +
+              t('com_project_authoring_prompt') +
+              '\n\n' +
+              t('com_project_authoring_current') +
+              '\n' +
+              JSON.stringify(context, null, 2) +
               '\n\n' +
               t('com_project_authoring_request') +
               '\n',
@@ -116,7 +140,8 @@ export default function AssistantDraft({
       >
         {t(current.data.config ? 'com_project_authoring_edit' : 'com_project_authoring_create')}
       </Button>
-      {canReview && (
+      {outdated && <span role="status">{t('com_trials_changed')}</span>}
+      {canReview && !outdated && (
         <Button
           ref={trigger}
           size="xs"

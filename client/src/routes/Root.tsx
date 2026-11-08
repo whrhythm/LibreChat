@@ -50,6 +50,7 @@ import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
 import useSidebarState from '~/hooks/Nav/useSidebarState';
 import { TermsAndConditionsModal } from '~/components/ui';
 import useDrawerSwipe from '~/hooks/Nav/useDrawerSwipe';
+import { embeddedTrialAgent } from '~/utils/drafts';
 import ChatSettingsProvider from './ChatSettings';
 import { useHealthCheck } from '~/data-provider';
 import Settings from '~/components/Nav/Settings';
@@ -83,11 +84,7 @@ function KeyboardShortcutsProvider() {
 }
 
 function RootLayout() {
-  const [embeddedTrial] = useState(
-    () =>
-      window.self !== window.top &&
-      new URLSearchParams(window.location.search).get('trialPane') === '1',
-  );
+  const embeddedTrial = !!embeddedTrialAgent;
   const [showTerms, setShowTerms] = useState(false);
   const [bannerHeight, setBannerHeight] = useState(0);
   /** Shared with the drawer so the two agree on the breakpoint-transition frame. */

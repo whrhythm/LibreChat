@@ -27,6 +27,12 @@ jest.mock('~/data-provider', () => ({
 }));
 jest.mock('~/components/CodeChat/config', () => ({ isCodeChatEnabled: () => true }));
 jest.mock('~/components/CodeChat/CodeEditor', () => ({ __esModule: true, default: () => null }));
+jest.mock('./Graph', () => ({
+  __esModule: true,
+  default: ({ onEdit }: { onEdit: (node: 'assistant') => void }) => (
+    <button onClick={() => onEdit('assistant')}>{'Assistant node'}</button>
+  ),
+}));
 jest.mock('librechat-data-provider', () => ({
   ...jest.requireActual('librechat-data-provider'),
   aiProjects: jest.fn(),
@@ -74,7 +80,7 @@ function mount() {
   return store;
 }
 
-it('shows a versioned trial frame and capability authorization while preserving the draft', async () => {
+it('opens node settings and materials while preserving the versioned trial frame', async () => {
   const store = mount();
   const trial = await screen.findByRole('link', { name: /com_project_trial_new_tab/ });
   expect(trial).toHaveAttribute('target', '_blank');
@@ -88,14 +94,14 @@ it('shows a versioned trial frame and capability authorization while preserving 
   );
   const frame = screen.getByTitle('com_project_trial_frame');
   expect(frame.closest('[role="tabpanel"]')).toBeNull();
-  fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_project_capabilities' }), { button: 0 });
-  expect(screen.getByText('com_project_mcp_missing')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Assistant node' }));
+  expect(await screen.findByRole('dialog')).toBeVisible();
   expect(frame).toBeVisible();
-  fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_project_materials' }), { button: 0 });
+  fireEvent.click(screen.getByRole('button', { name: 'com_project_return_chat' }));
+  fireEvent.click(screen.getByRole('button', { name: 'com_project_materials' }));
+  expect(await screen.findByRole('dialog')).toBeVisible();
   expect(screen.getByTitle('com_project_trial_frame')).toBe(frame);
-  fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_project_trial_overview' }), {
-    button: 0,
-  });
+  fireEvent.click(screen.getByRole('button', { name: 'com_project_return_chat' }));
   expect(screen.getByTitle('com_project_trial_frame')).toBe(frame);
   expect(screen.getByLabelText('chat draft')).toHaveValue('Keep this unsent request');
   fireEvent.click(screen.getByRole('button', { name: 'com_ui_close' }));
@@ -110,7 +116,7 @@ it('opens publishing from the header and returns without replacing the chat', as
   fireEvent.click(await screen.findByRole('button', { name: 'com_project_publish' }));
   expect(await screen.findByRole('region', { name: 'com_releases_title' })).toBeVisible();
   expect(frame).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'com_project_back_to_workbench' }));
+  fireEvent.click(screen.getByRole('button', { name: 'com_project_return_chat' }));
   await waitFor(() =>
     expect(screen.queryByRole('region', { name: 'com_releases_title' })).not.toBeInTheDocument(),
   );

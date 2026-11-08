@@ -47,7 +47,17 @@ type StoredFilesDraft = {
 
 const newConversationDraftTokens = new Map<number, symbol>();
 const newConversationDraftRevisions = new Map<number, string>();
-const newConversationRevisionKey = (index: number): string => `librechat-new-composer:${index}`;
+export const embeddedTrialAgent = (() => {
+  if (typeof window === 'undefined' || window.self === window.top) return '';
+  const query = new URLSearchParams(window.location.search);
+  const frameAgent = /^starbridge-trial:(agent_trial_[a-f0-9]{32})$/.exec(window.name)?.[1];
+  if (frameAgent) return frameAgent;
+  const agent = query.get('agent_id') ?? '';
+  return query.get('trialPane') === '1' && /^agent_trial_[a-f0-9]{32}$/.test(agent) ? agent : '';
+})();
+const trialPaneScope = embeddedTrialAgent ? ':trial:' + embeddedTrialAgent : '';
+const newConversationRevisionKey = (index: number): string =>
+  `librechat-new-composer:${index}${trialPaneScope}`;
 
 /** Reload preserves the revision; an explicit reset replaces it before any new work starts. */
 export const getNewConversationDraftRevision = (index = 0): string => {
@@ -103,11 +113,15 @@ export const renewNewConversationDraftToken = (index = 0): void => {
 
 /** Draft key used while a run is in flight. Extra panes get a suffix so one run cannot migrate another pane's attachments. */
 export const getPendingDraftId = (index = 0): string =>
-  index === 0 ? Constants.PENDING_CONVO : `${Constants.PENDING_CONVO}:${index}`;
+  index === 0 && !trialPaneScope
+    ? Constants.PENDING_CONVO
+    : `${Constants.PENDING_CONVO}:${index}${trialPaneScope}`;
 
 /** Draft key for an idle unsaved chat. Extra panes get a suffix so two new composers do not share FILES_DRAFT. */
 export const getNewConversationDraftId = (index = 0): string =>
-  index === 0 ? Constants.NEW_CONVO : `${Constants.NEW_CONVO}:${index}`;
+  index === 0 && !trialPaneScope
+    ? Constants.NEW_CONVO
+    : `${Constants.NEW_CONVO}:${index}${trialPaneScope}`;
 
 export const isNewConversationDraftId = (id?: string | null): boolean =>
   typeof id === 'string' &&
@@ -758,7 +772,7 @@ export const getFilesDraft = (id: string): FilesDraft => {
   }
 };
 
-const TAB_SESSION_STORAGE_KEY = 'librechat-tab-session';
+const TAB_SESSION_STORAGE_KEY = 'librechat-tab-session' + trialPaneScope;
 
 let documentTabId: string | null = null;
 
