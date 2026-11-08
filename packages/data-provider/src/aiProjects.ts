@@ -35,7 +35,7 @@ export class AIProjectError extends Error {
 async function request<T>(
   token: string,
   suffix = '',
-  body?: AIProjectCreateInput | { confirmation?: string; remove_folder?: boolean },
+  body?: AIProjectCreateInput | DeletionInput,
 ): Promise<T> {
   const response = await fetch('/api/user/workspace/ai-projects' + suffix, {
     method: body ? 'POST' : 'GET',
@@ -62,7 +62,22 @@ export const createAIProject = (token: string, value: AIProjectCreateInput) =>
 export const resumeAIProject = (token: string, id: string) =>
   request<AIProject>(token, '/' + encodeURIComponent(id) + '/resume', {});
 
-export type AIProjectDeletion =
+type DeletionInput = {
+  confirmation?: string;
+  remove_folder?: boolean;
+  confirm_code?: boolean;
+  retry_failed?: boolean;
+};
+
+export type CodeDeletionScope = {
+  deployment: boolean;
+  domain: string | null;
+  database: 'delete' | 'keep' | 'none';
+  images: string[];
+  image_repository: string | null;
+};
+
+export type AIProjectDeletion = { kind?: 'code' } & (
   | {
       state: 'confirm';
       confirmation: string;
@@ -75,10 +90,13 @@ export type AIProjectDeletion =
       trials: number;
       releases: number;
       shares: number;
+      code?: CodeDeletionScope;
     }
   | { state: 'knowledge'; remaining: number; retrying: boolean }
   | { state: 'native' }
-  | { state: 'deleted'; folder_retained?: boolean };
+  | { state: 'deployment' | 'database' }
+  | { state: 'deleted'; folder_retained?: boolean }
+);
 
 export const inspectAIProjectDeletion = (token: string, nativeId: string) =>
   request<AIProjectDeletion>(token, '/' + encodeURIComponent(nativeId) + '/deletion');
@@ -86,11 +104,5 @@ export const inspectAIProjectDeletion = (token: string, nativeId: string) =>
 export const advanceAIProjectDeletion = (
   token: string,
   nativeId: string,
-  confirmation?: string,
-  removeFolder?: boolean,
-) =>
-  request<AIProjectDeletion>(
-    token,
-    '/' + encodeURIComponent(nativeId) + '/deletion',
-    confirmation ? { confirmation, remove_folder: removeFolder } : {},
-  );
+  input: DeletionInput = {},
+) => request<AIProjectDeletion>(token, '/' + encodeURIComponent(nativeId) + '/deletion', input);

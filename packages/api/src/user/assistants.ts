@@ -93,6 +93,8 @@ const deletionInput = z
       .regex(/^[0-9a-f]{64}$/)
       .optional(),
     remove_folder: z.boolean().optional(),
+    confirm_code: z.boolean().optional(),
+    retry_failed: z.boolean().optional(),
   })
   .strict();
 const deletionState = z.discriminatedUnion('state', [
@@ -109,6 +111,15 @@ const deletionState = z.discriminatedUnion('state', [
       .nullable()
       .optional(),
     folder_retention_reason: z.enum(['in_use', 'unverified']).nullable().optional(),
+    code: z
+      .object({
+        deployment: z.boolean(),
+        domain: z.string().nullable(),
+        database: z.enum(['delete', 'keep', 'none']),
+        images: z.array(z.string()),
+        image_repository: z.string().nullable(),
+      })
+      .optional(),
     knowledge_libraries: z.number(),
     knowledge_revisions: z.number(),
     preserved_libraries: z.number(),
@@ -117,6 +128,8 @@ const deletionState = z.discriminatedUnion('state', [
     shares: z.number(),
   }),
   z.object({ state: z.literal('knowledge'), remaining: z.number(), retrying: z.boolean() }),
+  z.object({ state: z.literal('deployment') }),
+  z.object({ state: z.literal('database') }),
   z.object({
     state: z.literal('native'),
     agents: z
@@ -174,8 +187,12 @@ export function createAIProjectHandlers(
       if (base.protocol !== 'https:' || base.username || base.password) {
         return res.status(503).json({ code: 'ai_projects_unavailable' });
       }
-      const call = async (suffix: string, payload?: object): Promise<unknown> => {
-        const upstream = await (deps.request ?? fetch)(new URL('ai-projects' + suffix, base), {
+      const call = async (
+        suffix: string,
+        payload?: object,
+        resource = 'ai-projects',
+      ): Promise<unknown> => {
+        const upstream = await (deps.request ?? fetch)(new URL(resource + suffix, base), {
           method: payload ? 'POST' : 'GET',
           redirect: 'error',
           headers: {
@@ -215,23 +232,45 @@ export function createAIProjectHandlers(
         if (!platformId.success) return res.status(404).json({ code: 'ai_projects_not_found' });
         const suffix = '/' + platformId.data + '/deletion';
         const owner = { native_owner_id: user.id };
-        let state = deletionState.parse(
-          await call(
+        const { confirm_code, retry_failed, ...shared } = input.data;
+        const advancing = action === 'advanceDeletion';
+        let codeProject = false;
+        let payload: unknown;
+        try {
+          payload = await call(suffix, advancing ? { ...owner, ...shared } : undefined);
+        } catch (error) {
+          if (
+            !(error instanceof UpstreamFailure) ||
+            error.status !== 404 ||
+            !['ai_projects_not_found', 'ai_projects_disabled'].includes(error.code)
+          )
+            throw error;
+          codeProject = true;
+          payload = await call(
             suffix,
-            action === 'advanceDeletion' ? { ...owner, ...input.data } : undefined,
-          ),
-        );
+            advancing ? { ...owner, ...shared, confirm_code, retry_failed } : undefined,
+            'projects',
+          );
+        }
+        let state = deletionState.parse(payload);
         if (action === 'advanceDeletion') {
           if (state.state === 'native') {
-            if (!state.agents) throw new Error('Missing retirement manifest');
-            for (const agent of state.agents)
-              await deps.removeRetiredProjectAgent(agent.id, agent.owner_id);
-            state = deletionState.parse(await call(suffix + '/complete', owner));
+            if (!codeProject) {
+              if (!state.agents) throw new Error('Missing retirement manifest');
+              for (const agent of state.agents)
+                await deps.removeRetiredProjectAgent(agent.id, agent.owner_id);
+            }
+            state = deletionState.parse(
+              await call(suffix + '/complete', owner, codeProject ? 'projects' : 'ai-projects'),
+            );
           }
           if (state.state === 'deleted')
             await deps.removeRetiredChatProject(user.id, nativeId.data, platformId.data);
         }
-        return res.status(200).json(state.state === 'native' ? { state: 'native' } : state);
+        return res.status(200).json({
+          ...(state.state === 'native' ? { state: 'native' } : state),
+          ...(codeProject && { kind: 'code' }),
+        });
       }
       let projectId = typeof identifier === 'string' ? identifier : '';
       if (body?.success) {

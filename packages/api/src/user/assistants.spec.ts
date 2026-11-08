@@ -138,6 +138,45 @@ it('stores the assistant template with its linked project and forwards the origi
   expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ native_project_id: native.id }));
 });
 
+it('resumes a code deletion only through the owner-scoped project API', async () => {
+  const nativeId = 'b'.repeat(24);
+  const request = jest.fn(async (url: URL, _init: RequestInit) => {
+    if (url.pathname.includes('/ai-projects/')) {
+      return new globalThis.Response(JSON.stringify({ detail: 'ai_projects_not_found' }), {
+        status: 404,
+      });
+    }
+    return new globalThis.Response(JSON.stringify({ state: 'deployment' }));
+  });
+  const removeRetiredChatProject = jest.fn();
+  const handlers = createAIProjectHandlers({
+    baseUrl: 'https://platform.test/internal/v1/workspace/',
+    serviceToken: 's'.repeat(40),
+    issuer: user.openidIssuer,
+    request,
+    getChatProject: jest.fn().mockResolvedValue({ platformProjectId: projectId }),
+    removeRetiredChatProject,
+    removeRetiredProjectAgent: jest.fn(),
+    ensurePrivateProjectAgent: jest.fn(),
+    grantPermission: jest.fn(),
+  });
+  const res = response();
+  await handlers.advanceDeletion(
+    { user, params: { projectId: nativeId }, body: { retry_failed: true } } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(res.json).toHaveBeenCalledWith({ state: 'deployment', kind: 'code' });
+  expect(JSON.parse(request.mock.calls[0][1].body as string)).toEqual({ native_owner_id: owner });
+  expect(String(request.mock.calls[1][0])).toContain(
+    '/workspace/projects/' + projectId + '/deletion',
+  );
+  expect(JSON.parse(request.mock.calls[1][1].body as string)).toEqual({
+    native_owner_id: owner,
+    retry_failed: true,
+  });
+  expect(removeRetiredChatProject).not.toHaveBeenCalled();
+});
+
 it('rejects linking to another owners native project before any upstream write', async () => {
   const request = jest.fn();
   const ensureLinkedChatProject = jest.fn();
