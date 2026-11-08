@@ -231,7 +231,7 @@ function ChatPane({
                                 key={project._id + ':' + conversationId}
                                 project={project}
                                 conversationId={conversationId}
-                                busy={chat.isSubmitting || !!rootSubmission}
+                                busy={chat.isSubmitting}
                                 insertPrompt={(instruction) => {
                                   const text = methods.getValues('text');
                                   methods.setValue(
