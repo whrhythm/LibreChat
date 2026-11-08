@@ -19,6 +19,7 @@ import { evictAuthUserDocsForUsers, isAuthUserDocCacheEnabled } from '~/utils/ev
 import { withCodeEnvironmentReferences } from './codeEnvironment';
 import { OWNER_ACL_PERMISSION_BIT_SUPERSETS } from './aclEntry';
 import { tenantSafeBulkWrite } from '~/utils/tenantBulkWrite';
+import { runAsSystem } from '~/config/tenantContext';
 import { filterExistingSkillIds } from './skill';
 import logger from '~/config/winston';
 
@@ -1118,6 +1119,7 @@ export function createAgentMethods(
     previousAvatar?: { filepath: string; source: string } | null;
   }) => Promise<boolean>;
   deleteAgent: (searchParameter: FilterQuery<IAgent>) => Promise<IAgent | null>;
+  removeRetiredProjectAgent: (id: string, ownerId: string) => Promise<void>;
   deleteUserAgents: (userId: string) => Promise<void>;
   revertAgentVersion: (
     searchParameter: FilterQuery<IAgent>,
@@ -1957,6 +1959,22 @@ export function createAgentMethods(
       }
     }
     return agent ? (agent.toObject() as IAgent) : null;
+  }
+
+  /** Drop access before deleting the record, so a failed ACL write is retryable. */
+  async function removeRetiredProjectAgent(id: string, ownerId: string): Promise<void> {
+    await runAsSystem(async () => {
+      const Agent = mongoose.models.Agent as Model<IAgent>;
+      const agent = await Agent.findOne({ id }).select('_id author tenantId').lean();
+      if (!agent) return;
+      if (String(agent.author) !== ownerId) throw new Error('Retired project agent owner mismatch');
+      await Promise.all(
+        [ResourceType.AGENT, ResourceType.REMOTE_AGENT].map((resourceType) =>
+          removeAllPermissions({ resourceType, resourceId: agent._id }),
+        ),
+      );
+      await deleteAgent({ _id: agent._id, id, author: agent.author });
+    });
   }
 
   /**
@@ -2948,6 +2966,7 @@ export function createAgentMethods(
     updateAgent,
     updateAgentAvatar,
     deleteAgent,
+    removeRetiredProjectAgent,
     deleteUserAgents,
     revertAgentVersion,
     countPromotedAgents,

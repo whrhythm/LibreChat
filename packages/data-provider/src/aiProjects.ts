@@ -23,7 +23,7 @@ export type AIProjectCreateInput = z.infer<typeof aiProjectCreateInput>;
 export type AIProject = {
   project: WorkspaceProject;
   agent_id: string;
-  state: 'preparing' | 'ready';
+  state: 'preparing' | 'ready' | 'deleting';
   knowledge_state: 'not_configured' | 'ready';
   native_project_id?: string;
 };
@@ -35,7 +35,7 @@ export class AIProjectError extends Error {
 async function request<T>(
   token: string,
   suffix = '',
-  body?: AIProjectCreateInput | Record<string, never>,
+  body?: AIProjectCreateInput | { confirmation?: string },
 ): Promise<T> {
   const response = await fetch('/api/user/workspace/ai-projects' + suffix, {
     method: body ? 'POST' : 'GET',
@@ -61,3 +61,28 @@ export const createAIProject = (token: string, value: AIProjectCreateInput) =>
   request<AIProject>(token, '', value);
 export const resumeAIProject = (token: string, id: string) =>
   request<AIProject>(token, '/' + encodeURIComponent(id) + '/resume', {});
+
+export type AIProjectDeletion =
+  | {
+      state: 'confirm';
+      confirmation: string;
+      folder: string;
+      knowledge_libraries: number;
+      knowledge_revisions: number;
+      preserved_libraries: number;
+      trials: number;
+      releases: number;
+      shares: number;
+    }
+  | { state: 'knowledge'; remaining: number; retrying: boolean }
+  | { state: 'native' | 'deleted' };
+
+export const inspectAIProjectDeletion = (token: string, nativeId: string) =>
+  request<AIProjectDeletion>(token, '/' + encodeURIComponent(nativeId) + '/deletion');
+
+export const advanceAIProjectDeletion = (token: string, nativeId: string, confirmation?: string) =>
+  request<AIProjectDeletion>(
+    token,
+    '/' + encodeURIComponent(nativeId) + '/deletion',
+    confirmation ? { confirmation } : {},
+  );

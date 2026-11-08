@@ -52,6 +52,8 @@ const {
   archivePlatformConversations,
   reservePlatformLink,
   listLinkedProjectNames,
+  removeRetiredChatProject,
+  removeRetiredProjectAgent,
 } = require('~/models');
 const { PermissionTypes, Permissions } = require('librechat-data-provider');
 
@@ -61,6 +63,8 @@ const aiProjects = createAIProjectHandlers({
   archivePlatformConversations,
   getChatProject,
   ensureLinkedChatProject,
+  removeRetiredChatProject,
+  removeRetiredProjectAgent,
   baseUrl: process.env.CODECHAT_WORKSPACE_URL,
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
   issuer: process.env.OPENID_ISSUER,
@@ -298,6 +302,18 @@ router.post(
   libraries.bind,
 );
 router.get('/workspace/ai-projects', requireJwtAuth, aiProjects.list);
+router.get(
+  '/workspace/ai-projects/:projectId/deletion',
+  requireJwtAuth,
+  configMiddleware,
+  aiProjects.inspectDeletion,
+);
+router.post(
+  '/workspace/ai-projects/:projectId/deletion',
+  requireJwtAuth,
+  configMiddleware,
+  aiProjects.advanceDeletion,
+);
 router.post(
   '/workspace/ai-projects',
   requireJwtAuth,

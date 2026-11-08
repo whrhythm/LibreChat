@@ -51,6 +51,13 @@ export const useDeleteProjectMutation = (): UseMutationResult<
   string,
   unknown
 > => {
+  const onDeleted = useInvalidateDeletedProject();
+  return useMutation((projectId: string) => dataService.deleteProject(projectId), {
+    onSuccess: (_result, projectId) => onDeleted(projectId),
+  });
+};
+
+export const useInvalidateDeletedProject = () => {
   const queryClient = useQueryClient();
   const clearActiveConversationProject = useRecoilCallback(
     ({ snapshot, set }) =>
@@ -65,23 +72,21 @@ export const useDeleteProjectMutation = (): UseMutationResult<
       },
     [],
   );
-  return useMutation((projectId: string) => dataService.deleteProject(projectId), {
-    onSuccess: (_result, projectId) => {
-      clearActiveConversationProject(projectId);
-      // Invalidate so an *active* project-detail observer refetches and settles into a
-      // not-found state — consumers (e.g. ChatRoute) can then react to the deletion.
-      // (Removing it instead leaves observers stuck loading under `refetchOnMount: false`.)
-      queryClient.invalidateQueries([QueryKeys.project, projectId]);
-      // Drop any *inactive* cached detail so a later visit to the deleted project
-      // refetches (→ not-found) rather than rendering stale cache within `cacheTime`.
-      queryClient.removeQueries([QueryKeys.project, projectId], { type: 'inactive' });
-      queryClient.invalidateQueries([QueryKeys.projects]);
-      /** Archived rows carry the same project field and menu state. */
-      invalidateConversationLists(queryClient);
-      /** Deleting a project unsets chatProjectId on its chats, pinned ones included. */
-      queryClient.invalidateQueries([QueryKeys.pinnedConversations]);
-    },
-  });
+  return (projectId: string) => {
+    clearActiveConversationProject(projectId);
+    // Invalidate so an *active* project-detail observer refetches and settles into a
+    // not-found state — consumers (e.g. ChatRoute) can then react to the deletion.
+    // (Removing it instead leaves observers stuck loading under `refetchOnMount: false`.)
+    queryClient.invalidateQueries([QueryKeys.project, projectId]);
+    // Drop any *inactive* cached detail so a later visit to the deleted project
+    // refetches (→ not-found) rather than rendering stale cache within `cacheTime`.
+    queryClient.removeQueries([QueryKeys.project, projectId], { type: 'inactive' });
+    queryClient.invalidateQueries([QueryKeys.projects]);
+    /** Archived rows carry the same project field and menu state. */
+    invalidateConversationLists(queryClient);
+    /** Deleting a project unsets chatProjectId on its chats, pinned ones included. */
+    queryClient.invalidateQueries([QueryKeys.pinnedConversations]);
+  };
 };
 
 /** One queue per conversation: assignments to different chats stay independent. */

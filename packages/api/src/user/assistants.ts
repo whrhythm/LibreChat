@@ -34,6 +34,8 @@ type Dependencies = {
     agentIds: string[],
   ) => Promise<void>;
   getChatProject?: (user: string, id: string) => Promise<{ platformProjectId?: string } | null>;
+  removeRetiredChatProject?: (user: string, nativeId: string, platformId: string) => Promise<void>;
+  removeRetiredProjectAgent?: (id: string, owner: string) => Promise<void>;
   ensureLinkedChatProject?: (
     user: string,
     input: { id: string; name: string; goal: string; template?: ProjectTemplate },
@@ -83,12 +85,49 @@ class UpstreamFailure extends Error {
   }
 }
 
+const ownerId = z.string().regex(/^[0-9a-f]{24}$/);
+const deletionInput = z
+  .object({
+    confirmation: z
+      .string()
+      .regex(/^[0-9a-f]{64}$/)
+      .optional(),
+  })
+  .strict();
+const deletionState = z.discriminatedUnion('state', [
+  z.object({
+    state: z.literal('confirm'),
+    confirmation: z.string(),
+    folder: z.string(),
+    knowledge_libraries: z.number(),
+    knowledge_revisions: z.number(),
+    preserved_libraries: z.number(),
+    trials: z.number(),
+    releases: z.number(),
+    shares: z.number(),
+  }),
+  z.object({ state: z.literal('knowledge'), remaining: z.number(), retrying: z.boolean() }),
+  z.object({
+    state: z.literal('native'),
+    agents: z
+      .array(
+        z.object({
+          id: z.string().regex(/^agent_(?:(?:app|trial)_)?[0-9a-f]{32}$/),
+          owner_id: ownerId,
+        }),
+      )
+      .optional(),
+  }),
+  z.object({ state: z.literal('deleted') }),
+]);
+type Action = 'list' | 'create' | 'resume' | 'inspectDeletion' | 'advanceDeletion';
+
 /** Authentication and Agent CREATE/USE middleware must precede these handlers.
  * The control-plane service token and native owner identity never come from the browser. */
 export function createAIProjectHandlers(
   deps: Dependencies,
-): Record<'list' | 'create' | 'resume', (req: Request, res: Response) => Promise<Response>> {
-  const handler = (action: 'list' | 'create' | 'resume') => async (req: Request, res: Response) => {
+): Record<Action, (req: Request, res: Response) => Promise<Response>> {
+  const handler = (action: Action) => async (req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-store');
     const user = req.user;
     if (
@@ -150,6 +189,40 @@ export function createAIProjectHandlers(
         return result;
       };
       if (action === 'list') return res.status(200).json(await call(''));
+      if (action === 'inspectDeletion' || action === 'advanceDeletion') {
+        const nativeId = ownerId.safeParse(identifier);
+        const input = deletionInput.safeParse(action === 'inspectDeletion' ? {} : req.body);
+        if (!nativeId.success || !input.success)
+          return res.status(400).json({ code: 'ai_projects_invalid_request' });
+        if (
+          !deps.getChatProject ||
+          !deps.removeRetiredChatProject ||
+          !deps.removeRetiredProjectAgent
+        )
+          return res.status(503).json({ code: 'ai_projects_unavailable' });
+        const project = await deps.getChatProject(user.id, nativeId.data);
+        const platformId = z.string().uuid().safeParse(project?.platformProjectId);
+        if (!platformId.success) return res.status(404).json({ code: 'ai_projects_not_found' });
+        const suffix = '/' + platformId.data + '/deletion';
+        const owner = { native_owner_id: user.id };
+        let state = deletionState.parse(
+          await call(
+            suffix,
+            action === 'advanceDeletion' ? { ...owner, ...input.data } : undefined,
+          ),
+        );
+        if (action === 'advanceDeletion') {
+          if (state.state === 'native') {
+            if (!state.agents) throw new Error('Missing retirement manifest');
+            for (const agent of state.agents)
+              await deps.removeRetiredProjectAgent(agent.id, agent.owner_id);
+            state = deletionState.parse(await call(suffix + '/complete', owner));
+          }
+          if (state.state === 'deleted')
+            await deps.removeRetiredChatProject(user.id, nativeId.data, platformId.data);
+        }
+        return res.status(200).json(state.state === 'native' ? { state: 'native' } : state);
+      }
       let projectId = typeof identifier === 'string' ? identifier : '';
       if (body?.success) {
         const { native_project_id: nativeId, template: _template, ...input } = body.data;
@@ -256,5 +329,11 @@ export function createAIProjectHandlers(
       return res.status(503).json({ code: 'ai_projects_recovery_required' });
     }
   };
-  return { list: handler('list'), create: handler('create'), resume: handler('resume') };
+  return {
+    list: handler('list'),
+    create: handler('create'),
+    resume: handler('resume'),
+    inspectDeletion: handler('inspectDeletion'),
+    advanceDeletion: handler('advanceDeletion'),
+  };
 }

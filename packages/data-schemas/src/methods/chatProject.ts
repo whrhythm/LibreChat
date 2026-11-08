@@ -83,6 +83,7 @@ export interface ChatProjectMethods {
     limits?: Partial<ChatProjectLimits>,
   ): Promise<IChatProject | null>;
   deleteChatProject(user: string, projectId: string): Promise<DeleteChatProjectResult>;
+  removeRetiredChatProject(user: string, projectId: string, platformId: string): Promise<void>;
   deleteUserChatProjects(user: string): Promise<number>;
   addChatProjectFile(
     user: string,
@@ -727,6 +728,26 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     return result.deletedCount ?? 0;
   }
 
+  /** Called only after the control plane confirms that the linked project is retired. */
+  async function removeRetiredChatProject(user: string, projectId: string, platformId: string) {
+    const ChatProject = mongoose.models.ChatProject as Model<IChatProjectDocument>;
+    const Conversation = mongoose.models.Conversation as Model<IConversation>;
+    const filter = {
+      _id: new mongoose.Types.ObjectId(projectId),
+      user,
+      platformProjectId: platformId,
+    };
+    const reserved = await ChatProject.updateOne(filter, {
+      $set: { platformDeletionPending: true },
+    });
+    if (!reserved.matchedCount) return;
+    await Conversation.updateMany(
+      { user, chatProjectId: projectId },
+      { $unset: { chatProjectId: '' } },
+    );
+    await ChatProject.deleteOne(filter);
+  }
+
   async function assignConversationToProject(
     user: string,
     conversationId: string,
@@ -747,6 +768,7 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
       const project = await ChatProject.findOne({
         _id: new mongoose.Types.ObjectId(normalizedProjectId),
         user,
+        platformDeletionPending: { $ne: true },
       })
         .select('_id')
         .lean<IChatProject>();
@@ -938,6 +960,7 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     listChatProjects,
     updateChatProject,
     deleteChatProject,
+    removeRetiredChatProject,
     deleteUserChatProjects,
     addChatProjectFile,
     removeChatProjectFile,

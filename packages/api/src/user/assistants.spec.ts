@@ -57,6 +57,63 @@ function setup(ensureLinkedChatProject?: jest.Mock) {
 }
 const input = { request_id: projectId, name: 'Private', purpose: 'Answer questions' };
 
+it('resumes the confirmed deletion after native cleanup fails and removes navigation last', async () => {
+  const nativeId = 'b'.repeat(24);
+  const removeRetiredProjectAgent = jest
+    .fn()
+    .mockRejectedValueOnce(new Error('interrupted'))
+    .mockResolvedValue(undefined);
+  const removeRetiredChatProject = jest.fn().mockResolvedValue(undefined);
+  const request = jest.fn(
+    async (url: URL, _init: RequestInit) =>
+      new globalThis.Response(
+        JSON.stringify(
+          url.pathname.endsWith('/complete')
+            ? { state: 'deleted' }
+            : {
+                state: 'native',
+                agents: [{ id: agentId, owner_id: owner }],
+              },
+        ),
+      ),
+  );
+  const getChatProject = jest.fn().mockResolvedValue({ platformProjectId: projectId });
+  const handlers = createAIProjectHandlers({
+    baseUrl: 'https://platform.test/internal/v1/workspace/',
+    serviceToken: 's'.repeat(40),
+    issuer: user.openidIssuer,
+    request,
+    getChatProject,
+    removeRetiredProjectAgent,
+    removeRetiredChatProject,
+    ensurePrivateProjectAgent: jest.fn(),
+    grantPermission: jest.fn(),
+  });
+  const advance = async (body: object) => {
+    const res = response();
+    await handlers.advanceDeletion(
+      { user, params: { projectId: nativeId }, body } as unknown as Input,
+      res as unknown as Response,
+    );
+    return res;
+  };
+  expect((await advance({ native_owner_id: 'c'.repeat(24) })).status).toHaveBeenCalledWith(400);
+  expect(request).not.toHaveBeenCalled();
+  expect((await advance({ confirmation: 'c'.repeat(64) })).status).toHaveBeenCalledWith(503);
+  expect(removeRetiredChatProject).not.toHaveBeenCalled();
+  expect(request).toHaveBeenCalledTimes(1);
+  expect((await advance({})).json).toHaveBeenCalledWith({ state: 'deleted' });
+  expect(getChatProject).toHaveBeenCalledWith(owner, nativeId);
+  expect(removeRetiredProjectAgent).toHaveBeenCalledWith(agentId, owner);
+  expect(removeRetiredChatProject).toHaveBeenCalledWith(owner, nativeId, projectId);
+  expect(request).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      pathname: '/internal/v1/workspace/ai-projects/' + projectId + '/deletion/complete',
+    }),
+    expect.objectContaining({ body: JSON.stringify({ native_owner_id: owner }) }),
+  );
+});
+
 it('stores the assistant template with its linked project and forwards the original platform contract', async () => {
   const native = { id: 'b'.repeat(24), platformProjectId: projectId };
   const link = jest.fn().mockResolvedValue(native);
