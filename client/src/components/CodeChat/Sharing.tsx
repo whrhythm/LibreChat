@@ -181,7 +181,7 @@ export default function Sharing({
           {t('com_releases_email')}
           <input
             className={inputClass}
-            type="email"
+            type="text"
             required
             value={form.email}
             disabled={busy}
