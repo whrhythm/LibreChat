@@ -27,23 +27,17 @@ import {
   QueryKeys,
   createAIProject,
   saveWorkspaceProject,
-  codeProjectTemplates,
-  assistantProjectTemplates,
-  codeProjectTemplateSchema,
-  assistantProjectTemplateSchema,
   MAX_CHAT_PROJECT_NAME_LENGTH,
   MAX_WORKSPACE_PROJECT_NAME_LENGTH,
   MAX_CHAT_PROJECT_DESCRIPTION_LENGTH,
 } from 'librechat-data-provider';
-import type { ProjectTemplate } from 'librechat-data-provider';
 import { useCreateProjectMutation, useGetStartupConfig } from '~/data-provider';
 import { isCodeChatEnabled } from '~/components/CodeChat/config';
 import { useAuthContext, useLocalize } from '~/hooks';
-import { templateLabels } from './templates';
 import Root from './Root';
 
 type Kind = 'assistant' | 'code';
-type Target = { kind?: Kind; path: string; template: ProjectTemplate };
+type Target = { kind?: Kind; path: string };
 
 type ProjectCreateDialogProps = {
   open: boolean;
@@ -68,15 +62,15 @@ export default function ProjectCreateDialog({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const targetAtom = useMemo(() => atom<Target>({ path: '', template: 'blank' }), []);
+  const targetAtom = useMemo(() => atom<Target>({ path: '' }), []);
   const [target, setTarget] = useAtom(targetAtom);
   const request = useRef<{ key: string; id: string } | undefined>(undefined);
   const submitting = useRef(false);
   const createProject = useCreateProjectMutation();
   const createRootProject = useMutation({
-    mutationFn: async ({ kind, path, name, template }: Required<Target> & { name: string }) => {
+    mutationFn: async ({ kind, path, name }: Required<Target> & { name: string }) => {
       if (!token) throw new Error('missing session');
-      const key = JSON.stringify([kind, path, name, template]);
+      const key = JSON.stringify([kind, path, name]);
       if (request.current?.key !== key) request.current = { key, id: crypto.randomUUID() };
       const request_id = request.current.id;
       const result =
@@ -86,7 +80,6 @@ export default function ProjectCreateDialog({
               name,
               purpose: name,
               request_id,
-              template: assistantProjectTemplateSchema.parse(template),
             })
           : await saveWorkspaceProject(token, {
               path,
@@ -94,7 +87,6 @@ export default function ProjectCreateDialog({
               goal: '',
               revision: 0,
               request_id,
-              template: codeProjectTemplateSchema.parse(template),
             });
       if (!result.native_project_id) throw new Error('missing project link');
       return result.native_project_id;
@@ -124,7 +116,7 @@ export default function ProjectCreateDialog({
   const resetForm = () => {
     setName('');
     setDescription('');
-    setTarget({ path: '', template: 'blank' });
+    setTarget({ path: '' });
     createRootProject.reset();
   };
 
@@ -208,7 +200,7 @@ export default function ProjectCreateDialog({
                       type="radio"
                       name={formId + '-kind'}
                       checked={target.kind === kind}
-                      onChange={() => setTarget((prev) => ({ ...prev, kind, template: 'blank' }))}
+                      onChange={() => setTarget((prev) => ({ ...prev, kind }))}
                     />
                     <Icon aria-hidden="true" className="size-5" />
                     {localize(label)}
@@ -217,33 +209,6 @@ export default function ProjectCreateDialog({
                     )}
                   </label>
                 ))}
-              </fieldset>
-            )}
-            {withRoot && target.kind && (
-              <fieldset disabled={busy}>
-                <legend className="mb-2 text-sm font-medium">
-                  {localize('com_project_template')}
-                </legend>
-                <div className="flex flex-wrap gap-2">
-                  {(target.kind === 'assistant'
-                    ? assistantProjectTemplates
-                    : codeProjectTemplates
-                  ).map((template) => (
-                    <label
-                      key={template}
-                      className="border-border-light has-checked:border-border-heavy has-checked:bg-surface-secondary cursor-pointer rounded-lg border px-2.5 py-1.5 text-sm has-focus-visible:ring-2"
-                    >
-                      <input
-                        className="sr-only"
-                        type="radio"
-                        name={formId + '-template'}
-                        checked={target.template === template}
-                        onChange={() => setTarget((prev) => ({ ...prev, template }))}
-                      />
-                      {localize(templateLabels[template])}
-                    </label>
-                  ))}
-                </div>
               </fieldset>
             )}
             <div className="space-y-2">

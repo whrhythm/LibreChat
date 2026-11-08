@@ -272,10 +272,8 @@ export default function ProjectsView() {
         <ProjectCreateDialog
           open={isCreating}
           onOpenChange={handleCreateDialogChange}
-          onCreated={(projectId, kind) =>
-            isCodeChatEnabled()
-              ? startProjectChat(projectId, kind)
-              : navigate(`/projects/${projectId}`)
+          onCreated={(projectId) =>
+            isCodeChatEnabled() ? startProjectChat(projectId) : navigate(`/projects/${projectId}`)
           }
         />
 

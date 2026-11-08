@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { atom, useAtom } from 'jotai';
+import { atomFamily } from 'jotai/utils';
 import { useQuery } from '@tanstack/react-query';
+import { X, ExternalLink, Play, Settings, BookOpen, Send } from 'lucide-react';
 import {
   Button,
   OGDialog,
@@ -15,20 +17,9 @@ import {
   projectReleases,
   QueryKeys,
 } from 'librechat-data-provider';
-import {
-  ArrowLeft,
-  Bot,
-  Code2,
-  Files,
-  ChevronRight,
-  ExternalLink,
-  Play,
-  Settings,
-  BookOpen,
-  Send,
-} from 'lucide-react';
-import { deliveryAddress, deliveryState } from '~/components/CodeChat/delivery';
+import type { AITrial } from 'librechat-data-provider';
 import { useProjectQuery, useGetStartupConfig } from '~/data-provider';
+import { deliveryAddress } from '~/components/CodeChat/delivery';
 import Applications from '~/components/CodeChat/Applications';
 import PersonalFiles from '~/components/CodeChat/Files';
 import Knowledge from '~/components/CodeChat/Knowledge';
@@ -37,13 +28,7 @@ import Releases from '~/components/CodeChat/Releases';
 import Trials from '~/components/CodeChat/Trials';
 import { projectInspector } from './navigation';
 import ProjectApplication from './Application';
-import useProjectChat from './useProjectChat';
-
-const sections = [
-  { id: 'assistant', label: 'com_project_assistant', icon: Bot },
-  { id: 'code', label: 'com_project_code', icon: Code2 },
-  { id: 'files', label: 'com_project_files', icon: Files },
-] as const;
+import ProjectWeb from './Web';
 type WorkView =
   | 'prepareAssistant'
   | 'prepareCode'
@@ -52,6 +37,7 @@ type WorkView =
   | 'knowledge'
   | 'publish'
   | 'operations';
+const workbenchTrial = atomFamily((_key: string) => atom<AITrial | null>(null));
 
 /** Side navigation is independent from the central chat, including its unsent input. */
 export default function ProjectInspector() {
@@ -61,7 +47,9 @@ export default function ProjectInspector() {
   const workAtom = useMemo(() => atom<WorkView | null>(null), []);
   const [work, setWork] = useAtom(workAtom);
   const trigger = useRef<HTMLElement | null>(null);
-  const startChat = useProjectChat();
+  const [pinned, setPinned] = useAtom(
+    workbenchTrial((user?.id ?? 'anonymous') + ':' + (selection?.projectId ?? '')),
+  );
   const native = useProjectQuery(selection?.projectId ?? '', { enabled: !!selection });
   const project = native.data;
   const id = project?.platformProjectId;
@@ -95,6 +83,10 @@ export default function ProjectInspector() {
   const currentTrial = trials.data?.trials.find(
     (v) => v.state === 'ready' && v.digest === trials.data.digest,
   );
+  const selectedTrial = pinned ?? currentTrial;
+  useEffect(() => {
+    if (!pinned && currentTrial) setPinned(currentTrial);
+  }, [currentTrial, pinned, setPinned]);
   const activeRelease = releases.data?.releases.find(
     (v) => v.id === releases.data.application?.active_release_id,
   );
@@ -113,7 +105,9 @@ export default function ProjectInspector() {
       setWork(null);
   }, [work, assistant?.state, id, setWork]);
   if (!selection) return null;
-  const section = selection.section;
+  let section = selection.section;
+  if (section === 'overview' && assistant) section = 'assistant';
+  if (section === 'overview' && id) section = 'code';
   const ready = native.isSuccess && assistants.isSuccess && (!id || context.isSuccess);
   const failed = native.isError || assistants.isError || (!!id && context.isError);
   const titles = {
@@ -134,68 +128,50 @@ export default function ProjectInspector() {
       t(releases.data?.application?.enabled ? 'com_releases_enabled' : 'com_releases_disabled');
   if (releases.isLoading && startup?.aiReleasesEnabled) releaseStatus = t('com_ui_loading');
   if (releases.isError) releaseStatus = t('com_project_status_error');
+  const style = trials.data?.config?.response_style;
+  const styleKey = style === 'support' ? 'com_trials_support' : 'com_trials_grounded';
+  let trialPath = '';
+  if (selectedTrial && project) {
+    const conversation = selectedTrial.conversation_ids?.[0];
+    const params = new URLSearchParams({
+      endpoint: 'agents',
+      agent_id: selectedTrial.agent_id,
+      projectId: project._id,
+      trialPane: '1',
+    });
+    trialPath = '/c/' + encodeURIComponent(conversation ?? 'new') + '?' + params.toString();
+  }
   return (
-    <section
-      className="flex h-full min-h-0 flex-col text-sm"
-      aria-label={t('com_project_inspector')}
+    <aside
+      className="bg-surface-primary border-border-light absolute inset-0 z-20 flex min-h-0 min-w-0 flex-col border-s text-sm lg:static lg:z-auto lg:w-2/5 lg:max-w-3xl lg:shrink-0"
+      aria-label={t('com_project_workbench')}
     >
-      <header className="border-border-light border-b px-3 py-2">
-        <Button variant="ghost" size="xs" onClick={() => select(null)}>
-          <ArrowLeft className="size-3.5" aria-hidden="true" />
-          {t('com_project_back_chats')}
-        </Button>
-        <h2 className="mt-2 truncate px-1 text-sm font-semibold" title={project?.name}>
-          {project?.name ?? t('com_ui_loading')}
+      <header className="border-border-light flex items-center justify-between gap-2 border-b px-3 py-2">
+        <h2 className="min-w-0 truncate text-sm font-semibold" title={project?.name}>
+          {project?.name ?? t('com_ui_loading')} ·{' '}
+          {t(section === 'files' ? 'com_project_files' : 'com_project_try_pane')}
         </h2>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t('com_ui_close')}
+          onClick={() => {
+            setWork(null);
+            setPinned(null);
+            select(null);
+          }}
+        >
+          <X className="size-4" aria-hidden="true" />
+        </Button>
       </header>
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-        <div className="space-y-4 px-3 py-3">
-          {section === 'overview' ? (
-            <>
-              <Button className="w-full" onClick={() => startChat(selection.projectId)}>
-                <Play className="size-4" aria-hidden="true" />
-                {t('com_project_start_chat')}
-              </Button>
-              <nav className="space-y-1" aria-label={t('com_project_sections')}>
-                {sections.map(({ id: target, label, icon: Icon }) => (
-                  <Button
-                    key={target}
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => select({ ...selection, section: target })}
-                  >
-                    <Icon className="size-4" aria-hidden="true" />
-                    {t(label)}
-                    <ChevronRight className="ms-auto size-3.5" aria-hidden="true" />
-                  </Button>
-                ))}
-              </nav>
-            </>
-          ) : (
-            <nav
-              className="border-border-light flex gap-1 border-b pb-2"
-              aria-label={t('com_project_sections')}
-            >
-              {sections.map(({ id: target, label, icon: Icon }) => (
-                <Button
-                  key={target}
-                  variant={section === target ? 'outline' : 'ghost'}
-                  size="xs"
-                  aria-pressed={section === target}
-                  className="min-w-0 flex-1"
-                  onClick={() => select({ ...selection, section: target })}
-                >
-                  <Icon className="size-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">{t(label)}</span>
-                </Button>
-              ))}
-            </nav>
-          )}
+        <div className="flex min-h-full flex-col gap-3 p-3">
           {!ready && !failed && (
             <p role="status" className="text-text-secondary text-xs">
               {t('com_ui_loading')}
             </p>
           )}
+          {ready && project && section === 'overview' && <ProjectApplication project={project} />}
           {failed && (
             <div role="alert" className="space-y-2 text-xs">
               <p>{t('com_project_status_error')}</p>
@@ -216,31 +192,14 @@ export default function ProjectInspector() {
             project &&
             section === 'assistant' &&
             (assistant ? (
-              <div className="space-y-3">
+              <div className="flex min-h-[28rem] flex-1 flex-col gap-3">
                 <div className="space-y-1">
                   <h3 className="font-medium break-words">{project.name}</h3>
                   <p className="text-text-secondary text-xs" role="status">
                     {releaseStatus}
                   </p>
                 </div>
-                {currentTrial ? (
-                  <Button asChild className="w-full">
-                    <a
-                      href={
-                        '/c/new?endpoint=agents&agent_id=' +
-                        encodeURIComponent(currentTrial.agent_id) +
-                        '&projectId=' +
-                        encodeURIComponent(project._id)
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Play className="size-4" aria-hidden="true" />
-                      {t('com_project_trial_new_tab')}
-                      <ExternalLink className="size-3" aria-hidden="true" />
-                    </a>
-                  </Button>
-                ) : (
+                {!trialPath && (
                   <Button
                     className="w-full"
                     disabled={!startup?.aiTrialsEnabled}
@@ -249,10 +208,64 @@ export default function ProjectInspector() {
                     {t('com_ai_projects_try')}
                   </Button>
                 )}
-                <div className="space-y-1">
+                {selectedTrial && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>
+                      {t('com_trials_version')} {selectedTrial.number}
+                    </span>
+                    <Button asChild size="xs" variant="ghost">
+                      <a
+                        href={trialPath.replace(/&trialPane=1$/, '')}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="size-3" aria-hidden="true" />
+                        {t('com_project_trial_new_tab')}
+                      </a>
+                    </Button>
+                    {currentTrial && currentTrial.id !== selectedTrial.id && (
+                      <Button size="xs" onClick={() => setPinned(currentTrial)}>
+                        {t('com_project_trial_switch')}
+                      </Button>
+                    )}
+                    {!currentTrial && trials.data?.digest && (
+                      <Button size="xs" onClick={(e) => open('preview', e.currentTarget)}>
+                        {t('com_project_trial_switch')}
+                      </Button>
+                    )}
+                  </div>
+                )}
+                <details className="border-border-light rounded-lg border p-2">
+                  <summary className="cursor-pointer font-medium">
+                    {t('com_project_capabilities')}
+                  </summary>
+                  <dl className="text-text-secondary mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2">
+                    <dt>{t('com_project_capability_tool')}</dt>
+                    <dd>
+                      {t(
+                        trials.data?.knowledge_revision_id
+                          ? 'com_project_tool_linked'
+                          : 'com_project_tool_missing',
+                      )}
+                    </dd>
+                    <dt>{t('com_project_capability_skill')}</dt>
+                    <dd>{t(style ? styleKey : 'com_project_capability_none')}</dd>
+                    <dt>{t('com_project_capability_mcp')}</dt>
+                    <dd>{t('com_project_mcp_missing')}</dd>
+                  </dl>
+                </details>
+                {trialPath && (
+                  <iframe
+                    key={selectedTrial?.id}
+                    title={t('com_project_trial_frame')}
+                    src={trialPath}
+                    className="border-border-light min-h-80 w-full flex-1 rounded border"
+                  />
+                )}
+                <div className="flex flex-wrap gap-1">
                   <Button
                     variant="ghost"
-                    className="w-full justify-start"
+                    size="xs"
                     disabled={!startup?.aiTrialsEnabled}
                     onClick={(e) => open('settings', e.currentTarget)}
                   >
@@ -261,7 +274,7 @@ export default function ProjectInspector() {
                   </Button>
                   <Button
                     variant="ghost"
-                    className="w-full justify-start"
+                    size="xs"
                     onClick={(e) => open('knowledge', e.currentTarget)}
                   >
                     <BookOpen className="size-4" aria-hidden="true" />
@@ -269,7 +282,7 @@ export default function ProjectInspector() {
                   </Button>
                   <Button
                     variant="ghost"
-                    className="w-full justify-start"
+                    size="xs"
                     disabled={!startup?.aiTrialsEnabled}
                     onClick={(e) => open('preview', e.currentTarget)}
                   >
@@ -278,7 +291,7 @@ export default function ProjectInspector() {
                   </Button>
                   <Button
                     variant="ghost"
-                    className="w-full justify-start"
+                    size="xs"
                     disabled={!startup?.aiReleasesEnabled}
                     onClick={(e) => open('publish', e.currentTarget)}
                   >
@@ -303,20 +316,8 @@ export default function ProjectInspector() {
               </div>
             ))}
           {ready && project && section === 'code' && (
-            <div className="space-y-3">
-              <p className="text-text-secondary text-xs" role="status">
-                {app
-                  ? t(deliveryState(app))
-                  : t(path ? 'com_project_code_unpublished' : 'com_project_no_code')}
-              </p>
-              {address && (
-                <Button asChild className="w-full">
-                  <a href={address} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="size-4" aria-hidden="true" />
-                    {t('com_project_visit_app')}
-                  </a>
-                </Button>
-              )}
+            <div className="flex min-h-[28rem] flex-1 flex-col gap-3">
+              {path && <ProjectWeb path={path} deployed={address} />}
               {path ? (
                 <Button
                   className="w-full"
@@ -380,6 +381,6 @@ export default function ProjectInspector() {
           </div>
         </OGDialogContent>
       </OGDialog>
-    </section>
+    </aside>
   );
 }

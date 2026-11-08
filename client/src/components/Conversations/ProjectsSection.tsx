@@ -3,9 +3,9 @@ import { useSetAtom } from 'jotai';
 import { useDrop } from 'react-dnd';
 import { useRecoilValue } from 'recoil';
 import * as Ariakit from '@ariakit/react';
-import { Bot, Code2, Files } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { Constants, QueryKeys } from 'librechat-data-provider';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Bot, PanelsTopLeft, PanelRight, Files } from 'lucide-react';
+import { aiProjects, Constants, QueryKeys } from 'librechat-data-provider';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
   ChevronDown,
@@ -171,13 +171,14 @@ ProjectChatsInline.displayName = 'ProjectChatsInline';
 
 type ProjectItemProps = {
   project: TChatProject;
+  kind?: 'assistant' | 'code';
   toggleNav: () => void;
   defaultExpanded: boolean;
   isActive: boolean;
 };
 
 const ProjectItem = memo(
-  function ProjectItem({ project, toggleNav, defaultExpanded, isActive }: ProjectItemProps) {
+  function ProjectItem({ project, kind, toggleNav, defaultExpanded, isActive }: ProjectItemProps) {
     const localize = useLocalize();
     const { user } = useAuthContext();
     const select = useSetAtom(projectInspector(user?.id ?? 'anonymous'));
@@ -235,6 +236,7 @@ const ProjectItem = memo(
     const openProject = useCallback(() => {
       if (isCodeChatEnabled()) {
         select({ projectId: project._id, section: 'overview' });
+        toggleNav();
         return;
       }
       navigate(`/projects/${project._id}`);
@@ -280,10 +282,23 @@ const ProjectItem = memo(
       () => [
         {
           id: `${menuId}-open`,
-          label: localize('com_ui_open_project'),
-          icon: <Folder className="text-text-secondary size-4" aria-hidden="true" />,
+          label: localize(isCodeChatEnabled() ? 'com_project_workbench' : 'com_ui_open_project'),
+          icon: <PanelRight className="text-text-secondary size-4" aria-hidden="true" />,
           onClick: openProject,
         },
+        ...(isCodeChatEnabled() && project.platformProjectId
+          ? [
+              {
+                id: `${menuId}-files`,
+                label: localize('com_project_files'),
+                icon: <Files className="text-text-secondary size-4" aria-hidden="true" />,
+                onClick: () => {
+                  select({ projectId: project._id, section: 'files' });
+                  toggleNav();
+                },
+              },
+            ]
+          : []),
         {
           id: `${menuId}-rename`,
           label: localize('com_ui_edit_project'),
@@ -303,8 +318,9 @@ const ProjectItem = memo(
           render: (props) => <button {...props} />,
         },
       ],
-      [localize, menuId, openProject],
+      [localize, menuId, openProject, project._id, project.platformProjectId, select, toggleNav],
     );
+    const ProjectIcon = { assistant: Bot, code: PanelsTopLeft, legacy: Folder }[kind ?? 'legacy'];
 
     return (
       <li className="max-w-full min-w-0 list-none" ref={projectRowRef}>
@@ -322,8 +338,8 @@ const ProjectItem = memo(
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => setExpanded((prev) => !prev)}
             aria-expanded={expanded}
-            aria-label={project.name}
-            className="focus-visible:ring-text-primary flex w-full max-w-full min-w-0 flex-1 items-center gap-2 rounded-lg py-1.5 ps-1.5 pe-16 text-start outline-hidden focus-visible:ring-2 focus-visible:ring-inset"
+            aria-label={localize('com_ui_chat_history') + ' · ' + project.name}
+            className="focus-visible:ring-text-primary grid size-7 shrink-0 place-items-center rounded outline-hidden focus-visible:ring-2"
           >
             <ChevronRight
               className={cn(
@@ -332,9 +348,22 @@ const ProjectItem = memo(
               )}
               aria-hidden="true"
             />
-            <Folder className="text-text-secondary h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="max-w-full min-w-0 truncate wrap-anywhere">{project.name}</span>
           </button>
+          <a
+            href={projectChatPath}
+            onClick={startChat}
+            className="focus-visible:ring-text-primary flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1.5 pe-16 outline-hidden focus-visible:ring-2"
+          >
+            <ProjectIcon className="text-text-secondary size-4 shrink-0" aria-hidden="true" />
+            {kind && (
+              <span className="sr-only">
+                {localize(
+                  kind === 'assistant' ? 'com_project_kind_assistant' : 'com_project_kind_app',
+                )}
+              </span>
+            )}
+            <span className="max-w-full min-w-0 truncate wrap-anywhere">{project.name}</span>
+          </a>
           <div
             /* The 4px between the two controls, and from the row's trailing edge,
                that a pinned chat keeps between its unpin badge and its overflow
@@ -378,28 +407,6 @@ const ProjectItem = memo(
         </div>
         <Collapse open={expanded}>
           <div className="ps-2 pt-1">
-            {isCodeChatEnabled() && (
-              <nav className="mb-2 space-y-0.5" aria-label={localize('com_project_sections')}>
-                {(
-                  [
-                    ['assistant', 'com_project_assistant', Bot],
-                    ['code', 'com_project_code', Code2],
-                    ['files', 'com_project_files', Files],
-                  ] as const
-                ).map(([section, label, Icon]) => (
-                  <Button
-                    key={section}
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={() => select({ projectId: project._id, section })}
-                  >
-                    <Icon className="size-3.5" aria-hidden="true" />
-                    {localize(label)}
-                  </Button>
-                ))}
-              </nav>
-            )}
             <ProjectChatsInline
               projectId={project._id}
               expanded={expanded}
@@ -434,6 +441,7 @@ const ProjectItem = memo(
     prevProps.project.updatedAt === nextProps.project.updatedAt &&
     prevProps.defaultExpanded === nextProps.defaultExpanded &&
     prevProps.isActive === nextProps.isActive &&
+    prevProps.kind === nextProps.kind &&
     prevProps.toggleNav === nextProps.toggleNav,
 );
 
@@ -446,6 +454,7 @@ interface ProjectsSectionProps {
 
 const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) => {
   const localize = useLocalize();
+  const { user, token } = useAuthContext();
   const startProjectChat = useProjectChat();
   const navigate = useNavigate();
   const location = useLocation();
@@ -468,6 +477,17 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
   );
 
   const projects = useMemo(() => data?.pages.flatMap((page) => page.projects) ?? [], [data?.pages]);
+  const linked = useQuery({
+    queryKey: [QueryKeys.aiProjects, user?.id],
+    queryFn: () => aiProjects(token!),
+    enabled:
+      isCodeChatEnabled() && !!token && projects.some((project) => !!project.platformProjectId),
+    retry: false,
+  });
+  const assistants = useMemo(
+    () => new Set(linked.data?.projects.map(({ project }) => project.id)),
+    [linked.data],
+  );
   const hasMore = (data?.pages[data.pages.length - 1]?.nextCursor ?? null) != null;
 
   /**
@@ -513,15 +533,21 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
 
     return (
       <ul className="m-0 flex list-none flex-col gap-1 p-0">
-        {projects.map((project) => (
-          <ProjectItem
-            key={project._id}
-            project={project}
-            toggleNav={toggleNav}
-            defaultExpanded={project._id === highlightedProjectId}
-            isActive={project._id === highlightedProjectId}
-          />
-        ))}
+        {projects.map((project) => {
+          let kind: ProjectItemProps['kind'];
+          if (project.platformProjectId && linked.isSuccess)
+            kind = assistants.has(project.platformProjectId) ? 'assistant' : 'code';
+          return (
+            <ProjectItem
+              key={project._id}
+              project={project}
+              kind={kind}
+              toggleNav={toggleNav}
+              defaultExpanded={project._id === highlightedProjectId}
+              isActive={project._id === highlightedProjectId}
+            />
+          );
+        })}
         {hasMore && (
           <li className="list-none">
             <Button
@@ -598,9 +624,9 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
       <ProjectCreateDialog
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
-        onCreated={(projectId, kind) => {
+        onCreated={(projectId) => {
           if (isCodeChatEnabled()) {
-            startProjectChat(projectId, kind);
+            startProjectChat(projectId);
             return;
           }
           navigate(`/projects/${projectId}`);

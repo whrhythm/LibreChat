@@ -12,13 +12,11 @@ import {
 import { projectInspector } from './navigation';
 import Inspector from './Inspector';
 
-const mockStartChat = jest.fn();
 const mockNative = {
   _id: 'native-project',
   name: 'Team assistant',
   platformProjectId: 'platform-project',
 };
-jest.mock('./useProjectChat', () => ({ __esModule: true, default: () => mockStartChat }));
 jest.mock('~/hooks', () => ({
   useAuthContext: () => ({ user: { id: 'owner' }, token: 'synthetic' }),
   useLocalize: () => (key: string) => key,
@@ -76,7 +74,7 @@ function mount() {
   return store;
 }
 
-it('changes only the inspector and opens trial chat separately, preserving the draft', async () => {
+it('shows a versioned trial frame and capability authorization while preserving the draft', async () => {
   const store = mount();
   const trial = await screen.findByRole('link', { name: /com_project_trial_new_tab/ });
   expect(trial).toHaveAttribute('target', '_blank');
@@ -84,11 +82,14 @@ it('changes only the inspector and opens trial chat separately, preserving the d
     'href',
     '/c/new?endpoint=agents&agent_id=agent_trial&projectId=native-project',
   );
-  fireEvent.click(screen.getByRole('button', { name: 'com_project_code' }));
-  expect(await screen.findByText('com_project_code_unpublished')).toBeVisible();
+  expect(screen.getByTitle('com_project_trial_frame')).toHaveAttribute(
+    'src',
+    '/c/new?endpoint=agents&agent_id=agent_trial&projectId=native-project&trialPane=1',
+  );
+  fireEvent.click(screen.getByText('com_project_capabilities'));
+  expect(screen.getByText('com_project_mcp_missing')).toBeVisible();
   expect(screen.getByLabelText('chat draft')).toHaveValue('Keep this unsent request');
-  expect(mockStartChat).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'com_project_back_chats' }));
+  fireEvent.click(screen.getByRole('button', { name: 'com_ui_close' }));
   expect(store.get(projectInspector('owner'))).toBeNull();
   expect(store.get(projectInspector('different-owner'))).toBeNull();
   expect(screen.getByLabelText('chat draft')).toHaveValue('Keep this unsent request');
@@ -102,7 +103,6 @@ it('opens settings only on request and returns without replacing the chat', asyn
   fireEvent.click(screen.getByRole('button', { name: 'com_project_return_chat' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   expect(screen.getByLabelText('chat draft')).toHaveValue('Keep this unsent request');
-  expect(mockStartChat).not.toHaveBeenCalled();
 });
 
 it('does not report missing resources when the service failed and can retry', async () => {

@@ -42,7 +42,9 @@ import KeyboardDeleteDialog from '~/components/Nav/KeyboardDeleteDialog';
 import { useUserTermsQuery, useGetStartupConfig } from '~/data-provider';
 import { MobileDrawerScrim } from '~/components/UnifiedSidebar/mobile';
 import AnalyticsConsent from '~/components/System/AnalyticsConsent';
+import { isCodeChatEnabled } from '~/components/CodeChat/config';
 import useKeyboardShortcuts from '~/hooks/useKeyboardShortcuts';
+import ProjectInspector from '~/components/Projects/Inspector';
 import useDrawerDismiss from '~/hooks/Nav/useDrawerDismiss';
 import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
 import useSidebarState from '~/hooks/Nav/useSidebarState';
@@ -81,6 +83,11 @@ function KeyboardShortcutsProvider() {
 }
 
 function RootLayout() {
+  const [embeddedTrial] = useState(
+    () =>
+      window.self !== window.top &&
+      new URLSearchParams(window.location.search).get('trialPane') === '1',
+  );
   const [showTerms, setShowTerms] = useState(false);
   const [bannerHeight, setBannerHeight] = useState(0);
   /** Shared with the drawer so the two agree on the breakpoint-transition frame. */
@@ -201,23 +208,29 @@ function RootLayout() {
                     {/* The drawer stops being painted once it is closed and
                         settled, so it needs the same travel window the scrim and
                         the pane's `inert` read. */}
-                    <UnifiedSidebar
-                      isSliding={isSliding}
-                      switchToHistory={newChatSwitchToHistory}
-                    />
+                    {!embeddedTrial && (
+                      <UnifiedSidebar
+                        isSliding={isSliding}
+                        switchToHistory={newChatSwitchToHistory}
+                      />
+                    )}
                     <div
                       ref={paneRef}
                       data-testid="app-pane"
                       /** Focus target of last resort when the drawer closes on a
                        *  route that renders no opener. Not in the tab order. */
                       tabIndex={-1}
-                      className="relative isolate flex h-full max-w-full flex-1 flex-col overflow-hidden focus:outline-hidden"
+                      className={`relative isolate flex h-full max-w-full min-w-0 flex-1 flex-col overflow-hidden focus:outline-hidden ${embeddedTrial ? '[&_[data-chat-pane-portal]]:hidden' : ''}`}
                       /** Keep the live conversation out of the drawer's compositor animation. */
                       /** Recoil's flip is deferred past the opening frames and
                        *  the closing transition outlives it at the other end, so
                        *  `isSliding` covers the travel `sidebarExpanded` brackets
                        *  too late and drops too early. */
-                      inert={isSmallScreen && (sidebarExpanded || isSliding) ? '' : undefined}
+                      inert={
+                        !embeddedTrial && isSmallScreen && (sidebarExpanded || isSliding)
+                          ? ''
+                          : undefined
+                      }
                     >
                       <MCPAppsPolicyProvider
                         startupConfig={config}
@@ -227,6 +240,7 @@ function RootLayout() {
                         <Outlet />
                       </MCPAppsPolicyProvider>
                     </div>
+                    {!embeddedTrial && isCodeChatEnabled() && <ProjectInspector />}
                     {/* Without the strip the scrim exists only for the travel:
                       through a close that began while the strip was still on
                       (disabling it unmounts the scrim at once, but the drawer
@@ -234,14 +248,16 @@ function RootLayout() {
                       the deferred flip has not committed yet. Once expanded
                       lands, a full-width drawer covers it, so keeping it
                       mounted would only expose a duplicate dismiss control. */}
-                    {isSmallScreen && (drawerStrip || (isSliding && !sidebarExpanded)) && (
-                      <MobileDrawerScrim
-                        expanded={sidebarExpanded}
-                        isSliding={isSliding}
-                        prefersReducedMotion={prefersReducedMotion}
-                        onClick={onScrimClick}
-                      />
-                    )}
+                    {!embeddedTrial &&
+                      isSmallScreen &&
+                      (drawerStrip || (isSliding && !sidebarExpanded)) && (
+                        <MobileDrawerScrim
+                          expanded={sidebarExpanded}
+                          isSliding={isSliding}
+                          prefersReducedMotion={prefersReducedMotion}
+                          onClick={onScrimClick}
+                        />
+                      )}
                   </div>
                 </div>
               </PromptGroupsProvider>
