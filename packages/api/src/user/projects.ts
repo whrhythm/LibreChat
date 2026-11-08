@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { createHash } from 'node:crypto';
 import { projectRootPath, workspaceProjectInput } from 'librechat-data-provider';
 import type { ProjectTemplate } from 'librechat-data-provider';
 import type { Response } from 'express';
@@ -6,6 +7,7 @@ import type { ServerRequest } from '~/types';
 
 type Request = Omit<ServerRequest, 'body'> & { body?: unknown };
 type Dependencies = {
+  clearConflictingCodeLink?: (user: string, id: string, path: string) => Promise<void>;
   reservePlatformLink?: (
     user: string,
     id: string,
@@ -86,6 +88,7 @@ export function createWorkspaceProjectHandlers(
           if (
             !deps.ensureLinkedChatProject ||
             !deps.reservePlatformLink ||
+            !projectRootPath.safeParse(workspaceProjectInput.parse(req.body).path).success ||
             !(await deps.getChatProject?.(user.id, nativeId))
           )
             return res.status(404).json({ code: 'projects_not_found' });
@@ -96,11 +99,15 @@ export function createWorkspaceProjectHandlers(
             goal: input.goal,
             path: input.path,
           });
+          const digest = createHash('sha256')
+            .update('code:' + user.id + ':' + nativeId)
+            .digest('hex');
           body = JSON.stringify({
             name: intent.name,
             goal: intent.goal,
             path: intent.path,
             revision: 0,
+            request_id: `${digest.slice(0, 8)}-${digest.slice(8, 12)}-4${digest.slice(13, 16)}-8${digest.slice(17, 20)}-${digest.slice(20, 32)}`,
           });
         }
         const url = new URL(suffix, deps.baseUrl.endsWith('/') ? deps.baseUrl : deps.baseUrl + '/');
@@ -118,46 +125,18 @@ export function createWorkspaceProjectHandlers(
           signal: AbortSignal.timeout(35000),
         });
         if (!upstream.ok) {
-          if (nativeId && upstream.status === 409) {
-            const observed = await (deps.request ?? fetch)(url, {
-              method: 'GET',
-              headers: {
-                'X-CodeChat-Service-Token': deps.serviceToken,
-                'X-CodeChat-Subject': user.openidId,
-              },
-              redirect: 'error',
-              signal: AbortSignal.timeout(35000),
-            });
-            if (observed.ok) {
-              const saved = z
-                .object({
-                  projects: z.array(
-                    z
-                      .object({
-                        id: z.string().uuid(),
-                        name: z.string(),
-                        goal: z.string(),
-                        path: z.string(),
-                      })
-                      .passthrough(),
-                  ),
-                })
-                .parse(await observed.json());
-              const input = JSON.parse(body!);
-              const project = saved.projects.find(
-                (p) => p.path === input.path && p.name === input.name && p.goal === input.goal,
-              );
-              if (project) {
-                await deps.ensureLinkedChatProject!(user.id, project, nativeId);
-                return res.json(project);
-              }
-            }
-          }
           const value = await upstream.json().catch(() => null);
           const code =
             typeof value?.detail === 'string' && /^projects_[a-z_]+$/.test(value.detail)
               ? value.detail
               : 'projects_unavailable';
+          if (
+            nativeId &&
+            upstream.status === 409 &&
+            (code === 'projects_root_exists' || code === 'projects_root_in_use')
+          ) {
+            await deps.clearConflictingCodeLink?.(user.id, nativeId, JSON.parse(body!).path);
+          }
           return res
             .status(
               [400, 403, 404, 409, 413, 422].includes(upstream.status) ? upstream.status : 503,

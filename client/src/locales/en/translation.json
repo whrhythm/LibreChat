@@ -4478,7 +4478,7 @@
   "com_project_kind_app": "Application",
   "com_project_create": "Create",
   "com_project_folder": "Project folder",
-  "com_project_folder_choose": "Select or create",
+  "com_project_folder_new": "New folder name",
   "com_project_folder_invalid": "Use lowercase letters, numbers and hyphens.",
   "com_project_folder_exists": "This name is already in use.",
   "com_project_folder_in_use": "This folder already belongs to a project.",

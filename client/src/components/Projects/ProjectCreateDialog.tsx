@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { atom, useAtom } from 'jotai';
 import { Bot, Check, PanelsTopLeft } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
   Input,
@@ -30,11 +30,13 @@ import {
   MAX_CHAT_PROJECT_NAME_LENGTH,
   MAX_WORKSPACE_PROJECT_NAME_LENGTH,
   MAX_CHAT_PROJECT_DESCRIPTION_LENGTH,
+  personalFileRequest,
+  projectRootPath,
 } from 'librechat-data-provider';
+import type { PersonalSpace } from 'librechat-data-provider';
 import { useCreateProjectMutation, useGetStartupConfig } from '~/data-provider';
 import { isCodeChatEnabled } from '~/components/CodeChat/config';
 import { useAuthContext, useLocalize } from '~/hooks';
-import Root from './Root';
 
 type Kind = 'assistant' | 'code';
 type Target = { kind?: Kind; path: string };
@@ -67,6 +69,15 @@ export default function ProjectCreateDialog({
   const request = useRef<{ key: string; id: string } | undefined>(undefined);
   const submitting = useRef(false);
   const createProject = useCreateProjectMutation();
+  const space = useQuery<PersonalSpace>({
+    queryKey: [QueryKeys.codechatSpace, user?.id],
+    queryFn: async () => (await personalFileRequest(token!, 'ensure', 'POST')).json(),
+    enabled: open && withRoot && !!token,
+    refetchInterval: (data) => (open && withRoot && data?.status !== 'ready' ? 5000 : false),
+    retry: false,
+  });
+  const ready = space.data?.status === 'ready';
+  const validPath = projectRootPath.safeParse(target.path).success;
   const createRootProject = useMutation({
     mutationFn: async ({ kind, path, name }: Required<Target> & { name: string }) => {
       if (!token) throw new Error('missing session');
@@ -96,6 +107,7 @@ export default function ProjectCreateDialog({
       void cache.invalidateQueries([QueryKeys.projects]);
       void cache.invalidateQueries([QueryKeys.workspaceProjects, user?.id]);
       void cache.invalidateQueries([QueryKeys.aiProjects, user?.id]);
+      void cache.invalidateQueries([QueryKeys.codechatFiles, user?.id, '']);
     },
     retry: false,
   });
@@ -131,7 +143,11 @@ export default function ProjectCreateDialog({
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = name.trim();
-    if (!trimmedName || submitting.current || (withRoot && (!target.kind || !target.path))) {
+    if (
+      !trimmedName ||
+      submitting.current ||
+      (withRoot && (!target.kind || !validPath || !ready))
+    ) {
       return;
     }
 
@@ -153,14 +169,11 @@ export default function ProjectCreateDialog({
     } catch (error) {
       const code =
         error instanceof ProjectRequestError || error instanceof AIProjectError ? error.code : '';
-      if (code.endsWith('_root_in_use') || code.endsWith('_directory_unavailable')) {
-        setTarget((prev) => ({ ...prev, path: '' }));
-        void cache.invalidateQueries([QueryKeys.workspaceProjects, user?.id]);
-        void cache.invalidateQueries([QueryKeys.codechatFiles, user?.id, '']);
-      }
       const messages = {
         projects_root_in_use: 'com_project_folder_in_use',
         ai_projects_root_in_use: 'com_project_folder_in_use',
+        projects_root_exists: 'com_project_folder_exists',
+        ai_projects_root_exists: 'com_project_folder_exists',
         projects_directory_unavailable: 'com_codechat_files_error',
         ai_projects_directory_unavailable: 'com_codechat_files_error',
       } as const;
@@ -229,12 +242,32 @@ export default function ProjectCreateDialog({
               />
             </div>
             {withRoot ? (
-              <Root
-                id={formId + '-root'}
-                value={target.path}
-                onChange={(path) => setTarget((prev) => ({ ...prev, path }))}
-                disabled={busy}
-              />
+              <div className="space-y-2">
+                <Label htmlFor={formId + '-root'}>{localize('com_project_folder_new')}</Label>
+                <Input
+                  id={formId + '-root'}
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  maxLength={80}
+                  value={target.path}
+                  onChange={(event) => setTarget((prev) => ({ ...prev, path: event.target.value }))}
+                  aria-describedby={formId + '-root-rules'}
+                  aria-invalid={!!target.path && !validPath}
+                  disabled={busy}
+                />
+                <p id={formId + '-root-rules'} className="text-text-secondary text-xs">
+                  {localize('com_project_folder_invalid')}
+                </p>
+                {!ready && (
+                  <p role="status" className="text-text-secondary text-xs">
+                    {localize(
+                      space.isError || space.data?.status === 'requires_review'
+                        ? 'com_codechat_files_error'
+                        : 'com_ui_loading',
+                    )}
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="space-y-2">
                 <Label htmlFor={`${formId}-description`} className="text-sm font-medium">
@@ -260,7 +293,7 @@ export default function ProjectCreateDialog({
             type="submit"
             form={formId}
             variant="submit"
-            disabled={!name.trim() || busy || (withRoot && (!target.kind || !target.path))}
+            disabled={!name.trim() || busy || (withRoot && (!target.kind || !validPath || !ready))}
             aria-label={localize('com_ui_create_project')}
             className="active:scale-[0.96]"
           >

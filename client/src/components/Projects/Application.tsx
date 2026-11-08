@@ -8,13 +8,14 @@ import {
   createAIProject,
   workspaceProject,
   saveWorkspaceProject,
+  projectRootPath,
+  ProjectRequestError,
   QueryKeys,
 } from 'librechat-data-provider';
 import type { TChatProject } from 'librechat-data-provider';
 import { activePanelAtom } from '~/Providers/ActivePanelContext';
 import { spaceNavigation } from '~/components/CodeChat/dock';
 import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
-import NewFolder from '~/components/CodeChat/NewFolder';
 import { useAuthContext, useLocalize } from '~/hooks';
 import Delivery from '~/components/CodeChat/Delivery';
 import Project from '~/components/CodeChat/Project';
@@ -137,27 +138,36 @@ export default function ProjectApplication({
           }}
         >
           <label className="block text-sm">
-            {t('com_codechat_project_path')}
+            {t('com_project_folder_new')}
             <input
               className="border-border-light bg-surface-primary mt-1 block w-full rounded border p-2"
               value={pending?.path ?? path}
               readOnly={!!pending}
               onChange={(event) => setPath(event.target.value)}
               required
-              maxLength={255}
+              maxLength={80}
             />
           </label>
           <div className="flex gap-2">
-            {!pending && <NewFolder path="" onCreated={setPath} />}
             <Button
               type="submit"
               size="sm"
               variant="outline"
-              disabled={bindCode.isLoading || create.isLoading}
+              disabled={
+                bindCode.isLoading ||
+                create.isLoading ||
+                !projectRootPath.safeParse(pending?.path ?? path).success
+              }
             >
               {t('com_codechat_project_associate')}
             </Button>
           </div>
+          {bindCode.error instanceof ProjectRequestError &&
+            bindCode.error.code === 'projects_root_exists' && (
+              <p role="alert" className="text-text-secondary text-xs">
+                {t('com_project_folder_exists')}
+              </p>
+            )}
         </form>
       )}
       {!focus && workspace.data && value?.state !== 'ready' && (

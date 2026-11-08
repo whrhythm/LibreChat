@@ -52,6 +52,7 @@ const {
   archivePlatformConversations,
   reservePlatformLink,
   listLinkedProjectNames,
+  clearConflictingCodeLink,
   removeRetiredChatProject,
   removeRetiredProjectAgent,
 } = require('~/models');
@@ -347,6 +348,7 @@ router.put(
 const projects = createWorkspaceProjectHandlers({
   listLinkedProjectNames,
   reservePlatformLink,
+  clearConflictingCodeLink,
   getChatProject,
   ensureLinkedChatProject,
   baseUrl: process.env.CODECHAT_WORKSPACE_URL,

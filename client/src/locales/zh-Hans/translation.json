@@ -2219,7 +2219,7 @@
   "com_project_kind_app": "应用",
   "com_project_create": "创建",
   "com_project_folder": "项目文件夹",
-  "com_project_folder_choose": "选择或新建",
+  "com_project_folder_new": "新文件夹名称",
   "com_project_folder_invalid": "仅限小写字母、数字和短横线。",
   "com_project_folder_exists": "名称已存在",
   "com_project_folder_in_use": "文件夹已关联项目",

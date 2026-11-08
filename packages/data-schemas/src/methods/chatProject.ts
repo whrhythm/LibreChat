@@ -54,6 +54,7 @@ export type AssignConversationToProjectResult = {
 };
 
 export interface ChatProjectMethods {
+  clearConflictingCodeLink(user: string, id: string, path: string): Promise<void>;
   listLinkedProjectNames(user: string, ids: string[]): Promise<Record<string, string>>;
   reservePlatformLink(
     user: string,
@@ -927,6 +928,20 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     if (result.modifiedCount) await refreshChatProjectStatsForUser(mongoose, user, id);
   }
 
+  async function clearConflictingCodeLink(user: string, id: string, path: string) {
+    const ChatProject = mongoose.models.ChatProject as Model<IChatProjectDocument>;
+    await ChatProject.updateOne(
+      {
+        _id: new mongoose.Types.ObjectId(id),
+        user,
+        platformProjectId: { $exists: false },
+        'platformLinkIntent.kind': 'code',
+        'platformLinkIntent.path': path,
+      },
+      { $unset: { platformLinkIntent: '' } },
+    );
+  }
+
   async function reservePlatformLink(
     user: string,
     id: string,
@@ -953,6 +968,7 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
   return {
     listLinkedProjectNames,
     reservePlatformLink,
+    clearConflictingCodeLink,
     ensureLinkedChatProject,
     archivePlatformConversations,
     createChatProject,
