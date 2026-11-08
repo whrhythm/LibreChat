@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Cpu, Database, MessageCircle, ArrowRight, CornerUpLeft } from 'lucide-react';
 import {
   ReactFlow,
@@ -9,6 +9,7 @@ import {
   useReactFlow,
   useNodesInitialized,
   useStore,
+  getViewportForBounds,
 } from '@xyflow/react';
 import type { Edge, Node, NodeProps, NodeMouseHandler, XYPosition } from '@xyflow/react';
 import type { AITrials } from 'librechat-data-provider';
@@ -92,11 +93,24 @@ function Fit({ knowledge }: { knowledge: boolean }) {
   const ready = useNodesInitialized();
   const width = useStore((state) => state.width);
   const height = useStore((state) => state.height);
-  const { fitView } = useReactFlow();
+  const { getNodes, getNodesBounds, setViewport, viewportInitialized } = useReactFlow();
+  const fit = useCallback(() => {
+    if (!ready || !width || !height || !viewportInitialized) return;
+    // Fit the measured nodes directly. Controlled nodes need not change on a container resize.
+    const bounds = getNodesBounds(getNodes());
+    void setViewport(getViewportForBounds(bounds, width, height, 0.25, 1, 0.2));
+  }, [ready, width, height, viewportInitialized, getNodes, getNodesBounds, setViewport]);
   useEffect(() => {
-    if (ready) void fitView({ padding: 0.2, maxZoom: 1 });
-  }, [ready, knowledge, width, height, fitView]);
-  return null;
+    fit();
+  }, [knowledge, fit]);
+  return (
+    <Controls
+      showInteractive={false}
+      position="bottom-right"
+      onFitView={fit}
+      className="[&_button]:border-border-light! [&_button]:bg-surface-primary! [&_button]:text-text-primary! [&_button:hover]:bg-surface-hover! shadow-none!"
+    />
+  );
 }
 
 function readLayout(key: string): Layout {
@@ -119,6 +133,9 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
   const key = 'starbridge:assistant-loop-layout:' + layoutKey;
   const [layout, setLayout] = useState(() => readLayout(key));
   const [dragging, setDragging] = useState<Layout>({});
+  const [measured, setMeasured] = useState<
+    Partial<Record<GraphNode, { width: number; height: number }>>
+  >({});
   const nodes = useMemo(() => {
     const make = (
       id: GraphNode,
@@ -131,6 +148,7 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
       id,
       type: 'step',
       position: dragging[id] ?? layout[id] ?? { x, y },
+      measured: measured[id],
       ariaLabel: label,
       data: {
         label,
@@ -161,7 +179,7 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
       );
     }
     return result;
-  }, [activity, draft?.config?.model, draft?.knowledge_revision_id, dragging, layout, t]);
+  }, [activity, draft?.config?.model, draft?.knowledge_revision_id, dragging, layout, measured, t]);
   const edge = (
     id: string,
     source: string,
@@ -241,10 +259,15 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
         }
         onNodesChange={(changes) => {
           const positions: Layout = {};
+          const dimensions: typeof measured = {};
           for (const change of changes) {
             if (change.type === 'position' && change.position)
               positions[change.id as GraphNode] = change.position;
+            if (change.type === 'dimensions' && change.dimensions)
+              dimensions[change.id as GraphNode] = change.dimensions;
           }
+          if (Object.keys(dimensions).length > 0)
+            setMeasured((current) => ({ ...current, ...dimensions }));
           if (Object.keys(positions).length === 0) return;
           setDragging((current) => ({ ...current, ...positions }));
         }}
@@ -260,11 +283,6 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
         }}
       >
         <Fit knowledge={!!draft?.knowledge_revision_id} />
-        <Controls
-          showInteractive={false}
-          position="bottom-right"
-          className="[&_button]:border-border-light! [&_button]:bg-surface-primary! [&_button]:text-text-primary! [&_button:hover]:bg-surface-hover! shadow-none!"
-        />
       </ReactFlow>
     </div>
   );
