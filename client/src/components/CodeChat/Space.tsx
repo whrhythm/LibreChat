@@ -146,7 +146,7 @@ export default function PersonalSpacePanel() {
               aria-pressed={section === 'knowledge'}
               onClick={() => setSection('knowledge')}
             >
-              {localize('com_assets_project_knowledge')}
+              {localize('com_library_title')}
             </Button>
           </nav>
           <div hidden={section !== 'files'}>

@@ -4,6 +4,13 @@ import {
   knowledgeImportInput,
   knowledgeListSchema,
   knowledgeRevisionSchema,
+  libraryCreateInput,
+  libraryRenameInput,
+  libraryEditInput,
+  libraryBindInput,
+  libraryDetailSchema,
+  libraryListSchema,
+  librarySchema,
 } from 'librechat-data-provider';
 import type { Response } from 'express';
 import type { ServerRequest } from '~/types';
@@ -38,7 +45,11 @@ function projectId(agentId?: string): string | null {
     raw.slice(20),
   ].join('-');
 }
-function client(req: Request, deps: Dependencies) {
+function client(
+  req: Request,
+  deps: Dependencies,
+  resource: 'project' | 'library' | 'binding' = 'project',
+) {
   const user = req.user;
   if (
     user?.provider !== 'openid' ||
@@ -60,10 +71,16 @@ function client(req: Request, deps: Dependencies) {
   if (base.protocol !== 'https:' || base.username || base.password)
     throw new KnowledgeFailure(503, 'knowledge_unavailable');
   return async (id: string, suffix = '', body?: object): Promise<unknown> => {
-    if (!z.string().uuid().safeParse(id).success)
+    if (!(resource === 'library' && id === '') && !z.string().uuid().safeParse(id).success)
       throw new KnowledgeFailure(400, 'knowledge_invalid_request');
     const response = await (deps.request ?? fetch)(
-      new URL('ai-projects/' + id + '/knowledge' + suffix, base),
+      new URL(
+        (resource === 'library'
+          ? 'knowledge-libraries' + (id ? '/' + id : '')
+          : 'ai-projects/' + id + (resource === 'binding' ? '/knowledge-library' : '/knowledge')) +
+          suffix,
+        base,
+      ),
       {
         method: body ? 'POST' : 'GET',
         redirect: 'error',
@@ -85,6 +102,138 @@ function client(req: Request, deps: Dependencies) {
       );
     }
     return result;
+  };
+}
+
+export function createLibraryHandlers(
+  deps: Dependencies,
+): Record<
+  | 'list'
+  | 'create'
+  | 'detail'
+  | 'rename'
+  | 'edit'
+  | 'source'
+  | 'retry'
+  | 'remove'
+  | 'selected'
+  | 'bind'
+  | 'cleanup',
+  (req: Request, res: Response) => Promise<Response>
+> {
+  function input<T>(schema: z.ZodType<T>, value: unknown): T {
+    const parsed = schema.safeParse(value);
+    if (!parsed.success) throw new KnowledgeFailure(400, 'knowledge_invalid_request');
+    return parsed.data;
+  }
+  type Action =
+    | 'list'
+    | 'create'
+    | 'detail'
+    | 'rename'
+    | 'edit'
+    | 'source'
+    | 'retry'
+    | 'remove'
+    | 'selected'
+    | 'bind'
+    | 'cleanup';
+  const handler = (action: Action) => async (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      if (!req.user) throw new KnowledgeFailure(403, 'knowledge_identity_required');
+      const binding = action === 'selected' || action === 'bind';
+      const call = client(req, deps, binding ? 'binding' : 'library');
+      const params = input(
+        z.object({ projectId: z.string().optional(), libraryId: z.string().optional() }),
+        req.params,
+      );
+      const rawId = binding ? params.projectId : params.libraryId;
+      const id = action === 'list' || action === 'create' ? '' : input(z.string().uuid(), rawId);
+      if (action === 'list') return res.json(libraryListSchema.parse(await call(id)));
+      if (action === 'detail') return res.json(libraryDetailSchema.parse(await call(id)));
+      if (action === 'selected')
+        return res.json(z.object({ library: librarySchema.nullable() }).parse(await call(id)));
+      if (action === 'source') {
+        const q = input(
+          z.object({ revision_id: z.string().uuid(), name: z.string().min(1).max(124) }).strict(),
+          req.query,
+        );
+        return res.json(
+          z
+            .object({
+              name: z.string(),
+              content: z.string(),
+              revision_id: z.string().uuid(),
+              digest: z.string(),
+            })
+            .parse(
+              await call(
+                id,
+                '/source?revision_id=' + q.revision_id + '&name=' + encodeURIComponent(q.name),
+              ),
+            ),
+        );
+      }
+      if (action === 'bind') {
+        const body = input(libraryBindInput, req.body);
+        const result = await call(id, '', { ...body, native_owner_id: req.user.id });
+        if (
+          body.library_id &&
+          !(await deps.enableProjectKnowledge?.('agent_' + id.replace(/-/g, ''), req.user.id))
+        )
+          throw new KnowledgeFailure(503, 'knowledge_agent_update_required');
+        return res.json(z.object({ library: librarySchema.nullable() }).parse(result));
+      }
+      let body: object;
+      switch (action) {
+        case 'create':
+          body = input(libraryCreateInput, req.body);
+          break;
+        case 'rename':
+          body = input(libraryRenameInput, req.body);
+          break;
+        case 'edit':
+          body = input(libraryEditInput, req.body);
+          break;
+        case 'cleanup':
+          body = input(z.object({ revision_id: z.string().uuid() }).strict(), req.body);
+          break;
+        default:
+          body = input(z.object({}).strict(), req.body);
+          break;
+      }
+      const result = await call(
+        id,
+        action === 'create' ? '' : '/' + (action === 'edit' ? 'files' : action),
+        body,
+      );
+      if (action === 'remove')
+        return res.json(
+          z.object({ id: z.string().uuid(), state: z.enum(['deleting', 'deleted']) }).parse(result),
+        );
+      let status = 200;
+      if (action === 'create') status = 201;
+      if (action === 'edit') status = 202;
+      return res.status(status).json(libraryDetailSchema.parse(result));
+    } catch (error) {
+      return res.status(error instanceof KnowledgeFailure ? error.status : 503).json({
+        code: error instanceof KnowledgeFailure ? error.code : 'knowledge_unavailable',
+      });
+    }
+  };
+  return {
+    list: handler('list'),
+    create: handler('create'),
+    detail: handler('detail'),
+    rename: handler('rename'),
+    edit: handler('edit'),
+    source: handler('source'),
+    retry: handler('retry'),
+    remove: handler('remove'),
+    selected: handler('selected'),
+    bind: handler('bind'),
+    cleanup: handler('cleanup'),
   };
 }
 

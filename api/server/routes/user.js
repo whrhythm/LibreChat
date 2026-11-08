@@ -9,6 +9,7 @@ const {
   createWorkspaceProjectHandlers,
   createAIProjectHandlers,
   createKnowledgeHandlers,
+  createLibraryHandlers,
   createTrialHandlers,
   createReleaseHandlers,
   generateCheckAccess,
@@ -71,6 +72,12 @@ const checkAIProjectCreate = generateCheckAccess({
   getRoleByName,
 });
 const knowledge = createKnowledgeHandlers({
+  baseUrl: process.env.CODECHAT_WORKSPACE_URL,
+  serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
+  issuer: process.env.OPENID_ISSUER,
+  enableProjectKnowledge,
+});
+const libraries = createLibraryHandlers({
   baseUrl: process.env.CODECHAT_WORKSPACE_URL,
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
   issuer: process.env.OPENID_ISSUER,
@@ -207,6 +214,74 @@ router.post(
   checkAIProjectCreate,
   configMiddleware,
   knowledge.remove,
+);
+router.get('/workspace/knowledge-libraries', requireJwtAuth, configMiddleware, libraries.list);
+router.post(
+  '/workspace/knowledge-libraries',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  libraries.create,
+);
+router.get(
+  '/workspace/knowledge-libraries/:libraryId',
+  requireJwtAuth,
+  configMiddleware,
+  libraries.detail,
+);
+router.get(
+  '/workspace/knowledge-libraries/:libraryId/source',
+  requireJwtAuth,
+  configMiddleware,
+  libraries.source,
+);
+router.post(
+  '/workspace/knowledge-libraries/:libraryId/files',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  libraries.edit,
+);
+router.post(
+  '/workspace/knowledge-libraries/:libraryId/rename',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  libraries.rename,
+);
+router.post(
+  '/workspace/knowledge-libraries/:libraryId/retry',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  libraries.retry,
+);
+router.post(
+  '/workspace/knowledge-libraries/:libraryId/remove',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  libraries.remove,
+);
+router.post(
+  '/workspace/knowledge-libraries/:libraryId/cleanup',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  libraries.cleanup,
+);
+router.get(
+  '/workspace/ai-projects/:projectId/knowledge-library',
+  requireJwtAuth,
+  configMiddleware,
+  libraries.selected,
+);
+router.post(
+  '/workspace/ai-projects/:projectId/knowledge-library',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  libraries.bind,
 );
 router.get('/workspace/ai-projects', requireJwtAuth, aiProjects.list);
 router.post(

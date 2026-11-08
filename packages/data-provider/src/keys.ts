@@ -76,6 +76,7 @@ export enum QueryKeys {
   workspaceProjects = 'workspaceProjects',
   projectLinks = 'projectLinks',
   aiProjects = 'aiProjects',
+  knowledgeLibraries = 'knowledgeLibraries',
   workspaceProject = 'workspaceProject',
   workspaceProjectSource = 'workspaceProjectSource',
   codechatCapacity = 'codechatCapacity',

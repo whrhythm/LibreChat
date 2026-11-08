@@ -1,6 +1,7 @@
 import type { Response } from 'express';
 import {
   createKnowledgeHandlers,
+  createLibraryHandlers,
   primeProjectKnowledge,
   createProjectFileSearchTool,
 } from './knowledge';
@@ -30,8 +31,24 @@ const revision = {
   created_at: '2026-11-07',
   updated_at: '2026-11-07',
 };
+const library = {
+  id,
+  name: 'Library',
+  state: 'active',
+  version: 1,
+  head_revision_id: null,
+  active_revision_id: null,
+  created_at: '2026-11-08',
+  updated_at: '2026-11-08',
+  head: null,
+  revisions: [],
+  references: { projects: [], fixed_trials: 0 },
+  limits: { files: 10, file_bytes: 1048576, revisions: 20 },
+};
 function setup(value: unknown = revision) {
-  const request = jest.fn(async () => new globalThis.Response(JSON.stringify(value)));
+  const request = jest.fn<Promise<globalThis.Response>, [URL, RequestInit]>(
+    async () => new globalThis.Response(JSON.stringify(value)),
+  );
   const enableProjectKnowledge = jest.fn().mockResolvedValue(true);
   const deps = {
     baseUrl: 'https://platform.test/internal/v1/workspace/',
@@ -44,6 +61,42 @@ function setup(value: unknown = revision) {
   res.status.mockReturnValue(res);
   return { deps, request, res, handlers: createKnowledgeHandlers(deps) };
 }
+it('routes library creation using server identity and rejects owner injection', async () => {
+  const { deps, res, request } = setup(library);
+  const handlers = createLibraryHandlers(deps);
+  await handlers.create(
+    { ...req, params: {}, body: { request_id: id, name: 'Library' } } as Input,
+    res as unknown as Response,
+  );
+  expect(res.status).toHaveBeenLastCalledWith(201);
+  expect(String(request.mock.calls[0][0])).toBe(
+    'https://platform.test/internal/v1/workspace/knowledge-libraries',
+  );
+  request.mockClear();
+  await handlers.create(
+    { ...req, params: {}, body: { request_id: id, name: 'Library', owner: 'foreign' } } as Input,
+    res as unknown as Response,
+  );
+  expect(res.status).toHaveBeenLastCalledWith(400);
+  expect(request).not.toHaveBeenCalled();
+});
+it('binds an owned library through the platform and enables native knowledge without granting edit ACLs', async () => {
+  const { deps, res, request } = setup({ library });
+  const handlers = createLibraryHandlers(deps);
+  await handlers.bind(
+    {
+      ...req,
+      params: { projectId: id },
+      body: { library_id: id, expected_library_id: null },
+    } as Input,
+    res as unknown as Response,
+  );
+  expect(deps.enableProjectKnowledge).toHaveBeenCalledWith(agent, user.id);
+  expect(
+    JSON.parse((request.mock.calls as unknown as [URL, RequestInit][])[0][1].body as string)
+      .native_owner_id,
+  ).toBe(user.id);
+});
 it('stamps the authenticated owner, denies forged body fields and never grants ACLs', async () => {
   const { handlers, request, res, deps } = setup();
   const body = { request_id: id, files: [{ name: 'policy.md', content: 'synthetic' }] };

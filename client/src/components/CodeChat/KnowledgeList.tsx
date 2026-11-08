@@ -1,78 +1,119 @@
 import { useMemo, useRef } from 'react';
 import { atom, useAtom } from 'jotai';
-import { useQuery } from '@tanstack/react-query';
-import { aiProjects, QueryKeys } from 'librechat-data-provider';
-import {
-  Button,
-  OGDialog,
-  OGDialogContent,
-  OGDialogTitle,
-  OGDialogDescription,
-} from '@librechat/client';
+import { Button } from '@librechat/client';
+import { BookOpen, Plus } from 'lucide-react';
+import { libraryRequest, QueryKeys } from 'librechat-data-provider';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { LibraryDetail } from 'librechat-data-provider';
+import { LibraryDialog, libraryError } from './Library';
 import { useAuthContext, useLocalize } from '~/hooks';
-import Knowledge from './Knowledge';
 
-/** Existing project-bound revisions only; independent multi-library management is not implied. */
 export default function KnowledgeList({ enabled }: { enabled: boolean }) {
   const { user, token } = useAuthContext();
   const t = useLocalize();
+  const cache = useQueryClient();
   const selectedAtom = useMemo(() => atom<string | null>(null), []);
   const [selected, setSelected] = useAtom(selectedAtom);
-  const trigger = useRef<HTMLElement | null>(null);
+  const nameAtom = useMemo(() => atom<string | null>(null), []);
+  const [name, setName] = useAtom(nameAtom);
+  const requestId = useRef(crypto.randomUUID());
   const list = useQuery({
-    queryKey: [QueryKeys.aiProjects, user?.id],
-    queryFn: () => aiProjects(token!),
+    queryKey: [QueryKeys.knowledgeLibraries, user?.id],
+    queryFn: () => libraryRequest(token!),
     enabled: enabled && !!token,
     retry: false,
+    refetchInterval: enabled ? 5000 : false,
   });
-  const projects = list.data?.projects.filter((v) => v.state === 'ready') ?? [];
+  const create = useMutation({
+    mutationFn: () =>
+      libraryRequest<LibraryDetail>(token!, '', { request_id: requestId.current, name }),
+    onSuccess: (row) => {
+      void cache.invalidateQueries([QueryKeys.knowledgeLibraries, user?.id]);
+      setName(null);
+      setSelected(row.id);
+      requestId.current = crypto.randomUUID();
+    },
+  });
   return (
-    <div className="space-y-2">
-      <p className="text-text-secondary text-xs">{t('com_assets_knowledge_scope')}</p>
+    <div className="space-y-3">
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-full"
+        onClick={() => {
+          setName('');
+          create.reset();
+        }}
+      >
+        <Plus className="me-1 size-4" />
+        {t('com_library_create')}
+      </Button>
+      {name !== null && (
+        <form
+          className="flex flex-col gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            create.mutate();
+          }}
+        >
+          <input
+            aria-label={t('com_library_name')}
+            maxLength={80}
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              requestId.current = crypto.randomUUID();
+            }}
+            className="border-border-light bg-surface-primary rounded border p-2 text-sm"
+          />
+          <div className="flex gap-2">
+            <Button size="sm" disabled={!name.trim() || create.isLoading} type="submit">
+              {t('com_ui_create')}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={create.isLoading}
+              onClick={() => setName(null)}
+            >
+              {t('com_ui_cancel')}
+            </Button>
+          </div>
+        </form>
+      )}
+      {create.isError && (
+        <p role="alert" className="text-xs">
+          {t(libraryError(create.error))}
+        </p>
+      )}
+      {list.isLoading && <p role="status">{t('com_knowledge_loading')}</p>}
       {list.isError && (
-        <div role="alert">
-          <p>{t('com_project_status_error')}</p>
+        <p role="alert" className="text-xs">
+          {t('com_knowledge_error')}
           <Button size="xs" variant="ghost" onClick={() => void list.refetch()}>
             {t('com_ui_retry')}
           </Button>
-        </div>
+        </p>
       )}
-      {list.isLoading && <p role="status">{t('com_ui_loading')}</p>}
-      {list.isSuccess && projects.length === 0 && (
-        <p className="text-text-secondary text-xs">{t('com_assets_no_project_knowledge')}</p>
+      {list.isSuccess && !list.data.libraries.length && (
+        <p className="text-text-secondary py-4 text-xs">{t('com_library_no_libraries')}</p>
       )}
-      {projects.map((v) => (
-        <Button
-          key={v.project.id}
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start"
-          onClick={(event) => {
-            trigger.current = event.currentTarget;
-            setSelected(v.project.id);
-          }}
+      {list.data?.libraries.map((library) => (
+        <button
+          key={library.id}
+          className="border-border-light hover:bg-surface-hover flex w-full items-center gap-3 rounded-lg border p-3 text-start"
+          onClick={() => setSelected(library.id)}
         >
-          <span className="truncate">{v.project.name}</span>
-        </Button>
+          <BookOpen className="size-4 shrink-0" />
+          <span className="min-w-0">
+            <span className="block truncate text-sm">{library.name}</span>
+            <span className="text-text-secondary text-xs">
+              {t('com_library_file_count', { count: library.head?.manifest.length ?? 0 })}
+            </span>
+          </span>
+        </button>
       ))}
-      <OGDialog
-        open={selected !== null}
-        triggerRef={trigger}
-        onOpenChange={(value) => {
-          if (!value) setSelected(null);
-        }}
-      >
-        <OGDialogContent placement="center" className="max-h-[90vh] overflow-auto sm:max-w-4xl">
-          <OGDialogTitle>{t('com_assets_project_knowledge')}</OGDialogTitle>
-          <OGDialogDescription>
-            {projects.find((v) => v.project.id === selected)?.project.name}
-          </OGDialogDescription>
-          {selected && <Knowledge key={selected} projectId={selected} embedded enabled={enabled} />}
-          <Button variant="outline" onClick={() => setSelected(null)}>
-            {t('com_project_return_chat')}
-          </Button>
-        </OGDialogContent>
-      </OGDialog>
+      <LibraryDialog id={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { projectKnowledge } from 'librechat-data-provider';
+import { libraryRequest, projectLibrary } from 'librechat-data-provider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Knowledge from './Knowledge';
@@ -8,44 +8,44 @@ jest.mock('~/hooks', () => ({
 }));
 jest.mock('librechat-data-provider', () => ({
   ...jest.requireActual('librechat-data-provider'),
-  projectKnowledge: jest.fn(),
+  libraryRequest: jest.fn(),
+  projectLibrary: jest.fn(),
 }));
-const failed = {
-  id: 'revision',
-  state: 'failed',
-  manifest: [{ name: 'policy.md', bytes: 12 }],
-  source_bytes: 12,
-  index_bytes: 2048,
-  created_at: '2026-11-07T00:00:00Z',
-};
 function mount() {
   render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false, cacheTime: 0 } } })}
     >
-      <Knowledge projectId="project" />
+      <Knowledge projectId="project" embedded />
     </QueryClientProvider>,
   );
-  fireEvent.click(screen.getByText('com_knowledge_title'));
 }
 beforeEach(() => jest.clearAllMocks());
-it('shows index failure and explicitly retries the same revision, not a new upload', async () => {
-  (projectKnowledge as jest.Mock).mockResolvedValue({
-    revisions: [failed],
-    active_revision_id: null,
-    limits: { files: 10, file_bytes: 1048576 },
+it('binds a selected library with the last confirmed association and keeps publication separate', async () => {
+  (libraryRequest as jest.Mock).mockResolvedValue({
+    libraries: [
+      { id: 'lib-a', name: 'A' },
+      { id: 'lib-b', name: 'B' },
+    ],
   });
+  (projectLibrary as jest.Mock).mockResolvedValue({ library: { id: 'lib-a', name: 'A' } });
   mount();
-  expect(await screen.findByText('com_knowledge_failed')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'com_codechat_retry' }));
+  await screen.findByRole('option', { name: 'B' });
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'lib-b' } });
+  fireEvent.click(screen.getByRole('button', { name: 'com_ui_save' }));
   await waitFor(() =>
-    expect(projectKnowledge).toHaveBeenCalledWith('test', 'project', '/revision/retry', {}),
+    expect(projectLibrary).toHaveBeenCalledWith('test', 'project', {
+      library_id: 'lib-b',
+      expected_library_id: 'lib-a',
+    }),
   );
+  expect(screen.getByText('com_library_binding_hint')).toBeVisible();
 });
-it('does not confuse an unavailable list with an empty knowledge base', async () => {
-  (projectKnowledge as jest.Mock).mockRejectedValue(new Error('knowledge_unavailable'));
+it('does not treat an unavailable library list as empty or permit binding writes', async () => {
+  (libraryRequest as jest.Mock).mockRejectedValue(new Error('knowledge_unavailable'));
+  (projectLibrary as jest.Mock).mockResolvedValue({ library: null });
   mount();
   expect(await screen.findByRole('alert')).toHaveTextContent('com_knowledge_error');
-  expect(screen.queryByText('com_knowledge_empty')).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'com_knowledge_import' })).toBeDisabled();
+  expect(screen.getByRole('combobox')).toBeDisabled();
+  expect(screen.queryByText('com_library_create_hint')).not.toBeInTheDocument();
 });
