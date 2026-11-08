@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { workspaceProjectInput } from 'librechat-data-provider';
+import { projectRootPath, workspaceProjectInput } from 'librechat-data-provider';
 import type { Response } from 'express';
 import type { ServerRequest } from '~/types';
 
@@ -11,6 +11,7 @@ type Dependencies = {
     intent: { kind: 'assistant' | 'code'; name: string; goal: string; path?: string },
   ) => Promise<{ kind: 'assistant' | 'code'; name: string; goal: string; path?: string }>;
   getChatProject?: (user: string, id: string) => Promise<{ platformProjectId?: string } | null>;
+  listLinkedProjectNames?: (user: string, ids: string[]) => Promise<Record<string, string>>;
   ensureLinkedChatProject?: (
     user: string,
     input: { id: string; name: string; goal: string },
@@ -48,6 +49,7 @@ export function createWorkspaceProjectHandlers(
       let suffix = 'projects';
       let body: string | undefined;
       let nativeId: string | undefined;
+      let createWithRoot = false;
       if (action === 'context' || action === 'source') {
         const params = req.params;
         const id =
@@ -64,6 +66,14 @@ export function createWorkspaceProjectHandlers(
         if (!parsed.success) return res.status(400).json({ code: 'projects_invalid_request' });
         const { native_project_id, ...input } = parsed.data;
         nativeId = native_project_id;
+        createWithRoot = input.request_id !== undefined;
+        if (
+          createWithRoot &&
+          (nativeId || input.revision !== 0 || !projectRootPath.safeParse(input.path).success)
+        )
+          return res.status(400).json({ code: 'projects_invalid_request' });
+        if (createWithRoot && !deps.ensureLinkedChatProject)
+          return res.status(503).json({ code: 'projects_unavailable' });
         body = JSON.stringify(input);
       }
       try {
@@ -150,6 +160,26 @@ export function createWorkspaceProjectHandlers(
             .json({ code });
         }
         const result = await upstream.json();
+        if (createWithRoot) {
+          const project = z
+            .object({ id: z.string().uuid(), name: z.string(), goal: z.string() })
+            .passthrough()
+            .parse(result);
+          const link = await deps.ensureLinkedChatProject!(user.id, project);
+          return res.status(upstream.status).json({ ...project, native_project_id: link.id });
+        }
+        if (action === 'list' && deps.listLinkedProjectNames) {
+          const value = z
+            .object({ projects: z.array(z.object({ id: z.string().uuid() }).passthrough()) })
+            .parse(result);
+          const names = await deps.listLinkedProjectNames(
+            user.id,
+            value.projects.map((p) => p.id),
+          );
+          return res.json({
+            projects: value.projects.map((p) => ({ ...p, project_label: names[p.id] })),
+          });
+        }
         if (nativeId) {
           const project = z
             .object({ id: z.string().uuid(), name: z.string(), goal: z.string() })

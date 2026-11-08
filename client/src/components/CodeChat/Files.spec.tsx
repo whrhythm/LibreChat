@@ -1,7 +1,7 @@
 import { TextDecoder, TextEncoder } from 'node:util';
-import { personalFileRequest } from 'librechat-data-provider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { personalFileRequest, workspaceProjects } from 'librechat-data-provider';
 import PersonalFiles from './Files';
 
 jest.mock('./CodeEditor', () => ({
@@ -34,6 +34,7 @@ jest.mock('~/data-provider', () => ({ useGetStartupConfig: () => ({ data: {} }) 
 jest.mock('librechat-data-provider', () => ({
   ...jest.requireActual('librechat-data-provider'),
   personalFileRequest: jest.fn(),
+  workspaceProjects: jest.fn(async () => ({ projects: [] })),
   personalApplicationRequest: jest.fn(async () => ({ json: async () => ({ apps: [] }) })),
 }));
 const request = personalFileRequest as jest.MockedFunction<typeof personalFileRequest>;
@@ -76,6 +77,36 @@ function mount() {
     </QueryClientProvider>,
   );
 }
+
+it('labels the directory by its current linked project name', async () => {
+  jest.mocked(workspaceProjects).mockResolvedValueOnce({
+    projects: [
+      {
+        id: 'project-id',
+        path: 'after-sales',
+        name: '旧名称',
+        project_label: '售后项目',
+        goal: '',
+        revision: 1,
+        created_at: '',
+        updated_at: '',
+      },
+    ],
+  });
+  request.mockImplementation(
+    async (_token, endpoint) =>
+      ({
+        json: async () =>
+          endpoint === 'ensure'
+            ? { status: 'ready' }
+            : { entries: [{ name: 'after-sales', kind: 'directory', size: null }] },
+      }) as Response,
+  );
+  mount();
+  const folder = await screen.findByRole('button', { name: /after-sales.*售后项目/ });
+  expect(folder).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByText('旧名称')).not.toBeInTheDocument();
+});
 
 it('keeps project listing and uploads inside its cloud directory even with an outside selection', async () => {
   request.mockReset();

@@ -40,6 +40,7 @@ export const useUpdateProjectMutation = (): UseMutationResult<
     onSuccess: (project) => {
       queryClient.setQueryData([QueryKeys.project, project._id], project);
       queryClient.invalidateQueries([QueryKeys.projects]);
+      if (project.platformProjectId) queryClient.invalidateQueries([QueryKeys.workspaceProjects]);
     },
   });
 };

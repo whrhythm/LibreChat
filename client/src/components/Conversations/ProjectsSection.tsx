@@ -598,12 +598,12 @@ const ProjectsSection = ({ toggleNav, isAuthenticated }: ProjectsSectionProps) =
       <ProjectCreateDialog
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
-        onCreated={(project) => {
+        onCreated={(projectId, kind) => {
           if (isCodeChatEnabled()) {
-            startProjectChat(project._id);
+            startProjectChat(projectId, kind);
             return;
           }
-          navigate(`/projects/${project._id}`);
+          navigate(`/projects/${projectId}`);
           toggleNav();
         }}
       />

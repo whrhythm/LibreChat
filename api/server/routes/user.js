@@ -51,6 +51,7 @@ const {
   ensureLinkedChatProject,
   archivePlatformConversations,
   reservePlatformLink,
+  listLinkedProjectNames,
 } = require('~/models');
 const { PermissionTypes, Permissions } = require('librechat-data-provider');
 
@@ -328,6 +329,7 @@ router.put(
   templates.acceptance,
 );
 const projects = createWorkspaceProjectHandlers({
+  listLinkedProjectNames,
   reservePlatformLink,
   getChatProject,
   ensureLinkedChatProject,

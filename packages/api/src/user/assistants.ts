@@ -109,12 +109,15 @@ export function createAIProjectHandlers(
       params && typeof params === 'object' && 'projectId' in params ? params.projectId : undefined;
     if (
       (body && !body.success) ||
+      (body?.success && body.data.path && body.data.native_project_id) ||
       (action === 'resume' &&
         (!z.string().uuid().safeParse(identifier).success ||
           !z.object({}).strict().safeParse(req.body).success))
     ) {
       return res.status(400).json({ code: 'ai_projects_invalid_request' });
     }
+    if (body?.success && body.data.path && !deps.ensureLinkedChatProject)
+      return res.status(503).json({ code: 'ai_projects_unavailable' });
     try {
       const base = new URL(deps.baseUrl.endsWith('/') ? deps.baseUrl : deps.baseUrl + '/');
       if (base.protocol !== 'https:' || base.username || base.password) {
@@ -231,8 +234,16 @@ export function createAIProjectHandlers(
       ) {
         throw new Error('Project confirmation response mismatch');
       }
+      const input = body?.success ? body.data : undefined;
+      const link = input?.path
+        ? await deps.ensureLinkedChatProject!(user.id, {
+            id: projectId,
+            name: input.name,
+            goal: input.purpose,
+          })
+        : undefined;
       await deps.archivePlatformConversations?.(user.id, projectId, [agent.id]);
-      return res.status(200).json(confirmed);
+      return res.status(200).json(link ? { ...confirmed, native_project_id: link.id } : confirmed);
     } catch (error) {
       if (error instanceof UpstreamFailure)
         return res.status(error.status).json({ code: error.code });

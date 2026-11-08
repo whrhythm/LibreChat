@@ -1,12 +1,16 @@
 import { z } from 'zod';
 import type { PersonalApplication } from './codechat';
 
+export const projectRootPath = z.string().regex(/^[a-z0-9][a-z0-9-]{0,79}$/);
+export const MAX_WORKSPACE_PROJECT_NAME_LENGTH = 80;
+
 export const workspaceProjectInput = z
   .object({
     path: z.string().min(1).max(255),
-    name: z.string().trim().min(1).max(80),
+    name: z.string().trim().min(1).max(MAX_WORKSPACE_PROJECT_NAME_LENGTH),
     goal: z.string().max(1000),
     revision: z.number().int().nonnegative(),
+    request_id: z.string().uuid().optional(),
     native_project_id: z
       .string()
       .regex(/^[0-9a-f]{24}$/)
@@ -18,6 +22,8 @@ export type WorkspaceProject = WorkspaceProjectInput & {
   id: string;
   created_at: string;
   updated_at: string;
+  project_label?: string;
+  native_project_id?: string;
 };
 export type ProjectContext = WorkspaceProject & {
   tasks: {

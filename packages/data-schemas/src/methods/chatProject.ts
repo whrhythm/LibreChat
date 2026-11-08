@@ -54,6 +54,7 @@ export type AssignConversationToProjectResult = {
 };
 
 export interface ChatProjectMethods {
+  listLinkedProjectNames(user: string, ids: string[]): Promise<Record<string, string>>;
   reservePlatformLink(
     user: string,
     id: string,
@@ -783,6 +784,15 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     };
   }
 
+  async function listLinkedProjectNames(user: string, ids: string[]) {
+    if (!ids.length) return {};
+    const ChatProject = mongoose.models.ChatProject as Model<IChatProjectDocument>;
+    const projects = await ChatProject.find({ user, platformProjectId: { $in: ids } })
+      .select('name platformProjectId')
+      .lean<{ name: string; platformProjectId: string }[]>();
+    return Object.fromEntries(projects.map((p) => [p.platformProjectId, p.name]));
+  }
+
   async function ensureLinkedChatProject(
     user: string,
     input: { id: string; name: string; goal: string },
@@ -896,6 +906,7 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
   }
 
   return {
+    listLinkedProjectNames,
     reservePlatformLink,
     ensureLinkedChatProject,
     archivePlatformConversations,

@@ -3,6 +3,7 @@ import { useRecoilValue } from 'recoil';
 import { useNavigate } from 'react-router-dom';
 import { QueryKeys } from 'librechat-data-provider';
 import { useQueryClient } from '@tanstack/react-query';
+import type { ProjectSection } from './navigation';
 import { activePanelAtom } from '~/Providers/ActivePanelContext';
 import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
 import { useAuthContext, useNewConvo } from '~/hooks';
@@ -20,12 +21,12 @@ export default function useProjectChat() {
   const cache = useQueryClient();
   const conversationId = useRecoilValue(store.conversationIdByIndex(0));
   const { newConversation } = useNewConvo();
-  return (projectId: string) => {
+  return (projectId: string, section: ProjectSection = 'overview') => {
     clearMessagesCache(cache, conversationId);
     void cache.invalidateQueries([QueryKeys.messages]);
     navigate('/c/new?projectId=' + encodeURIComponent(projectId), { flushSync: true });
     newConversation({ template: { chatProjectId: projectId } });
-    select({ projectId, section: 'overview' });
+    select({ projectId, section });
     setActive('conversations');
     setSidebarOpen(true);
   };

@@ -2,8 +2,8 @@ import { useEffect, useId, useMemo, useRef } from 'react';
 import { atom, useAtom } from 'jotai';
 import { MenuButton } from '@ariakit/react';
 import { Button, DropdownPopup } from '@librechat/client';
-import { personalFileRequest, QueryKeys } from 'librechat-data-provider';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { personalFileRequest, QueryKeys, workspaceProjects } from 'librechat-data-provider';
 import {
   ChevronDown,
   ChevronRight,
@@ -24,6 +24,7 @@ import { spaceDirty } from './dock';
 import Versions from './Versions';
 
 type TreeActions = {
+  projectLabels: ReadonlyMap<string, string>;
   selected: string;
   expanded: ReadonlySet<string>;
   toggle: (path: string, open: boolean) => void;
@@ -130,6 +131,7 @@ function Directory({ path, actions }: { path: string; actions: TreeActions }) {
       {entries.map((entry) => {
         const child = path ? path + '/' + entry.name : entry.name;
         const folder = entry.kind === 'directory';
+        const projectLabel = folder ? actions.projectLabels.get(child) : undefined;
         const open = folder && actions.expanded.has(child);
         return (
           <li key={entry.name}>
@@ -168,6 +170,14 @@ function Directory({ path, actions }: { path: string; actions: TreeActions }) {
                   <File aria-hidden="true" className="ms-4 size-3.5 shrink-0" />
                 )}
                 <span className="truncate">{entry.name}</span>
+                {projectLabel && (
+                  <span
+                    className="bg-surface-secondary text-text-secondary max-w-[45%] truncate rounded px-1.5 text-xs"
+                    title={projectLabel}
+                  >
+                    {projectLabel}
+                  </span>
+                )}
               </button>
               {!folder && (
                 <Button
@@ -253,6 +263,12 @@ export default function PersonalFiles({
     retry: false,
     refetchInterval: expanded ? (data) => (data?.status === 'ready' ? 30000 : 5000) : false,
   });
+  const projects = useQuery({
+    queryKey: [QueryKeys.workspaceProjects, user?.id],
+    queryFn: () => workspaceProjects(token!),
+    enabled: expanded && !rootPath && !!user?.id && !!token && space.data?.status === 'ready',
+    retry: false,
+  });
   const upload = useMutation({
     mutationFn: async (file: globalThis.File) => {
       if (file.size > 16 * 1024 * 1024) throw new Error('file_too_large');
@@ -293,6 +309,7 @@ export default function PersonalFiles({
     );
 
   const actions: TreeActions = {
+    projectLabels: new Map(projects.data?.projects.map((p) => [p.path, p.project_label ?? p.name])),
     selected: path,
     expanded: folders,
     toggle: (target, open) => {

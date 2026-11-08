@@ -1,11 +1,13 @@
 import { z } from 'zod';
 import type { WorkspaceProject } from './codechatProjects';
+import { projectRootPath, MAX_WORKSPACE_PROJECT_NAME_LENGTH } from './codechatProjects';
 
 export const aiProjectCreateInput = z
   .object({
     request_id: z.string().uuid(),
-    name: z.string().trim().min(1).max(80),
+    name: z.string().trim().min(1).max(MAX_WORKSPACE_PROJECT_NAME_LENGTH),
     purpose: z.string().trim().min(1).max(1000),
+    path: projectRootPath.optional(),
     native_project_id: z
       .string()
       .regex(/^[0-9a-f]{24}$/)
@@ -18,6 +20,7 @@ export type AIProject = {
   agent_id: string;
   state: 'preparing' | 'ready';
   knowledge_state: 'not_configured' | 'ready';
+  native_project_id?: string;
 };
 export class AIProjectError extends Error {
   constructor(public readonly code: string) {
