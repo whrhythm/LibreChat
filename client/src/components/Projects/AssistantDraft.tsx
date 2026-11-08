@@ -15,21 +15,21 @@ import {
   projectTrials,
   QueryKeys,
 } from 'librechat-data-provider';
-import type { AITrials, TChatProject } from 'librechat-data-provider';
+import type { AITrials } from 'librechat-data-provider';
+import { useGetStartupConfig, useProjectQuery } from '~/data-provider';
 import { useLatestMessage } from '~/hooks/Messages/useLatestMessage';
-import { useGetStartupConfig } from '~/data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { projectInspector } from './navigation';
 
 const proposalPattern = /^```assistant-draft[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/gm;
 
 export default function AssistantDraft({
-  project,
+  projectId,
   conversationId,
   busy,
   insertPrompt,
 }: {
-  project: TChatProject;
+  projectId: string;
   conversationId?: string;
   busy: boolean;
   insertPrompt: (instruction: string) => void;
@@ -38,17 +38,18 @@ export default function AssistantDraft({
   const t = useLocalize();
   const cache = useQueryClient();
   const { data: startup } = useGetStartupConfig();
-  const latest = useLatestMessage(0);
+  const latest = useLatestMessage(0, conversationId);
   const trigger = useRef<HTMLButtonElement>(null);
   const [review, setReview] = useState<{ instructions: string; draft: AITrials } | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const select = useSetAtom(projectInspector(user?.id ?? 'anonymous'));
-  const id = project.platformProjectId!;
   const enabled = !!token && !!startup?.aiTrialsEnabled && window.self === window.top;
+  const { data: project } = useProjectQuery(projectId, { enabled, retry: false });
+  const id = project?.platformProjectId;
   const projects = useQuery({
     queryKey: [QueryKeys.aiProjects, user?.id],
     queryFn: () => aiProjects(token!),
-    enabled,
+    enabled: enabled && !!id,
   });
   const linked = projects.data?.projects.some(
     (item) => item.project.id === id && item.state === 'ready',
@@ -56,18 +57,19 @@ export default function AssistantDraft({
   const key = [QueryKeys.aiProjects, user?.id, id, 'trials'];
   const current = useQuery({
     queryKey: key,
-    queryFn: () => projectTrials(token!, id),
-    enabled: enabled && !!linked,
+    queryFn: () => projectTrials(token!, id!),
+    enabled: enabled && !!id && !!linked,
   });
   const save = useMutation({
     mutationFn: async ({ instructions, draft }: NonNullable<typeof review>) => {
+      if (!id || !token) throw new AITrialError('ai_trials_unavailable');
       const result =
         draft.config && draft.digest
-          ? await projectTrials(token!, id, '/update', {
+          ? await projectTrials(token, id, '/update', {
               config: { ...draft.config, instructions },
               expected_digest: draft.digest,
             })
-          : await projectTrials(token!, id, '/initialize', { instructions });
+          : await projectTrials(token, id, '/initialize', { instructions });
       if (result.config?.instructions !== instructions)
         throw new AITrialError('ai_trials_draft_changed');
       return result;
@@ -76,7 +78,7 @@ export default function AssistantDraft({
       cache.setQueryData(key, result);
       setSaved(latest?.messageId ?? null);
       setReview(null);
-      select({ projectId: project._id, section: 'assistant' });
+      select({ projectId, section: 'assistant' });
     },
     onSettled: () => void cache.invalidateQueries(key),
   });

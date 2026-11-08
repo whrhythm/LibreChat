@@ -110,6 +110,8 @@ function ChatPane({
     chat.conversation?.conversationId === conversationId ? chat.conversation : undefined;
   const activeSubagentThread = activeConversation?.subagentThread;
   const chatProjectId = activeConversation?.chatProjectId || undefined;
+  const authoringProjectId =
+    chatProjectId ?? (conversationId === Constants.NEW_CONVO ? project?._id : undefined);
 
   let content: JSX.Element | null | undefined;
   const isLandingPage =
@@ -223,13 +225,13 @@ function ChatPane({
                             />
                           )}
                           {index === 0 &&
-                            project?.platformProjectId &&
+                            authoringProjectId &&
                             !routePending &&
                             !isSubagentThreadReadOnly &&
                             !/^agent_(trial|app)_/.test(chat.conversation?.agent_id ?? '') && (
                               <AssistantDraft
-                                key={project._id + ':' + conversationId}
-                                project={project}
+                                key={authoringProjectId + ':' + conversationId}
+                                projectId={authoringProjectId}
                                 conversationId={conversationId}
                                 busy={chat.isSubmitting}
                                 insertPrompt={(instruction) => {
