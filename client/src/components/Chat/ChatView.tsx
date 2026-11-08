@@ -22,6 +22,7 @@ import ApprovalProvider from './Messages/Content/ApprovalContext';
 import ConversationStarters from './Input/ConversationStarters';
 import { pendingApprovalActionFamily } from './approval/state';
 import ProjectBadge from '~/components/Projects/ProjectBadge';
+import ProjectStarter from '~/components/Projects/Starter';
 import { OwnerTextProvider } from './Messages/PrivateText';
 import { AskAnswerHostProvider } from './ask/state';
 import MessagesView from './Messages/MessagesView';
@@ -120,6 +121,7 @@ function ChatPane({
   const footerBelow = fullFooter || configuredFooter;
   const isNavigating = (!messagesTree || messagesTree.length === 0) && conversationId != null;
   const isProjectLandingPage = isLandingPage && project != null;
+  const template = isProjectLandingPage ? project.projectTemplate : undefined;
 
   if (isLoading && conversationId !== Constants.NEW_CONVO) {
     content = <LoadingSpinner />;
@@ -213,7 +215,15 @@ function ChatPane({
                             isLandingPage && 'max-w-3xl transition-all duration-200 xl:max-w-4xl',
                           )}
                         >
-                          {isLandingPage && <ConversationStarters />}
+                          {template && template !== 'blank' && (
+                            <ProjectStarter
+                              template={template}
+                              focusInput={() => methods.setFocus('text')}
+                            />
+                          )}
+                          {isLandingPage && (!template || template === 'blank') && (
+                            <ConversationStarters />
+                          )}
                           {isSubagentThreadReadOnly ? (
                             <div
                               className="text-text-secondary mx-auto w-full max-w-3xl px-4 py-3 text-center text-sm xl:max-w-4xl"

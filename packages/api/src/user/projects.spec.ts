@@ -14,6 +14,37 @@ function response() {
   return res;
 }
 
+it('stores a validated application template on the native link only', async () => {
+  const id = '00000000-0000-4000-8000-000000000001';
+  const native = { id: 'a'.repeat(24), platformProjectId: id };
+  const request = jest
+    .fn()
+    .mockResolvedValue(new globalThis.Response(JSON.stringify({ id, name: 'App', goal: '' })));
+  const ensureLinkedChatProject = jest.fn().mockResolvedValue(native);
+  const handlers = createWorkspaceProjectHandlers({ ...config, request, ensureLinkedChatProject });
+  const res = response();
+  const input = { path: 'my-app', name: 'App', goal: '', revision: 0, request_id: id };
+  const signedIn = { ...user, id: 'b'.repeat(24) };
+  await handlers.save(
+    { user: signedIn, body: { ...input, template: 'knowledge-qa' } } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(res.status).toHaveBeenLastCalledWith(400);
+  expect(request).not.toHaveBeenCalled();
+  await handlers.save(
+    { user: signedIn, body: { ...input, template: 'data-admin' } } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(res.status).toHaveBeenLastCalledWith(200);
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual(input);
+  expect(ensureLinkedChatProject).toHaveBeenCalledWith(signedIn.id, {
+    id,
+    name: 'App',
+    goal: '',
+    template: 'data-admin',
+  });
+});
+
 it('synchronizes only authoritative owned project records, ignoring browser claims', async () => {
   const project = {
     id: '00000000-0000-4000-8000-000000000001',

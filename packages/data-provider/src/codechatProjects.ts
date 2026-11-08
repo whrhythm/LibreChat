@@ -4,6 +4,19 @@ import type { PersonalApplication } from './codechat';
 export const projectRootPath = z.string().regex(/^[a-z0-9][a-z0-9-]{0,79}$/);
 export const MAX_WORKSPACE_PROJECT_NAME_LENGTH = 80;
 
+export const codeProjectTemplates = ['blank', 'website', 'data-admin', 'api-service'] as const;
+export const assistantProjectTemplates = [
+  'blank',
+  'knowledge-qa',
+  'writing',
+  'task-assistant',
+] as const;
+export const codeProjectTemplateSchema = z.enum(codeProjectTemplates);
+export const assistantProjectTemplateSchema = z.enum(assistantProjectTemplates);
+export type ProjectTemplate =
+  | (typeof codeProjectTemplates)[number]
+  | (typeof assistantProjectTemplates)[number];
+
 export const workspaceProjectInput = z
   .object({
     path: z.string().min(1).max(255),
@@ -11,6 +24,7 @@ export const workspaceProjectInput = z
     goal: z.string().max(1000),
     revision: z.number().int().nonnegative(),
     request_id: z.string().uuid().optional(),
+    template: codeProjectTemplateSchema.optional(),
     native_project_id: z
       .string()
       .regex(/^[0-9a-f]{24}$/)

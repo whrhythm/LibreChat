@@ -1,7 +1,9 @@
+import type { ProjectTemplate } from 'librechat-data-provider';
 import type { Document, Types } from 'mongoose';
 
 export interface IChatProject {
   platformProjectId?: string;
+  projectTemplate?: ProjectTemplate;
   platformDeletionPending?: boolean;
   platformLinkIntent?: { kind: 'assistant' | 'code'; name: string; goal: string; path?: string };
   platformAgentIds?: string[];

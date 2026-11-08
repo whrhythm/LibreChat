@@ -6,6 +6,7 @@ import {
   ResourceType,
   AccessRoleIds,
 } from 'librechat-data-provider';
+import type { ProjectTemplate } from 'librechat-data-provider';
 import type { Response } from 'express';
 import type { ServerRequest } from '~/types';
 import { inspectContent, extractAgentContent } from '~/protection';
@@ -35,7 +36,7 @@ type Dependencies = {
   getChatProject?: (user: string, id: string) => Promise<{ platformProjectId?: string } | null>;
   ensureLinkedChatProject?: (
     user: string,
-    input: { id: string; name: string; goal: string },
+    input: { id: string; name: string; goal: string; template?: ProjectTemplate },
     nativeId?: string,
   ) => Promise<{ id: string; platformProjectId: string }>;
   baseUrl?: string;
@@ -110,6 +111,7 @@ export function createAIProjectHandlers(
     if (
       (body && !body.success) ||
       (body?.success && body.data.path && body.data.native_project_id) ||
+      (body?.success && body.data.template !== undefined && !body.data.path) ||
       (action === 'resume' &&
         (!z.string().uuid().safeParse(identifier).success ||
           !z.object({}).strict().safeParse(req.body).success))
@@ -150,7 +152,7 @@ export function createAIProjectHandlers(
       if (action === 'list') return res.status(200).json(await call(''));
       let projectId = typeof identifier === 'string' ? identifier : '';
       if (body?.success) {
-        const { native_project_id: nativeId, ...input } = body.data;
+        const { native_project_id: nativeId, template: _template, ...input } = body.data;
         if (nativeId) {
           const native = await deps.getChatProject?.(user.id, nativeId);
           if (!native || !deps.ensureLinkedChatProject)
@@ -240,6 +242,7 @@ export function createAIProjectHandlers(
             id: projectId,
             name: input.name,
             goal: input.purpose,
+            ...(input.template !== undefined && { template: input.template }),
           })
         : undefined;
       await deps.archivePlatformConversations?.(user.id, projectId, [agent.id]);
@@ -247,6 +250,8 @@ export function createAIProjectHandlers(
     } catch (error) {
       if (error instanceof UpstreamFailure)
         return res.status(error.status).json({ code: error.code });
+      if (error instanceof Error && error.message === 'PROJECT_TEMPLATE_CONFLICT')
+        return res.status(409).json({ code: 'ai_projects_request_conflict' });
       // No automatic replay of cross-service writes. UI reloads the saved intent.
       return res.status(503).json({ code: 'ai_projects_recovery_required' });
     }

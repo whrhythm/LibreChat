@@ -6,8 +6,8 @@ import {
   MAX_CHAT_PROJECT_NAME_LENGTH,
   MAX_CHAT_PROJECT_DESCRIPTION_LENGTH,
 } from 'librechat-data-provider';
+import type { ProjectTemplate, TChatProjectsConfig } from 'librechat-data-provider';
 import type { FilterQuery, Model, SortOrder, Types } from 'mongoose';
-import type { TChatProjectsConfig } from 'librechat-data-provider';
 import type { IChatProject, IChatProjectDocument, IConversation, IMongoFile } from '~/types';
 import { buildRetentionVisibilityFilter } from '~/utils/retention';
 import { isValidObjectIdString } from '~/utils/objectId';
@@ -63,7 +63,7 @@ export interface ChatProjectMethods {
   archivePlatformConversations(user: string, platformId: string, agentIds: string[]): Promise<void>;
   ensureLinkedChatProject(
     user: string,
-    input: { id: string; name: string; goal: string },
+    input: { id: string; name: string; goal: string; template?: ProjectTemplate },
     nativeId?: string,
   ): Promise<{ id: string; platformProjectId: string }>;
   createChatProject(
@@ -795,7 +795,7 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
 
   async function ensureLinkedChatProject(
     user: string,
-    input: { id: string; name: string; goal: string },
+    input: { id: string; name: string; goal: string; template?: ProjectTemplate },
     nativeId?: string,
   ) {
     const ChatProject = mongoose.models.ChatProject as Model<IChatProjectDocument>;
@@ -804,6 +804,23 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
       throw error;
     });
     await linkingIndexes;
+    async function receipt(project: IChatProject) {
+      const id = project._id!.toString();
+      if (input.template !== undefined && input.template !== project.projectTemplate) {
+        // Sync can import the project while its create request is still running.
+        const saved = await ChatProject.updateOne(
+          {
+            _id: project._id,
+            user,
+            platformProjectId: input.id,
+            $or: [{ projectTemplate: { $exists: false } }, { projectTemplate: input.template }],
+          },
+          { $set: { projectTemplate: input.template } },
+        );
+        if (saved.matchedCount !== 1) throw new Error('PROJECT_TEMPLATE_CONFLICT');
+      }
+      return { id, platformProjectId: input.id };
+    }
     const existing = await ChatProject.findOne({
       user,
       platformProjectId: input.id,
@@ -811,7 +828,7 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
     if (existing) {
       if (nativeId && existing._id?.toString() !== nativeId)
         throw new Error('PROJECT_LINK_CONFLICT');
-      return { id: existing._id!.toString(), platformProjectId: input.id };
+      return receipt(existing);
     }
     if (
       !nativeId &&
@@ -841,19 +858,25 @@ export function createChatProjectMethods(mongoose: typeof import('mongoose')): C
         {
           $set: { platformProjectId: input.id },
           ...(nativeId && { $unset: { platformLinkIntent: '' } }),
-          ...(!nativeId && { $setOnInsert: { name: input.name, description: input.goal, user } }),
+          ...(!nativeId && {
+            $setOnInsert: {
+              name: input.name,
+              description: input.goal,
+              user,
+              ...(input.template !== undefined && { projectTemplate: input.template }),
+            },
+          }),
         },
         { upsert: !nativeId, new: true },
       ).lean<IChatProject>();
       if (!project) throw new Error('Project not found');
-      return { id, platformProjectId: input.id };
+      return receipt(project);
     } catch (error) {
       const winner = await ChatProject.findOne({
         user,
         platformProjectId: input.id,
       }).lean<IChatProject>();
-      if (winner && (!nativeId || winner._id?.toString() === nativeId))
-        return { id: winner._id!.toString(), platformProjectId: input.id };
+      if (winner && (!nativeId || winner._id?.toString() === nativeId)) return receipt(winner);
       throw error;
     }
   }

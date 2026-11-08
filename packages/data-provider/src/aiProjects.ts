@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import type { WorkspaceProject } from './codechatProjects';
-import { projectRootPath, MAX_WORKSPACE_PROJECT_NAME_LENGTH } from './codechatProjects';
+import {
+  assistantProjectTemplateSchema,
+  projectRootPath,
+  MAX_WORKSPACE_PROJECT_NAME_LENGTH,
+} from './codechatProjects';
 
 export const aiProjectCreateInput = z
   .object({
@@ -8,6 +12,7 @@ export const aiProjectCreateInput = z
     name: z.string().trim().min(1).max(MAX_WORKSPACE_PROJECT_NAME_LENGTH),
     purpose: z.string().trim().min(1).max(1000),
     path: projectRootPath.optional(),
+    template: assistantProjectTemplateSchema.optional(),
     native_project_id: z
       .string()
       .regex(/^[0-9a-f]{24}$/)

@@ -23,6 +23,7 @@ import type {
 } from './config';
 import type { BalanceRefillMode, RefillIntervalUnit } from './balance';
 import type { StatefulCodeEnvironment } from './stateful-code';
+import type { ProjectTemplate } from './codechatProjects';
 import type { CodeApprovalMode } from './code/approval';
 import type { EToolResources } from './types/tools';
 import type { SettingDefinition } from './generate';
@@ -403,6 +404,7 @@ export type TUpdateConversationResponse = TConversation;
 
 export type TChatProject = {
   platformProjectId?: string;
+  projectTemplate?: ProjectTemplate;
   platformLinkIntent?: { kind: 'assistant' | 'code'; name: string; goal: string; path?: string };
   _id: string;
   name: string;

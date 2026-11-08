@@ -31,7 +31,7 @@ function response() {
   res.status.mockReturnValue(res);
   return res;
 }
-function setup() {
+function setup(ensureLinkedChatProject?: jest.Mock) {
   const requests: { url: string; init: RequestInit }[] = [];
   const request = jest.fn(async (url: URL, init: RequestInit) => {
     requests.push({ url: String(url), init });
@@ -49,12 +49,37 @@ function setup() {
     serviceToken: 's'.repeat(40),
     issuer: 'https://identity.test',
     request,
+    ensureLinkedChatProject,
     ensurePrivateProjectAgent,
     grantPermission,
   });
   return { handlers, request, requests, ensurePrivateProjectAgent, grantPermission };
 }
 const input = { request_id: projectId, name: 'Private', purpose: 'Answer questions' };
+
+it('stores the assistant template with its linked project and forwards the original platform contract', async () => {
+  const native = { id: 'b'.repeat(24), platformProjectId: projectId };
+  const link = jest.fn().mockResolvedValue(native);
+  const { handlers, requests } = setup(link);
+  const res = response();
+  await handlers.create(
+    { user, body: { ...input, path: 'assistant', template: 'knowledge-qa' } } as unknown as Input,
+    res as unknown as Response,
+  );
+  expect(res.status).toHaveBeenLastCalledWith(200);
+  expect(JSON.parse(requests[0].init.body as string)).toEqual({
+    ...input,
+    path: 'assistant',
+    native_owner_id: owner,
+  });
+  expect(link).toHaveBeenCalledWith(owner, {
+    id: projectId,
+    name: input.name,
+    goal: input.purpose,
+    template: 'knowledge-qa',
+  });
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ native_project_id: native.id }));
+});
 
 it('rejects linking to another owners native project before any upstream write', async () => {
   const request = jest.fn();

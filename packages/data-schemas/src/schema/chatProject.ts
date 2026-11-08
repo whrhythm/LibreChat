@@ -1,5 +1,7 @@
 import { Schema } from 'mongoose';
 import {
+  assistantProjectTemplates,
+  codeProjectTemplates,
   MAX_CHAT_PROJECT_DESCRIPTION_LENGTH_CEILING,
   MAX_CHAT_PROJECT_INSTRUCTIONS_LENGTH_CEILING,
 } from 'librechat-data-provider';
@@ -15,6 +17,10 @@ const chatProjectSchema: Schema<IChatProjectDocument> = new Schema<IChatProjectD
       index: true,
     },
     platformProjectId: { type: String },
+    projectTemplate: {
+      type: String,
+      enum: [...new Set([...codeProjectTemplates, ...assistantProjectTemplates])],
+    },
     platformDeletionPending: { type: Boolean, default: undefined },
     platformLinkIntent: { type: Object, default: undefined },
     platformAgentIds: { type: [String], default: undefined },

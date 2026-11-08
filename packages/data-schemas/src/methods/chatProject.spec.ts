@@ -75,6 +75,21 @@ async function createConversation(user: string, conversationId: string, title: s
 }
 
 describe('ChatProject methods', () => {
+  it('saves the first template even if sync imported the project, and preserves it on retry', async () => {
+    const source = { id: '00000000-0000-4000-8000-000000000004', name: 'Project', goal: '' };
+    const imported = await methods.ensureLinkedChatProject('owner', source);
+    const selected = { ...source, template: 'data-admin' as const };
+    await methods.ensureLinkedChatProject('owner', selected);
+    expect(await methods.ensureLinkedChatProject('owner', selected)).toEqual(imported);
+    await methods.ensureLinkedChatProject('owner', source);
+    await expect(
+      methods.ensureLinkedChatProject('owner', { ...source, template: 'website' }),
+    ).rejects.toThrow('PROJECT_TEMPLATE_CONFLICT');
+    expect(await methods.getChatProject('owner', imported.id)).toMatchObject({
+      projectTemplate: 'data-admin',
+    });
+  });
+
   it('reserves an immutable link intent before remote writes and delays imports until reconciled', async () => {
     const native = await methods.createChatProject('owner', { name: 'Native' });
     const id = native._id!.toString();
