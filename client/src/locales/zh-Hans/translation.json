@@ -2244,6 +2244,8 @@
   "com_project_workbench": "打开工作台",
   "com_project_try_pane": "试用",
   "com_project_trial_frame": "助手试用对话",
+  "com_project_trial_overview": "概览",
+  "com_project_trial_empty": "开始试用后即可对话",
   "com_project_trial_switch": "试用更新后的草稿",
   "com_project_capabilities": "能力",
   "com_project_workbench_expand": "调整工作台宽度",

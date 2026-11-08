@@ -222,129 +222,155 @@ export default function ProjectInspector() {
             project &&
             section === 'assistant' &&
             (assistant ? (
-              <>
-                <Tabs
-                  key={project._id}
-                  defaultValue="trial"
-                  className={work === 'publish' ? 'hidden' : 'flex h-full min-h-0 flex-col'}
-                >
-                  <TabsList className="shrink-0" aria-label={t('com_project_workbench')}>
-                    <TabsTrigger value="trial">{t('com_project_try_pane')}</TabsTrigger>
-                    <TabsTrigger value="capabilities">{t('com_project_capabilities')}</TabsTrigger>
-                    <TabsTrigger value="materials">{t('com_project_materials')}</TabsTrigger>
-                  </TabsList>
-                  <TabsContent
-                    value="trial"
-                    forceMount
-                    size="flush"
-                    className="min-h-0 flex-1 data-[state=inactive]:hidden"
+              <div className="flex h-full min-h-0 flex-col">
+                <div className="border-border-light flex max-h-[42%] min-h-0 shrink-0 flex-col border-b">
+                  <Tabs
+                    key={project._id}
+                    defaultValue="trial"
+                    className={work === 'publish' ? 'hidden' : 'flex min-h-0 flex-col'}
                   >
-                    <div className="flex h-full min-h-0 flex-col gap-2 px-3 pb-3">
-                      {!trialPath && (
-                        <Button
-                          className="w-full"
-                          disabled={!startup?.aiTrialsEnabled}
-                          onClick={(e) => open('preview', e.currentTarget)}
-                        >
-                          {t('com_ai_projects_try')}
-                        </Button>
-                      )}
-                      {selectedTrial && (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span>
-                            {t('com_trials_version')} {selectedTrial.number}
-                          </span>
-                          <Button asChild size="xs" variant="ghost">
-                            <a
-                              href={trialPath.replace(/&trialPane=1$/, '')}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="size-3" aria-hidden="true" />
-                              {t('com_project_trial_new_tab')}
-                            </a>
+                    <div className="shrink-0 px-3 pt-2">
+                      <TabsList variant="segmented" aria-label={t('com_project_workbench')}>
+                        <TabsTrigger variant="segmented" value="trial">
+                          {t('com_project_trial_overview')}
+                        </TabsTrigger>
+                        <TabsTrigger variant="segmented" value="capabilities">
+                          {t('com_project_capabilities')}
+                        </TabsTrigger>
+                        <TabsTrigger variant="segmented" value="materials">
+                          {t('com_project_materials')}
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
+                    <TabsContent value="trial" size="flush" className="min-h-0 overflow-y-auto">
+                      <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
+                        {!selectedTrial ? (
+                          <Button
+                            size="xs"
+                            disabled={!startup?.aiTrialsEnabled}
+                            onClick={(e) => open('preview', e.currentTarget)}
+                          >
+                            {t('com_ai_projects_try')}
                           </Button>
-                          {currentTrial && currentTrial.id !== selectedTrial.id && (
-                            <Button size="xs" onClick={() => setPinned(currentTrial)}>
-                              {t('com_project_trial_switch')}
-                            </Button>
-                          )}
-                          {!currentTrial && trials.data?.digest && (
-                            <Button size="xs" onClick={(e) => open('preview', e.currentTarget)}>
-                              {t('com_project_trial_switch')}
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                      {trialPath && (
-                        <iframe
-                          key={selectedTrial?.id}
-                          title={t('com_project_trial_frame')}
-                          src={trialPath}
-                          className="border-border-light min-h-0 w-full flex-1 rounded border"
-                        />
-                      )}
-                      {selectedTrial && (
-                        <Button
-                          size="xs"
-                          variant="ghost"
-                          className="self-end"
-                          onClick={(e) => open('preview', e.currentTarget)}
-                        >
-                          {t('com_project_trial_records')}
-                        </Button>
-                      )}
-                    </div>
-                  </TabsContent>
-                  <TabsContent
-                    value="capabilities"
-                    size="flush"
-                    className="min-h-0 flex-1 overflow-y-auto"
-                  >
-                    <div className="space-y-3 p-3">
-                      <div className="border-border-light rounded-lg border p-2">
-                        <dl className="text-text-secondary mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2">
-                          <dt>{t('com_project_capability_tool')}</dt>
-                          <dd>
-                            {t(
-                              trials.data?.knowledge_revision_id
-                                ? 'com_project_tool_linked'
-                                : 'com_project_tool_missing',
+                        ) : (
+                          <>
+                            <span className="bg-surface-secondary text-text-secondary rounded-md px-2 py-1 text-xs">
+                              {t('com_trials_version')} {selectedTrial.number}
+                            </span>
+                            {currentTrial && currentTrial.id !== selectedTrial.id && (
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                onClick={() => setPinned(currentTrial)}
+                              >
+                                {t('com_project_trial_switch')}
+                              </Button>
                             )}
-                          </dd>
-                          <dt>{t('com_project_capability_skill')}</dt>
-                          <dd>{t(style ? styleKey : 'com_project_capability_none')}</dd>
-                          <dt>{t('com_project_capability_mcp')}</dt>
-                          <dd>{t('com_project_mcp_missing')}</dd>
-                        </dl>
+                            {!currentTrial && trials.data?.digest && (
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                onClick={(e) => open('preview', e.currentTarget)}
+                              >
+                                {t('com_project_trial_switch')}
+                              </Button>
+                            )}
+                            <Button
+                              size="xs"
+                              variant="ghost"
+                              onClick={(e) => open('preview', e.currentTarget)}
+                            >
+                              {t('com_project_trial_records')}
+                            </Button>
+                            <Button asChild size="icon-sm" variant="ghost">
+                              <a
+                                href={trialPath.replace(/&trialPane=1$/, '')}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title={t('com_project_trial_new_tab')}
+                                aria-label={t('com_project_trial_new_tab')}
+                              >
+                                <ExternalLink className="size-4" aria-hidden="true" />
+                              </a>
+                            </Button>
+                          </>
+                        )}
                       </div>
-                      {id && startup?.aiTrialsEnabled && (
-                        <Trials
-                          projectId={id}
-                          nativeProjectId={project._id}
-                          embedded
-                          mode="settings"
-                        />
-                      )}
+                    </TabsContent>
+                    <TabsContent
+                      value="capabilities"
+                      size="flush"
+                      className="min-h-0 flex-1 overflow-y-auto"
+                    >
+                      <div className="space-y-3 p-3">
+                        <div className="border-border-light rounded-lg border p-2">
+                          <dl className="text-text-secondary mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2">
+                            <dt>{t('com_project_capability_tool')}</dt>
+                            <dd>
+                              {t(
+                                trials.data?.knowledge_revision_id
+                                  ? 'com_project_tool_linked'
+                                  : 'com_project_tool_missing',
+                              )}
+                            </dd>
+                            <dt>{t('com_project_capability_skill')}</dt>
+                            <dd>{t(style ? styleKey : 'com_project_capability_none')}</dd>
+                            <dt>{t('com_project_capability_mcp')}</dt>
+                            <dd>{t('com_project_mcp_missing')}</dd>
+                          </dl>
+                        </div>
+                        {id && startup?.aiTrialsEnabled && (
+                          <Trials
+                            projectId={id}
+                            nativeProjectId={project._id}
+                            embedded
+                            mode="settings"
+                          />
+                        )}
+                      </div>
+                    </TabsContent>
+                    <TabsContent
+                      value="materials"
+                      size="flush"
+                      className="min-h-0 flex-1 overflow-y-auto"
+                    >
+                      <div className="p-3">{id && <Knowledge projectId={id} embedded />}</div>
+                    </TabsContent>
+                  </Tabs>
+                  {work === 'publish' && id && (
+                    <div className="flex min-h-0 flex-col overflow-hidden">
+                      <div className="shrink-0 px-3 pt-2">
+                        <Button size="xs" variant="ghost" onClick={() => setWork(null)}>
+                          {t('com_project_back_to_workbench')}
+                        </Button>
+                      </div>
+                      <div className="min-h-0 overflow-y-auto px-3 pb-3">
+                        <Releases projectId={id} embedded />
+                      </div>
                     </div>
-                  </TabsContent>
-                  <TabsContent
-                    value="materials"
-                    size="flush"
-                    className="min-h-0 flex-1 overflow-y-auto"
-                  >
-                    <div className="p-3">{id && <Knowledge projectId={id} embedded />}</div>
-                  </TabsContent>
-                </Tabs>
-                {work === 'publish' && id && (
-                  <div className="h-full space-y-3 overflow-y-auto p-3">
-                    <Button size="xs" variant="outline" onClick={() => setWork(null)}>
-                      {t('com_project_back_to_workbench')}
-                    </Button>
-                    <Releases projectId={id} embedded />
-                  </div>
-                )}
-              </>
+                  )}
+                </div>
+                <section
+                  aria-label={t('com_project_trial_frame')}
+                  className="flex min-h-0 flex-1 flex-col gap-2 p-3"
+                >
+                  <h3 className="text-text-secondary text-xs font-medium">
+                    {t('com_project_try_pane')}
+                  </h3>
+                  {trialPath ? (
+                    <iframe
+                      key={selectedTrial?.id}
+                      title={t('com_project_trial_frame')}
+                      src={trialPath}
+                      className="border-border-light min-h-0 w-full flex-1 rounded-lg border"
+                    />
+                  ) : (
+                    <div className="border-border-light text-text-secondary grid min-h-0 flex-1 place-items-center rounded-lg border border-dashed px-3 text-center text-xs">
+                      {t('com_project_trial_empty')}
+                    </div>
+                  )}
+                </section>
+              </div>
             ) : (
               <div className="space-y-3">
                 <p className="text-text-secondary text-xs">

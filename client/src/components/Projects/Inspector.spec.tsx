@@ -87,9 +87,15 @@ it('shows a versioned trial frame and capability authorization while preserving 
     '/c/new?endpoint=agents&agent_id=agent_trial&projectId=native-project&trialPane=1',
   );
   const frame = screen.getByTitle('com_project_trial_frame');
+  expect(frame.closest('[role="tabpanel"]')).toBeNull();
   fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_project_capabilities' }), { button: 0 });
   expect(screen.getByText('com_project_mcp_missing')).toBeVisible();
-  fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_project_try_pane' }), { button: 0 });
+  expect(frame).toBeVisible();
+  fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_project_materials' }), { button: 0 });
+  expect(screen.getByTitle('com_project_trial_frame')).toBe(frame);
+  fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_project_trial_overview' }), {
+    button: 0,
+  });
   expect(screen.getByTitle('com_project_trial_frame')).toBe(frame);
   expect(screen.getByLabelText('chat draft')).toHaveValue('Keep this unsent request');
   fireEvent.click(screen.getByRole('button', { name: 'com_ui_close' }));
@@ -100,8 +106,10 @@ it('shows a versioned trial frame and capability authorization while preserving 
 
 it('opens publishing from the header and returns without replacing the chat', async () => {
   mount();
+  const frame = await screen.findByTitle('com_project_trial_frame');
   fireEvent.click(await screen.findByRole('button', { name: 'com_project_publish' }));
   expect(await screen.findByRole('region', { name: 'com_releases_title' })).toBeVisible();
+  expect(frame).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'com_project_back_to_workbench' }));
   await waitFor(() =>
     expect(screen.queryByRole('region', { name: 'com_releases_title' })).not.toBeInTheDocument(),

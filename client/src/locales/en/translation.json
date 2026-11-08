@@ -4503,6 +4503,8 @@
   "com_project_workbench": "Open workbench",
   "com_project_try_pane": "Try",
   "com_project_trial_frame": "Assistant trial chat",
+  "com_project_trial_overview": "Overview",
+  "com_project_trial_empty": "Start a trial to chat here.",
   "com_project_trial_switch": "Try the updated draft",
   "com_project_capabilities": "Capabilities",
   "com_project_workbench_expand": "Resize workbench",
