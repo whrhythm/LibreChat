@@ -19,6 +19,7 @@ import { useScrollbarGutterSeed, useAddedResponse, useLocalize } from '~/hooks';
 import Footer, { useLandingFooter, useConfiguredFooter } from './Footer';
 import { useChatSettings } from '~/Providers/ChatSettingsContext';
 import ApprovalProvider from './Messages/Content/ApprovalContext';
+import AssistantDraft from '~/components/Projects/AssistantDraft';
 import ConversationStarters from './Input/ConversationStarters';
 import { pendingApprovalActionFamily } from './approval/state';
 import ProjectBadge from '~/components/Projects/ProjectBadge';
@@ -221,6 +222,29 @@ function ChatPane({
                               focusInput={() => methods.setFocus('text')}
                             />
                           )}
+                          {index === 0 &&
+                            project?.platformProjectId &&
+                            !routePending &&
+                            !isSubagentThreadReadOnly &&
+                            !/^agent_(trial|app)_/.test(chat.conversation?.agent_id ?? '') && (
+                              <AssistantDraft
+                                key={project._id + ':' + conversationId}
+                                project={project}
+                                conversationId={conversationId}
+                                busy={chat.isSubmitting || !!rootSubmission}
+                                insertPrompt={(instruction) => {
+                                  const text = methods.getValues('text');
+                                  methods.setValue(
+                                    'text',
+                                    text ? text + '\n\n' + instruction : instruction,
+                                    {
+                                      shouldValidate: true,
+                                    },
+                                  );
+                                  methods.setFocus('text');
+                                }}
+                              />
+                            )}
                           {isLandingPage && (!template || template === 'blank') && (
                             <ConversationStarters />
                           )}

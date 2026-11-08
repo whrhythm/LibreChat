@@ -166,7 +166,7 @@ export function createTrialHandlers(
           return res.json(result);
         }
         if (action === 'initialize') {
-          z.object({}).strict().parse(req.body);
+          const input = trialConfigSchema.pick({ instructions: true }).partial().parse(req.body);
           const record = z
             .object({
               id: z.string(),
@@ -178,7 +178,7 @@ export function createTrialHandlers(
           if (String(record.author) !== req.user!.id)
             throw new TrialFailure(403, 'ai_trials_owner_mismatch');
           const config = trialConfigSchema.parse({
-            instructions: record.instructions,
+            instructions: input.instructions ?? record.instructions,
             model: record.model,
             temperature: 0,
             max_output_tokens: 2048,

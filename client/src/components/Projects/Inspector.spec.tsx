@@ -86,8 +86,11 @@ it('shows a versioned trial frame and capability authorization while preserving 
     'src',
     '/c/new?endpoint=agents&agent_id=agent_trial&projectId=native-project&trialPane=1',
   );
-  fireEvent.click(screen.getByText('com_project_capabilities'));
+  const frame = screen.getByTitle('com_project_trial_frame');
+  fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_project_capabilities' }), { button: 0 });
   expect(screen.getByText('com_project_mcp_missing')).toBeVisible();
+  fireEvent.mouseDown(screen.getByRole('tab', { name: 'com_project_try_pane' }), { button: 0 });
+  expect(screen.getByTitle('com_project_trial_frame')).toBe(frame);
   expect(screen.getByLabelText('chat draft')).toHaveValue('Keep this unsent request');
   fireEvent.click(screen.getByRole('button', { name: 'com_ui_close' }));
   expect(store.get(projectInspector('owner'))).toBeNull();
@@ -95,13 +98,14 @@ it('shows a versioned trial frame and capability authorization while preserving 
   expect(screen.getByLabelText('chat draft')).toHaveValue('Keep this unsent request');
 });
 
-it('opens settings only on request and returns without replacing the chat', async () => {
+it('opens publishing from the header and returns without replacing the chat', async () => {
   mount();
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  fireEvent.click(await screen.findByRole('button', { name: 'com_project_settings' }));
-  expect(await screen.findByRole('dialog')).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'com_project_return_chat' }));
-  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  fireEvent.click(await screen.findByRole('button', { name: 'com_project_publish' }));
+  expect(await screen.findByRole('region', { name: 'com_releases_title' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'com_project_back_to_workbench' }));
+  await waitFor(() =>
+    expect(screen.queryByRole('region', { name: 'com_releases_title' })).not.toBeInTheDocument(),
+  );
   expect(screen.getByLabelText('chat draft')).toHaveValue('Keep this unsent request');
 });
 

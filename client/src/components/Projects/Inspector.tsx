@@ -2,14 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { atom, useAtom } from 'jotai';
 import { atomFamily } from 'jotai/utils';
 import { useQuery } from '@tanstack/react-query';
-import { X, ExternalLink, Play, Settings, BookOpen, Send } from 'lucide-react';
-import {
-  Button,
-  OGDialog,
-  OGDialogContent,
-  OGDialogTitle,
-  OGDialogDescription,
-} from '@librechat/client';
+import { X, ExternalLink, Maximize2, Minimize2, Send } from 'lucide-react';
 import {
   aiProjects,
   workspaceProject,
@@ -17,6 +10,17 @@ import {
   projectReleases,
   QueryKeys,
 } from 'librechat-data-provider';
+import {
+  Button,
+  OGDialog,
+  OGDialogContent,
+  OGDialogTitle,
+  OGDialogDescription,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '@librechat/client';
 import type { AITrial } from 'librechat-data-provider';
 import { useProjectQuery, useGetStartupConfig } from '~/data-provider';
 import { deliveryAddress } from '~/components/CodeChat/delivery';
@@ -29,14 +33,7 @@ import Trials from '~/components/CodeChat/Trials';
 import { projectInspector } from './navigation';
 import ProjectApplication from './Application';
 import ProjectWeb from './Web';
-type WorkView =
-  | 'prepareAssistant'
-  | 'prepareCode'
-  | 'preview'
-  | 'settings'
-  | 'knowledge'
-  | 'publish'
-  | 'operations';
+type WorkView = 'prepareAssistant' | 'prepareCode' | 'preview' | 'publish' | 'operations';
 const workbenchTrial = atomFamily((_key: string) => atom<AITrial | null>(null));
 
 /** Side navigation is independent from the central chat, including its unsent input. */
@@ -46,6 +43,7 @@ export default function ProjectInspector() {
   const [selection, select] = useAtom(projectInspector(user?.id ?? 'anonymous'));
   const workAtom = useMemo(() => atom<WorkView | null>(null), []);
   const [work, setWork] = useAtom(workAtom);
+  const [expanded, setExpanded] = useAtom(useMemo(() => atom(false), []));
   const trigger = useRef<HTMLElement | null>(null);
   const [pinned, setPinned] = useAtom(
     workbenchTrial((user?.id ?? 'anonymous') + ':' + (selection?.projectId ?? '')),
@@ -111,8 +109,6 @@ export default function ProjectInspector() {
   const ready = native.isSuccess && assistants.isSuccess && (!id || context.isSuccess);
   const failed = native.isError || assistants.isError || (!!id && context.isError);
   const titles = {
-    settings: 'com_project_settings',
-    knowledge: 'com_project_materials',
     publish: 'com_project_publish',
     operations: 'com_project_operations',
     prepareCode: 'com_project_bind_code',
@@ -130,6 +126,7 @@ export default function ProjectInspector() {
   if (releases.isError) releaseStatus = t('com_project_status_error');
   const style = trials.data?.config?.response_style;
   const styleKey = style === 'support' ? 'com_trials_support' : 'com_trials_grounded';
+  const assistantWorkbench = ready && section === 'assistant' && !!assistant;
   let trialPath = '';
   if (selectedTrial && project) {
     const conversation = selectedTrial.conversation_ids?.[0];
@@ -143,29 +140,62 @@ export default function ProjectInspector() {
   }
   return (
     <aside
-      className="bg-surface-primary text-text-primary border-border-light absolute inset-0 z-20 flex min-h-0 min-w-0 flex-col border-s text-sm lg:static lg:z-auto lg:w-2/5 lg:max-w-3xl lg:shrink-0"
+      className={`bg-surface-primary text-text-primary border-border-light absolute inset-0 z-20 flex min-h-0 min-w-0 flex-col border-s text-sm lg:static lg:z-auto lg:shrink-0 ${expanded ? 'lg:w-3/5' : 'lg:w-2/5 lg:max-w-3xl'}`}
       aria-label={t('com_project_workbench')}
     >
       <header className="border-border-light flex items-center justify-between gap-2 border-b px-3 py-2">
-        <h2 className="min-w-0 truncate text-sm font-semibold" title={project?.name}>
-          {project?.name ?? t('com_ui_loading')} ·{' '}
-          {t(section === 'files' ? 'com_project_files' : 'com_project_try_pane')}
-        </h2>
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-sm font-semibold" title={project?.name}>
+            {project?.name ?? t('com_ui_loading')}
+            {!assistantWorkbench &&
+              ' · ' + t(section === 'files' ? 'com_project_files' : 'com_project_try_pane')}
+          </h2>
+          {assistantWorkbench && (
+            <p className="text-text-secondary text-xs" role="status">
+              {trials.data?.config && t('com_trials_draft') + ' #' + trials.data.revision + ' · '}
+              {releaseStatus}
+            </p>
+          )}
+        </div>
+        {assistantWorkbench && (
+          <>
+            <Button
+              size="xs"
+              disabled={!startup?.aiReleasesEnabled}
+              onClick={(e) => open('publish', e.currentTarget)}
+            >
+              <Send className="size-3" aria-hidden="true" />
+              {t('com_project_publish')}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="hidden lg:inline-flex"
+              aria-pressed={expanded}
+              aria-label={t('com_project_workbench_expand')}
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+            </Button>
+          </>
+        )}
         <Button
           variant="ghost"
           size="icon-sm"
           aria-label={t('com_ui_close')}
           onClick={() => {
             setWork(null);
-            setPinned(null);
+            setExpanded(false);
             select(null);
           }}
         >
           <X className="size-4" aria-hidden="true" />
         </Button>
       </header>
-      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-        <div className="flex min-h-full flex-col gap-3 p-3">
+      <div
+        className={`min-h-0 flex-1 overflow-x-hidden ${assistantWorkbench ? 'overflow-hidden' : 'overflow-y-auto'}`}
+      >
+        <div className={assistantWorkbench ? 'h-full' : 'flex min-h-full flex-col gap-3 p-3'}>
           {!ready && !failed && (
             <p role="status" className="text-text-secondary text-xs">
               {t('com_ui_loading')}
@@ -192,114 +222,129 @@ export default function ProjectInspector() {
             project &&
             section === 'assistant' &&
             (assistant ? (
-              <div className="flex min-h-[28rem] flex-1 flex-col gap-3">
-                <div className="space-y-1">
-                  <h3 className="font-medium break-words">{project.name}</h3>
-                  <p className="text-text-secondary text-xs" role="status">
-                    {releaseStatus}
-                  </p>
-                </div>
-                {!trialPath && (
-                  <Button
-                    className="w-full"
-                    disabled={!startup?.aiTrialsEnabled}
-                    onClick={(e) => open('preview', e.currentTarget)}
+              <>
+                <Tabs
+                  key={project._id}
+                  defaultValue="trial"
+                  className={work === 'publish' ? 'hidden' : 'flex h-full min-h-0 flex-col'}
+                >
+                  <TabsList className="shrink-0" aria-label={t('com_project_workbench')}>
+                    <TabsTrigger value="trial">{t('com_project_try_pane')}</TabsTrigger>
+                    <TabsTrigger value="capabilities">{t('com_project_capabilities')}</TabsTrigger>
+                    <TabsTrigger value="materials">{t('com_project_materials')}</TabsTrigger>
+                  </TabsList>
+                  <TabsContent
+                    value="trial"
+                    forceMount
+                    size="flush"
+                    className="min-h-0 flex-1 data-[state=inactive]:hidden"
                   >
-                    {t('com_ai_projects_try')}
-                  </Button>
-                )}
-                {selectedTrial && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span>
-                      {t('com_trials_version')} {selectedTrial.number}
-                    </span>
-                    <Button asChild size="xs" variant="ghost">
-                      <a
-                        href={trialPath.replace(/&trialPane=1$/, '')}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <ExternalLink className="size-3" aria-hidden="true" />
-                        {t('com_project_trial_new_tab')}
-                      </a>
+                    <div className="flex h-full min-h-0 flex-col gap-2 px-3 pb-3">
+                      {!trialPath && (
+                        <Button
+                          className="w-full"
+                          disabled={!startup?.aiTrialsEnabled}
+                          onClick={(e) => open('preview', e.currentTarget)}
+                        >
+                          {t('com_ai_projects_try')}
+                        </Button>
+                      )}
+                      {selectedTrial && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span>
+                            {t('com_trials_version')} {selectedTrial.number}
+                          </span>
+                          <Button asChild size="xs" variant="ghost">
+                            <a
+                              href={trialPath.replace(/&trialPane=1$/, '')}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="size-3" aria-hidden="true" />
+                              {t('com_project_trial_new_tab')}
+                            </a>
+                          </Button>
+                          {currentTrial && currentTrial.id !== selectedTrial.id && (
+                            <Button size="xs" onClick={() => setPinned(currentTrial)}>
+                              {t('com_project_trial_switch')}
+                            </Button>
+                          )}
+                          {!currentTrial && trials.data?.digest && (
+                            <Button size="xs" onClick={(e) => open('preview', e.currentTarget)}>
+                              {t('com_project_trial_switch')}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      {trialPath && (
+                        <iframe
+                          key={selectedTrial?.id}
+                          title={t('com_project_trial_frame')}
+                          src={trialPath}
+                          className="border-border-light min-h-0 w-full flex-1 rounded border"
+                        />
+                      )}
+                      {selectedTrial && (
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          className="self-end"
+                          onClick={(e) => open('preview', e.currentTarget)}
+                        >
+                          {t('com_project_trial_records')}
+                        </Button>
+                      )}
+                    </div>
+                  </TabsContent>
+                  <TabsContent
+                    value="capabilities"
+                    size="flush"
+                    className="min-h-0 flex-1 overflow-y-auto"
+                  >
+                    <div className="space-y-3 p-3">
+                      <div className="border-border-light rounded-lg border p-2">
+                        <dl className="text-text-secondary mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2">
+                          <dt>{t('com_project_capability_tool')}</dt>
+                          <dd>
+                            {t(
+                              trials.data?.knowledge_revision_id
+                                ? 'com_project_tool_linked'
+                                : 'com_project_tool_missing',
+                            )}
+                          </dd>
+                          <dt>{t('com_project_capability_skill')}</dt>
+                          <dd>{t(style ? styleKey : 'com_project_capability_none')}</dd>
+                          <dt>{t('com_project_capability_mcp')}</dt>
+                          <dd>{t('com_project_mcp_missing')}</dd>
+                        </dl>
+                      </div>
+                      {id && startup?.aiTrialsEnabled && (
+                        <Trials
+                          projectId={id}
+                          nativeProjectId={project._id}
+                          embedded
+                          mode="settings"
+                        />
+                      )}
+                    </div>
+                  </TabsContent>
+                  <TabsContent
+                    value="materials"
+                    size="flush"
+                    className="min-h-0 flex-1 overflow-y-auto"
+                  >
+                    <div className="p-3">{id && <Knowledge projectId={id} embedded />}</div>
+                  </TabsContent>
+                </Tabs>
+                {work === 'publish' && id && (
+                  <div className="h-full space-y-3 overflow-y-auto p-3">
+                    <Button size="xs" variant="outline" onClick={() => setWork(null)}>
+                      {t('com_project_back_to_workbench')}
                     </Button>
-                    {currentTrial && currentTrial.id !== selectedTrial.id && (
-                      <Button size="xs" onClick={() => setPinned(currentTrial)}>
-                        {t('com_project_trial_switch')}
-                      </Button>
-                    )}
-                    {!currentTrial && trials.data?.digest && (
-                      <Button size="xs" onClick={(e) => open('preview', e.currentTarget)}>
-                        {t('com_project_trial_switch')}
-                      </Button>
-                    )}
+                    <Releases projectId={id} embedded />
                   </div>
                 )}
-                <details className="border-border-light rounded-lg border p-2">
-                  <summary className="cursor-pointer font-medium">
-                    {t('com_project_capabilities')}
-                  </summary>
-                  <dl className="text-text-secondary mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2">
-                    <dt>{t('com_project_capability_tool')}</dt>
-                    <dd>
-                      {t(
-                        trials.data?.knowledge_revision_id
-                          ? 'com_project_tool_linked'
-                          : 'com_project_tool_missing',
-                      )}
-                    </dd>
-                    <dt>{t('com_project_capability_skill')}</dt>
-                    <dd>{t(style ? styleKey : 'com_project_capability_none')}</dd>
-                    <dt>{t('com_project_capability_mcp')}</dt>
-                    <dd>{t('com_project_mcp_missing')}</dd>
-                  </dl>
-                </details>
-                {trialPath && (
-                  <iframe
-                    key={selectedTrial?.id}
-                    title={t('com_project_trial_frame')}
-                    src={trialPath}
-                    className="border-border-light min-h-80 w-full flex-1 rounded border"
-                  />
-                )}
-                <div className="flex flex-wrap gap-1">
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    disabled={!startup?.aiTrialsEnabled}
-                    onClick={(e) => open('settings', e.currentTarget)}
-                  >
-                    <Settings className="size-4" aria-hidden="true" />
-                    {t('com_project_settings')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={(e) => open('knowledge', e.currentTarget)}
-                  >
-                    <BookOpen className="size-4" aria-hidden="true" />
-                    {t('com_project_materials')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    disabled={!startup?.aiTrialsEnabled}
-                    onClick={(e) => open('preview', e.currentTarget)}
-                  >
-                    <Play className="size-4" aria-hidden="true" />
-                    {t('com_project_trial_records')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    disabled={!startup?.aiReleasesEnabled}
-                    onClick={(e) => open('publish', e.currentTarget)}
-                  >
-                    <Send className="size-4" aria-hidden="true" />
-                    {t('com_project_publish')}
-                  </Button>
-                </div>
-              </div>
+              </>
             ) : (
               <div className="space-y-3">
                 <p className="text-text-secondary text-xs">
@@ -345,7 +390,7 @@ export default function ProjectInspector() {
         </div>
       </div>
       <OGDialog
-        open={work !== null}
+        open={work !== null && work !== 'publish'}
         triggerRef={trigger}
         onOpenChange={(value) => {
           if (!value) setWork(null);
@@ -360,7 +405,7 @@ export default function ProjectInspector() {
               focus={work === 'prepareAssistant' ? 'assistant' : 'code'}
             />
           )}
-          {id && (work === 'preview' || work === 'settings') && (
+          {id && work === 'preview' && (
             <Trials
               projectId={id}
               nativeProjectId={project?._id}
@@ -369,8 +414,6 @@ export default function ProjectInspector() {
               openInNewTab
             />
           )}
-          {id && work === 'knowledge' && <Knowledge projectId={id} embedded />}
-          {id && work === 'publish' && <Releases projectId={id} embedded />}
           {path && work === 'operations' && (
             <Applications path={path} canPublish enabled projectOnly />
           )}
