@@ -6,6 +6,9 @@ import {
   publishSchema,
   releaseAccessSchema,
   releaseMemberSchema,
+  memberPolicySchema,
+  invitationReplySchema,
+  assistantCatalogSchema,
 } from 'librechat-data-provider';
 import type { Response } from 'express';
 import type { TrialDependencies, TrialTransport } from './trials';
@@ -35,21 +38,54 @@ export function releaseClient(req: Request, deps: TrialTransport): ReturnType<ty
 export function createReleaseHandlers(
   deps: Dependencies,
 ): Record<
-  'list' | 'publish' | 'access' | 'member' | 'launch' | 'source',
+  | 'list'
+  | 'publish'
+  | 'access'
+  | 'member'
+  | 'launch'
+  | 'source'
+  | 'catalog'
+  | 'policy'
+  | 'invitation',
   (req: Request, res: Response) => Promise<Response>
 > {
   const handler =
-    (action: 'list' | 'publish' | 'access' | 'member' | 'launch' | 'source') =>
+    (
+      action:
+        | 'list'
+        | 'publish'
+        | 'access'
+        | 'member'
+        | 'launch'
+        | 'source'
+        | 'catalog'
+        | 'policy'
+        | 'invitation',
+    ) =>
     async (req: Request, res: Response) => {
       res.setHeader('Cache-Control', 'no-store');
       try {
         const call = releaseClient(req, deps);
+        if (action === 'catalog')
+          return res.json(assistantCatalogSchema.parse(await call('catalog')));
         if (action === 'source') {
           const { entryId: id } = z.object({ entryId: z.string().uuid() }).parse(req.params);
           const name = z.string().min(1).max(124).parse(req.query.name);
           return res.json(await call('entries/' + id + '/source?name=' + encodeURIComponent(name)));
         }
         const { projectId: project } = z.object({ projectId: z.string().uuid() }).parse(req.params);
+        if (action === 'policy')
+          return res.json(
+            releaseListSchema.parse(
+              await call(project + '/members/policy', memberPolicySchema.parse(req.body)),
+            ),
+          );
+        if (action === 'invitation')
+          return res.json(
+            z
+              .object({ state: z.enum(['active', 'declined']) })
+              .parse(await call(project + '/invitation', invitationReplySchema.parse(req.body))),
+          );
         if (action === 'list')
           return res.json(releaseListSchema.parse(await call(project + '/releases')));
         if (action === 'publish')
@@ -73,6 +109,7 @@ export function createReleaseHandlers(
               releaseListSchema.parse(
                 await call(project + '/members/revoke', {
                   native_id: input.identifier,
+                  expected_revision: input.expected_revision,
                 }),
               ),
             );
@@ -98,6 +135,9 @@ export function createReleaseHandlers(
                 native_id: String(member.data._id),
                 label: member.data.email,
                 enabled: input.enabled,
+                expected_revision: input.expected_revision,
+                budget_micros: input.budget_micros,
+                expires_at: input.expires_at,
               }),
             ),
           );
@@ -136,6 +176,9 @@ export function createReleaseHandlers(
     member: handler('member'),
     launch: handler('launch'),
     source: handler('source'),
+    catalog: handler('catalog'),
+    policy: handler('policy'),
+    invitation: handler('invitation'),
   };
 }
 

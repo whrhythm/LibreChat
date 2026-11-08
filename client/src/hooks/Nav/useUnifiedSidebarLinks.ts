@@ -4,7 +4,7 @@ import { useRecoilValue } from 'recoil';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserKeyQuery } from 'librechat-data-provider/react-query';
 import { getConfigDefaults, getEndpointField } from 'librechat-data-provider';
-import { BarChart3, FolderKanban, MessagesSquare, Rocket } from 'lucide-react';
+import { BarChart3, Bot, FolderKanban, MessagesSquare, Rocket } from 'lucide-react';
 import type { TEndpointsConfig } from 'librechat-data-provider';
 import type { NavLink } from '~/common';
 import { useGetEndpointsQuery, useGetStartupConfig, useInsightsAccessQuery } from '~/data-provider';
@@ -16,6 +16,7 @@ import { isCodeChatEnabled } from '~/components/CodeChat/config';
 import { spaceNavigation } from '~/components/CodeChat/dock';
 import useSidebarToggle from '~/hooks/Nav/useSidebarToggle';
 import useSideNavLinks from '~/hooks/Nav/useSideNavLinks';
+import Catalog from '~/components/CodeChat/Catalog';
 import { useAuthContext } from '~/hooks';
 import store from '~/store';
 
@@ -84,6 +85,13 @@ export default function useUnifiedSidebarLinks() {
     const workspace: NavLink[] =
       user?.id && isCodeChatEnabled()
         ? [
+            {
+              id: 'assistant-catalog',
+              title: 'com_catalog_title',
+              label: '',
+              icon: Bot,
+              Component: Catalog,
+            },
             {
               id: 'personal-space',
               title: 'com_codechat_workspace',

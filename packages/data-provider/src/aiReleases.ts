@@ -22,8 +22,52 @@ export const releaseAccessSchema = z
   })
   .strict();
 export const releaseMemberSchema = z
-  .object({ identifier: z.string().trim().min(1).max(255), enabled: z.boolean() })
+  .object({
+    identifier: z.string().trim().min(1).max(255),
+    enabled: z.boolean(),
+    expected_revision: z.number().int().positive().optional(),
+    budget_micros: z.number().int().min(0).max(100000000).nullable().optional(),
+    expires_at: z.string().datetime().nullable().optional(),
+  })
   .strict();
+export const memberPolicySchema = z
+  .object({
+    native_id: z.string().regex(/^[0-9a-f]{24}$/),
+    expected_revision: z.number().int().positive(),
+    budget_micros: z.number().int().min(0).max(100000000).nullable(),
+    expires_at: z.string().datetime().nullable(),
+  })
+  .strict();
+export const invitationReplySchema = z
+  .object({
+    expected_revision: z.number().int().positive(),
+    accept: z.boolean(),
+  })
+  .strict();
+export const assistantCatalogSchema = z.object({
+  items: z.array(catalogItem()),
+  invitations: z.array(catalogItem()),
+});
+function catalogItem() {
+  return z.object({
+    project_id: z.string().uuid(),
+    release_id: z.string().uuid(),
+    name: z.string(),
+    number: z.number(),
+    kind: z.enum(['mine', 'shared']),
+    state: z.enum(['active', 'pending']),
+    payer: z.literal('creator'),
+    revision: z.number(),
+    expires_at: z.string().nullable(),
+    budget_micros: z.number(),
+    application_budget_micros: z.number(),
+    application_held_micros: z.number(),
+    spent_micros: z.number(),
+    pending_micros: z.number(),
+    held_micros: z.number(),
+  });
+}
+export type AssistantCatalog = z.infer<typeof assistantCatalogSchema>;
 export const releaseSchema = z.object({
   id: z.string().uuid(),
   project_id: z.string().uuid(),
@@ -46,7 +90,20 @@ export const releaseListSchema = z.object({
     })
     .nullable(),
   releases: z.array(releaseSchema),
-  members: z.array(z.object({ native_id: z.string(), label: z.string(), enabled: z.boolean() })),
+  members: z.array(
+    z.object({
+      native_id: z.string(),
+      label: z.string(),
+      enabled: z.boolean(),
+      state: z.enum(['pending', 'active', 'revoked', 'declined', 'expired']),
+      revision: z.number(),
+      budget_micros: z.number().nullable(),
+      expires_at: z.string().nullable(),
+      spent_micros: z.number(),
+      pending_micros: z.number(),
+      held_micros: z.number(),
+    }),
+  ),
 });
 export const appEntrySchema = releaseSchema.extend({
   entry_id: z.string().uuid(),
@@ -59,6 +116,15 @@ export const appEntrySchema = releaseSchema.extend({
 export type AIReleaseList = z.infer<typeof releaseListSchema>;
 export type AIAppEntry = z.infer<typeof appEntrySchema>;
 export type AIPublish = z.infer<typeof publishSchema>;
+export async function assistantCatalog(token: string): Promise<AssistantCatalog> {
+  const response = await fetch('/api/user/workspace/ai-projects/catalog', {
+    credentials: 'same-origin',
+    cache: 'no-store',
+    headers: { Authorization: 'Bearer ' + token },
+  });
+  if (!response.ok) throw new Error('ai_releases_unavailable');
+  return assistantCatalogSchema.parse(await response.json());
+}
 export async function applicationSource(
   token: string,
   entryId: string,

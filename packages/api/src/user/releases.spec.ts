@@ -69,6 +69,47 @@ function response() {
   return res;
 }
 
+it('scopes catalog identity to the authenticated user and strips unpublished private data', async () => {
+  const { handlers, deps } = setup();
+  deps.request.mockResolvedValue(
+    new globalThis.Response(JSON.stringify({ items: [], invitations: [], snapshot: 'private' })),
+  );
+  const res = response();
+  await handlers.catalog(request({ owner: 'evil' }), res as unknown as Response);
+  expect(res.json).toHaveBeenCalledWith({ items: [], invitations: [] });
+  const [url, init] = deps.request.mock.calls[0] as unknown as [URL, RequestInit];
+  expect(url.pathname).toContain('/ai-projects/catalog');
+  expect(init.headers).toMatchObject({ 'X-CodeChat-Subject': 'guest' });
+});
+it('rejects member policy authority overrides without contacting control plane', async () => {
+  const { handlers, deps } = setup();
+  const res = response();
+  await handlers.policy(
+    request({
+      native_id: 'a'.repeat(24),
+      expected_revision: 1,
+      budget_micros: 0,
+      expires_at: null,
+      native_owner_id: 'a'.repeat(24),
+    }),
+    res as unknown as Response,
+  );
+  expect(res.status).toHaveBeenCalledWith(400);
+  expect(deps.request).not.toHaveBeenCalled();
+});
+it('does not retry a sharing write with an unknown response', async () => {
+  const { handlers, deps } = setup();
+  const res = response();
+  deps.request.mockRejectedValue(new Error('private upstream error'));
+  await handlers.invitation(
+    request({ expected_revision: 2, accept: true }),
+    res as unknown as Response,
+  );
+  expect(res.status).toHaveBeenCalledWith(503);
+  expect(deps.request).toHaveBeenCalledTimes(1);
+  expect(JSON.stringify(res.json.mock.calls)).not.toContain('private upstream');
+});
+
 it('launch returns only public metadata and never the owner instruction or server credential', async () => {
   const { handlers, deps } = setup();
   const res = response();

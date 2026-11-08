@@ -94,6 +94,19 @@ const releases = createReleaseHandlers({
   grantPermission,
   findUser,
 });
+router.get('/workspace/ai-projects/catalog', requireJwtAuth, configMiddleware, releases.catalog);
+router.post(
+  '/workspace/ai-projects/:projectId/releases/policy',
+  requireJwtAuth,
+  configMiddleware,
+  releases.policy,
+);
+router.post(
+  '/workspace/ai-projects/:projectId/releases/invitation',
+  requireJwtAuth,
+  configMiddleware,
+  releases.invitation,
+);
 router.get(
   '/workspace/ai-projects/:projectId/releases',
   requireJwtAuth,

@@ -5,7 +5,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectReleases, projectTrials, QueryKeys } from 'librechat-data-provider';
 import type { AIPublish } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
+import Sharing from './Sharing';
 
+function sharingError(error: unknown) {
+  const code = error instanceof Error ? error.message : '';
+  if (code === 'ai_releases_member_unavailable') return 'com_sharing_unavailable';
+  if (code === 'ai_releases_changed') return 'com_sharing_conflict';
+  if (code === 'ai_releases_expiry_invalid') return 'com_sharing_expiry_invalid';
+  return 'com_releases_error';
+}
 export default function Releases({
   projectId,
   embedded = false,
@@ -22,8 +30,7 @@ export default function Releases({
     () =>
       atom({
         expanded: embedded,
-        budget: '0.50',
-        email: '',
+        budget: null as string | null,
         confirmed: false,
         request: null as AIPublish | null,
       }),
@@ -46,9 +53,10 @@ export default function Releases({
   const change = useMutation({
     mutationFn: ({ suffix, body }: { suffix: string; body: object }) =>
       projectReleases(token!, projectId, suffix, body),
-    onSuccess: () => setUI((s) => ({ ...s, request: null, confirmed: false, email: '' })),
+    onSuccess: () => setUI((s) => ({ ...s, request: null, confirmed: false })),
     onSettled: () => {
       void cache.invalidateQueries(key);
+      void cache.invalidateQueries([QueryKeys.assistantCatalog, user?.id]);
     },
     retry: false,
   });
@@ -57,7 +65,8 @@ export default function Releases({
   const input =
     'border-border-light bg-surface-primary text-text-primary w-full rounded border px-2 py-1.5 text-sm';
   const busy = change.isLoading;
-  const budget = Math.round(Number(ui.budget) * 1000000);
+  const budgetValue = ui.budget ?? String((app?.budget_micros ?? 500000) / 1000000);
+  const budget = Math.round(Number(budgetValue) * 1000000);
   return (
     <section className="space-y-3 text-xs" aria-label={t('com_releases_title')}>
       {!embedded && (
@@ -77,7 +86,7 @@ export default function Releases({
             <p role="status">{t('com_knowledge_loading')}</p>
           )}
           {(list.isError || trials.isError || change.isError) && (
-            <p role="alert">{t('com_releases_error')}</p>
+            <p role="alert">{t(sharingError(change.error))}</p>
           )}
           <Button
             size="xs"
@@ -152,7 +161,7 @@ export default function Releases({
               min="0.001"
               max="100"
               step="0.01"
-              value={ui.budget}
+              value={budgetValue}
               disabled={busy}
               onChange={(e) => setUI((s) => ({ ...s, budget: e.target.value, request: null }))}
             />
@@ -211,53 +220,11 @@ export default function Releases({
             {t(busy ? 'com_releases_working' : 'com_releases_publish')}
           </Button>
           {app && (
-            <div className="border-border-light space-y-2 border-t pt-2">
-              <h4 className="font-medium">{t('com_releases_members')}</h4>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  change.mutate({
-                    suffix: '/members',
-                    body: { identifier: ui.email, enabled: true },
-                  });
-                }}
-              >
-                <input
-                  className={input}
-                  aria-label={t('com_releases_email')}
-                  type="text"
-                  required
-                  value={ui.email}
-                  disabled={busy}
-                  onChange={(e) => setUI((s) => ({ ...s, email: e.target.value }))}
-                />
-                <Button size="xs" variant="outline" type="submit" disabled={busy}>
-                  {t('com_releases_invite')}
-                </Button>
-              </form>
-              <p className="text-text-secondary">{t('com_releases_invite_hint')}</p>
-              {list.data?.members.map((m) => (
-                <div
-                  key={m.native_id}
-                  className="flex flex-wrap items-center justify-between gap-2"
-                >
-                  <span className="break-all">{m.label}</span>
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    disabled={busy}
-                    onClick={() =>
-                      change.mutate({
-                        suffix: '/members',
-                        body: { identifier: m.native_id, enabled: !m.enabled },
-                      })
-                    }
-                  >
-                    {t(m.enabled ? 'com_releases_revoke' : 'com_releases_restore')}
-                  </Button>
-                </div>
-              ))}
-            </div>
+            <Sharing
+              members={list.data?.members ?? []}
+              busy={busy}
+              change={(input) => change.mutate(input)}
+            />
           )}
         </>
       )}

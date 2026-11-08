@@ -365,6 +365,7 @@ router.get('/', async function (req, res) {
       codechat: appConfig?.config?.codechat,
       aiTrialsEnabled: appConfig?.config?.aiProjects?.trialsEnabled === true,
       aiReleasesEnabled: appConfig?.config?.aiProjects?.releasesEnabled === true,
+      assistantCatalogRefreshMs: appConfig?.config?.aiProjects?.catalogRefreshMs,
       fileUploadSseEnabled: isEnabled(process.env.FILE_UPLOAD_SSE_ENABLED),
       endpointsDropParamsMap: endpointsDropParamsMap,
     };

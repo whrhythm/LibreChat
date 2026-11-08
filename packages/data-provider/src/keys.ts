@@ -76,6 +76,7 @@ export enum QueryKeys {
   workspaceProjects = 'workspaceProjects',
   projectLinks = 'projectLinks',
   aiProjects = 'aiProjects',
+  assistantCatalog = 'assistantCatalog',
   knowledgeLibraries = 'knowledgeLibraries',
   workspaceProject = 'workspaceProject',
   workspaceProjectSource = 'workspaceProjectSource',
