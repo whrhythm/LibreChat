@@ -92,6 +92,7 @@ const deletionInput = z
       .string()
       .regex(/^[0-9a-f]{64}$/)
       .optional(),
+    remove_folder: z.boolean().optional(),
   })
   .strict();
 const deletionState = z.discriminatedUnion('state', [
@@ -99,6 +100,15 @@ const deletionState = z.discriminatedUnion('state', [
     state: z.literal('confirm'),
     confirmation: z.string(),
     folder: z.string(),
+    folder_cleanup: z
+      .object({
+        files: z.number().int().nonnegative(),
+        directories: z.number().int().nonnegative(),
+        bytes: z.number().int().nonnegative(),
+      })
+      .nullable()
+      .optional(),
+    folder_retention_reason: z.enum(['in_use', 'unverified']).nullable().optional(),
     knowledge_libraries: z.number(),
     knowledge_revisions: z.number(),
     preserved_libraries: z.number(),
@@ -118,7 +128,7 @@ const deletionState = z.discriminatedUnion('state', [
       )
       .optional(),
   }),
-  z.object({ state: z.literal('deleted') }),
+  z.object({ state: z.literal('deleted'), folder_retained: z.boolean().optional() }),
 ]);
 type Action = 'list' | 'create' | 'resume' | 'inspectDeletion' | 'advanceDeletion';
 

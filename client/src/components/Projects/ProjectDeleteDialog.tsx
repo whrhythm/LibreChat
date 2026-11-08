@@ -60,7 +60,13 @@ export default function ProjectDeleteDialog({
     retry: false,
   });
   const advance = useMutation(
-    (confirmation?: string) => advanceAIProjectDeletion(token!, project._id, confirmation),
+    (confirmation?: { digest: string; removeFolder: boolean }) =>
+      advanceAIProjectDeletion(
+        token!,
+        project._id,
+        confirmation?.digest,
+        confirmation?.removeFolder,
+      ),
     {
       onSuccess: (status) => {
         queryClient.setQueryData(queryKey, status);
@@ -72,13 +78,20 @@ export default function ProjectDeleteDialog({
         invalidateDeleted(project._id);
         queryClient.invalidateQueries([QueryKeys.aiProjects]);
         queryClient.invalidateQueries([QueryKeys.workspaceProjects]);
+        queryClient.invalidateQueries([QueryKeys.codechatFiles]);
         if (location.pathname === '/projects/' + project._id) navigate('/projects');
         if (
           location.pathname === '/c/new' &&
           new URLSearchParams(location.search).get('projectId') === project._id
         )
           navigate('/c/new', { replace: true });
-        showToast({ message: localize('com_project_deletion_done') });
+        showToast({
+          message: localize(
+            status.folder_retained
+              ? 'com_project_deletion_done_kept_folder'
+              : 'com_project_deletion_done',
+          ),
+        });
       },
       onError: (error) => {
         if (error instanceof AIProjectError && error.code === 'ai_projects_deletion_changed')
@@ -169,6 +182,15 @@ export default function ProjectDeleteDialog({
                       revisions: state.knowledge_revisions,
                     })}
                   </li>
+                  {state.folder_cleanup && (
+                    <li>
+                      {localize('com_project_deletion_remove_folder', {
+                        folder: state.folder,
+                        files: state.folder_cleanup.files,
+                        directories: state.folder_cleanup.directories,
+                      })}
+                    </li>
+                  )}
                 </ul>
               </div>
               <div>
@@ -181,7 +203,16 @@ export default function ProjectDeleteDialog({
                       count: state.preserved_libraries,
                     })}
                   </li>
-                  <li>{localize('com_project_deletion_keep_files', { folder: state.folder })}</li>
+                  {!state.folder_cleanup && (
+                    <li>
+                      {localize(
+                        state.folder_retention_reason === 'in_use'
+                          ? 'com_project_deletion_keep_active_folder'
+                          : 'com_project_deletion_keep_files',
+                        { folder: state.folder },
+                      )}
+                    </li>
+                  )}
                   <li>{localize('com_project_deletion_keep_history')}</li>
                 </ul>
               </div>
@@ -236,7 +267,12 @@ export default function ProjectDeleteDialog({
             <Button
               variant="destructive"
               disabled={advance.isLoading || inspection.isFetching}
-              onClick={() => advanceDeletion(state.confirmation)}
+              onClick={() =>
+                advanceDeletion({
+                  digest: state.confirmation,
+                  removeFolder: !!state.folder_cleanup,
+                })
+              }
             >
               {advance.isLoading ? <Spinner className="size-4" /> : localize('com_ui_delete')}
             </Button>

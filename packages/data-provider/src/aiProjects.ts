@@ -35,7 +35,7 @@ export class AIProjectError extends Error {
 async function request<T>(
   token: string,
   suffix = '',
-  body?: AIProjectCreateInput | { confirmation?: string },
+  body?: AIProjectCreateInput | { confirmation?: string; remove_folder?: boolean },
 ): Promise<T> {
   const response = await fetch('/api/user/workspace/ai-projects' + suffix, {
     method: body ? 'POST' : 'GET',
@@ -67,6 +67,8 @@ export type AIProjectDeletion =
       state: 'confirm';
       confirmation: string;
       folder: string;
+      folder_cleanup?: { files: number; directories: number; bytes: number } | null;
+      folder_retention_reason?: 'in_use' | 'unverified' | null;
       knowledge_libraries: number;
       knowledge_revisions: number;
       preserved_libraries: number;
@@ -75,14 +77,20 @@ export type AIProjectDeletion =
       shares: number;
     }
   | { state: 'knowledge'; remaining: number; retrying: boolean }
-  | { state: 'native' | 'deleted' };
+  | { state: 'native' }
+  | { state: 'deleted'; folder_retained?: boolean };
 
 export const inspectAIProjectDeletion = (token: string, nativeId: string) =>
   request<AIProjectDeletion>(token, '/' + encodeURIComponent(nativeId) + '/deletion');
 
-export const advanceAIProjectDeletion = (token: string, nativeId: string, confirmation?: string) =>
+export const advanceAIProjectDeletion = (
+  token: string,
+  nativeId: string,
+  confirmation?: string,
+  removeFolder?: boolean,
+) =>
   request<AIProjectDeletion>(
     token,
     '/' + encodeURIComponent(nativeId) + '/deletion',
-    confirmation ? { confirmation } : {},
+    confirmation ? { confirmation, remove_folder: removeFolder } : {},
   );
