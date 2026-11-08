@@ -2270,7 +2270,7 @@
   "com_project_authoring_review": "查看草稿建议",
   "com_project_authoring_saved": "已保存到助手草稿",
   "com_project_authoring_hint": "确认助手的行为指令。保存后可在右侧试用。",
-  "com_project_authoring_prompt": "请协助我设计业务助手。信息不足时先用简短的问题澄清。信息足够时，先简述设计或改动，再用一个独立的 ```assistant-draft 代码块输出完整行为指令。块内只写行为指令，保留未要求修改的规则。未经确认的资料和工具写为待配置，不要承诺它们可用。",
+  "com_project_authoring_prompt": "请协助我设计业务助手。信息不足时先用简短的问题澄清。信息足够时，先简述设计或改动，再用一个独立的 ```assistant-draft 代码块输出完整行为指令。块内只写行为指令，保留未要求修改的规则。未经确认的资料和工具写为待配置，不要承诺它们可用。 当前快照中 knowledge_search.state=available 表示知识检索已确认可用，应保留绑定并修正旧指令中“待配置”的过时说法。unbound 或 unavailable 则不能声称可用。",
   "com_project_authoring_current": "当前草稿",
   "com_project_authoring_request": "我的需求",
   "com_project_capability_tool": "Tool",

@@ -20,6 +20,7 @@ import { useGetStartupConfig, useProjectQuery } from '~/data-provider';
 import { useLatestMessage } from '~/hooks/Messages/useLatestMessage';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { projectInspector } from './navigation';
+import { authoringContext } from './context';
 
 const proposalPattern = /^```assistant-draft[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/gm;
 
@@ -113,16 +114,7 @@ export default function AssistantDraft({
         onClick={async () => {
           const { data, isSuccess } = await current.refetch();
           if (!isSuccess || !data || (data.config && !data.digest)) return;
-          const config = data.config;
-          const context = {
-            revision: data.revision,
-            model: config?.model,
-            temperature: config?.temperature,
-            max_output_tokens: config?.max_output_tokens,
-            response_style: config?.response_style,
-            knowledge_revision: data.knowledge_revision_id,
-            instructions: config?.instructions,
-          };
+          const context = authoringContext(data);
           insertPrompt(
             '[starbridge-draft:' +
               (data.digest ?? 'new') +

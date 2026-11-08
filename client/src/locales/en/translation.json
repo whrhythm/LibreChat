@@ -4529,7 +4529,7 @@
   "com_project_authoring_review": "Review draft proposal",
   "com_project_authoring_saved": "Saved to assistant draft",
   "com_project_authoring_hint": "Review the assistant's instructions. Save to try them in the workbench.",
-  "com_project_authoring_prompt": "Help me design a business assistant. Ask brief clarifying questions when information is missing. When ready, summarize the design or changes, then output complete behavior instructions in a single standalone ```assistant-draft code block. Put only instructions in the block and preserve rules I did not ask to change. Mark unconfirmed knowledge and tools as pending and do not claim they are available.",
+  "com_project_authoring_prompt": "Help me design a business assistant. Ask brief clarifying questions when information is missing. When ready, summarize the design or changes, then output complete behavior instructions in a single standalone ```assistant-draft code block. Put only instructions in the block and preserve rules I did not ask to change. Mark unconfirmed knowledge and tools as pending and do not claim they are available. Treat knowledge_search.state=available in the current snapshot as a confirmed, usable knowledge search tool. Preserve its binding, and remove outdated pending-setup claims from the instructions. For unbound or unavailable states, do not claim access.",
   "com_project_authoring_current": "Current draft",
   "com_project_authoring_request": "My request",
   "com_project_capability_tool": "Tool",

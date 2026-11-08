@@ -161,13 +161,16 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
     targetHandle,
     label,
     type: 'smoothstep',
-    markerEnd: { type: MarkerType.ArrowClosed },
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      color: active ? 'rgb(var(--text-primary))' : 'rgb(var(--text-secondary))',
+    },
     style: {
-      stroke: active ? 'var(--text-primary)' : 'var(--border-heavy)',
+      stroke: active ? 'rgb(var(--text-primary))' : 'rgb(var(--text-secondary))',
       strokeWidth: active ? 2 : 1.5,
     },
-    labelStyle: { fill: 'var(--text-secondary)', fontSize: 10 },
-    labelBgStyle: { fill: 'var(--surface-canvas)' },
+    labelStyle: { fill: 'rgb(var(--text-secondary))', fontSize: 10 },
+    labelBgStyle: { fill: 'rgb(var(--surface-canvas))' },
     focusable: false,
   });
   const edges: Edge[] = [
