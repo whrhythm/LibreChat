@@ -43,7 +43,9 @@ function Switcher({
         onClick: () => {
           if (link.onClick) {
             link.onClick();
-            onNavigate?.();
+            if (!link.Component) {
+              onNavigate?.();
+            }
             return;
           }
           setActive(link.id);
