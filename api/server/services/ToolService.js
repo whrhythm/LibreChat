@@ -913,7 +913,9 @@ async function loadToolDefinitionsWrapper({
     environments: req.config?.endpoints?.agents?.statefulCodeSessions?.environments,
     getAppConfig,
   });
-  const hasMCPTools = agent.tools?.some((tool) => tool?.includes(Constants.mcp_delimiter));
+  const hasMCPTools = agent.tools?.some(
+    (tool) => tool === reviewedTrialToolName || tool?.includes(Constants.mcp_delimiter),
+  );
   const mcpPermissionContext = createMCPPermissionContext(req);
   const canUseMCP = hasMCPTools ? await mcpPermissionContext.canUseServers(req.user) : true;
 
@@ -936,7 +938,7 @@ async function loadToolDefinitionsWrapper({
     if (isActionTool(tool)) {
       return actionsEnabled;
     }
-    if (tool?.includes(Constants.mcp_delimiter)) {
+    if (tool === reviewedTrialToolName || tool?.includes(Constants.mcp_delimiter)) {
       return areToolsEnabled && canUseMCP;
     }
     if (!areToolsEnabled) {
@@ -1637,6 +1639,20 @@ async function loadToolDefinitionsWrapper({
     }
   }
 
+  if (filteredTools.includes(reviewedTrialToolName)) {
+    const tool = createReviewedTrialTool(req, agent.id, signal);
+    if (tool) {
+      const definition = {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.schema,
+      };
+      toolDefinitions ??= [];
+      toolDefinitions.push(definition);
+      toolRegistry ??= new Map();
+      toolRegistry.set(tool.name, definition);
+    }
+  }
   approvalMetadata.attach(toolDefinitions);
   return {
     toolRegistry,

@@ -63,6 +63,59 @@ function setup() {
   };
   return { deps, handlers: createTrialHandlers(deps) };
 }
+it('withholds reviewed tools and rejects draft binding when the native role cannot use MCP', async () => {
+  const { deps } = setup();
+  const reference = 'mcp:deepwiki:read_wiki_structure:4';
+  const config = {
+    instructions: 'Query public documentation',
+    model: 'test',
+    temperature: 0,
+    max_output_tokens: 512,
+    response_style: 'grounded',
+    tool_reference: reference,
+  };
+  deps.request.mockResolvedValueOnce(
+    new globalThis.Response(
+      JSON.stringify({
+        project_id: project,
+        revision: 1,
+        config,
+        digest: record.digest,
+        knowledge_revision_id: null,
+        unavailable_reason: null,
+        models: ['test'],
+        output_limit: 512,
+        trials: [],
+        available_tools: [
+          {
+            reference,
+            name: 'read_wiki_structure',
+            service: 'DeepWiki',
+            description: 'Read documentation',
+            data_notice: 'Public repositories only',
+            input_schema: { type: 'object' },
+          },
+        ],
+      }),
+    ),
+  );
+  const handlers = createTrialHandlers({ ...deps, canUseReviewedTools: async () => false });
+  const listed = response();
+  await handlers.list(req(), listed as unknown as Response);
+  expect(listed.json).toHaveBeenCalledWith(
+    expect.objectContaining({
+      available_tools: [],
+      unavailable_reason: 'ai_trials_tool_unavailable',
+    }),
+  );
+  const updated = response();
+  await handlers.update(
+    req({ config, expected_digest: record.digest }),
+    updated as unknown as Response,
+  );
+  expect(updated.status).toHaveBeenCalledWith(403);
+  expect(deps.request).toHaveBeenCalledTimes(1);
+});
 it('uses an immutable snapshot instead of mutable native configuration or browser model flags', async () => {
   const { deps } = setup();
   const params = {

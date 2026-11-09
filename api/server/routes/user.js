@@ -46,6 +46,8 @@ const { updateUserStatefulCodeEnvironment } = require('~/models');
 const { ensurePrivateProjectAgent, enableProjectKnowledge, getRoleByName } = require('~/models');
 const { ensurePrivateTrialAgent, getAgent, getConvo, getMessages, findUser } = require('~/models');
 const { grantPermission } = require('~/server/services/PermissionService');
+const { createMCPPermissionContext } = require('~/server/services/MCP');
+const { getEndpointsConfig } = require('~/server/services/Config');
 const {
   getChatProject,
   ensureLinkedChatProject,
@@ -56,7 +58,12 @@ const {
   removeRetiredChatProject,
   removeRetiredProjectAgent,
 } = require('~/models');
-const { PermissionTypes, Permissions } = require('librechat-data-provider');
+const {
+  PermissionTypes,
+  Permissions,
+  EModelEndpoint,
+  AgentCapabilities,
+} = require('librechat-data-provider');
 
 const router = express.Router();
 const aiProjects = createAIProjectHandlers({
@@ -150,6 +157,15 @@ router.get(
   releases.source,
 );
 const trials = createTrialHandlers({
+  canUseReviewedTools: async (req) => {
+    const [endpoints, allowed] = await Promise.all([
+      getEndpointsConfig(req),
+      createMCPPermissionContext(req).canUseServers(),
+    ]);
+    return (
+      allowed && endpoints?.[EModelEndpoint.agents]?.capabilities?.includes(AgentCapabilities.tools)
+    );
+  },
   archivePlatformConversations,
   baseUrl: process.env.CODECHAT_WORKSPACE_URL,
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
