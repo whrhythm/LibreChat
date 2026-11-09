@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { personalTrialToolReference } from './aiTrials';
 
 /** Reserved server-created runtime entries, never user-authored Agents. */
 export function isPublishedAppAgent(id?: string | null): boolean {
@@ -12,6 +13,7 @@ export const publishSchema = z
     expected_digest: z.string().regex(/^[0-9a-f]{64}$/),
     budget_micros: z.number().int().min(1000).max(100000000),
     confirm_sponsor: z.literal(true),
+    confirm_tool_reference: personalTrialToolReference.optional(),
   })
   .strict();
 export const releaseAccessSchema = z
@@ -75,8 +77,22 @@ export const releaseSchema = z.object({
   trial_id: z.string().uuid(),
   digest: z.string(),
   knowledge_revision_id: z.string().nullable(),
+  tool_review_id: z.string().uuid().nullish(),
   created_at: z.string(),
 });
+export const releaseToolReviewSchema = z.object({
+  review: z
+    .object({
+      id: z.string().uuid(),
+      project_id: z.string().uuid(),
+      reference: personalTrialToolReference,
+      revision: z.number().int().positive(),
+      title: z.string(),
+      state: z.enum(['pending', 'approved', 'rejected', 'revoked']),
+    })
+    .nullable(),
+});
+export type AIReleaseToolReview = z.infer<typeof releaseToolReviewSchema>;
 export const releaseListSchema = z.object({
   application: z
     .object({

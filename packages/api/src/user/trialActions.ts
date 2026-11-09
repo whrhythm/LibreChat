@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   AgentCapabilities,
+  createURL,
   openapiToFunction,
   personalTrialToolReference,
   validateActionDomain,
@@ -11,6 +12,7 @@ import type { ActionQuery } from '@librechat/data-schemas';
 import type { z } from 'zod';
 import type { ServerRequest } from '~/types';
 import { isActionDomainAllowed } from '~/auth/domain';
+import { createSSRFSafeAgents } from '~/auth/agent';
 
 export type TrialRequest = Omit<ServerRequest, 'body'> & { body?: unknown };
 
@@ -24,6 +26,8 @@ type TrialAction = {
   definition: z.infer<typeof trialToolSchema>;
   id: string;
   domain: string;
+  target: string;
+  invoke: (input: Record<string, unknown>, signal?: AbortSignal) => Promise<string>;
 };
 
 export type TrialCapabilityDependencies = {
@@ -35,11 +39,15 @@ export type TrialCapabilityDependencies = {
   encodeTrialActionDomain?: (domain: string) => Promise<string | undefined>;
 };
 
-async function describe(req: TrialRequest, action: StoredAction): Promise<TrialAction | undefined> {
+async function describe(
+  req: TrialRequest,
+  action: StoredAction,
+  ownerId: string,
+): Promise<TrialAction | undefined> {
   const { metadata } = action;
   if (
     !action.reusable ||
-    String(action.user) !== req.user?.id ||
+    String(action.user) !== ownerId ||
     !metadata?.raw_spec ||
     metadata.raw_spec.length > 64000 ||
     !metadata.domain ||
@@ -52,6 +60,8 @@ async function describe(req: TrialRequest, action: StoredAction): Promise<TrialA
 
   const { spec, serverUrl } = validateAndParseOpenAPISpec(metadata.raw_spec);
   if (!spec || !serverUrl || spec.security?.length) return;
+  const server = new URL(serverUrl);
+  if (server.username || server.password || server.search || server.hash) return;
   const paths = Object.entries(spec.paths);
   if (paths.length !== 1) return;
   const [path, operations] = paths[0];
@@ -75,7 +85,11 @@ async function describe(req: TrialRequest, action: StoredAction): Promise<TrialA
     ))
   )
     return;
-  const [fn] = openapiToFunction(spec).functionSignatures;
+  const {
+    functionSignatures: [fn],
+    requestBuilders,
+    zodSchemas,
+  } = openapiToFunction(spec, true);
   const digest = createHash('sha256')
     .update(JSON.stringify([metadata.domain, metadata.raw_spec]))
     .digest('hex');
@@ -84,6 +98,36 @@ async function describe(req: TrialRequest, action: StoredAction): Promise<TrialA
   return {
     id: action.action_id,
     domain: metadata.domain,
+    target: createURL(serverUrl, path),
+    invoke: async (input, signal) => {
+      const schema = zodSchemas?.[fn.name];
+      const properties = fn.parameters.properties;
+      if (
+        !schema ||
+        Object.entries(input).some(
+          ([key, value]) =>
+            !Object.prototype.hasOwnProperty.call(properties, key) ||
+            !['string', 'number', 'boolean'].includes(typeof value),
+        ) ||
+        Buffer.byteLength(JSON.stringify(input)) > 4096
+      )
+        throw new Error('Invalid tool arguments');
+      const parsed = schema.parse(input) as Record<string, unknown>;
+      const agents = createSSRFSafeAgents(req.config?.actions?.allowedAddresses);
+      const response = await requestBuilders[fn.name]
+        .createExecutor()
+        .setParams(parsed)
+        .execute({
+          ...agents,
+          timeout: 10000,
+          maxContentLength: 12000,
+          signal,
+        });
+      if (response.status < 200 || response.status >= 300) throw new Error('Tool query failed');
+      return (
+        typeof response.data === 'string' ? response.data : JSON.stringify(response.data)
+      ).slice(0, 12000);
+    },
     definition: {
       reference,
       name: fn.name,
@@ -99,17 +143,19 @@ export async function availableTrialActions(
   req: TrialRequest,
   deps: TrialCapabilityDependencies,
   reference?: string,
+  ownerId: string | undefined = req.user?.id,
 ): Promise<TrialAction[]> {
   if (
     !req.user?.id ||
+    !ownerId ||
     !deps.getTrialActions ||
     !(await deps.canUseTrialCapability?.(req, AgentCapabilities.actions))
   )
     return [];
   const actionId = reference?.split(':')[1];
-  const records = await deps.getTrialActions({ user: req.user.id, reusable: true, actionId });
+  const records = await deps.getTrialActions({ user: ownerId, reusable: true, actionId });
   const descriptors = await Promise.all(
-    records.slice(0, 12).map((action) => describe(req, action)),
+    records.slice(0, 12).map((action) => describe(req, action, ownerId)),
   );
   return descriptors.filter(
     (item): item is TrialAction =>

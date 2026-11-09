@@ -2156,6 +2156,11 @@ function createInitializeClient(dependencies = {}) {
       baseUrl: process.env.CODECHAT_WORKSPACE_URL,
       serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
       issuer: process.env.OPENID_ISSUER,
+      canUseTrialCapability: async (req, capability) =>
+        (await getEndpointsConfig(req))?.[EModelEndpoint.agents]?.capabilities?.includes(
+          capability,
+        ) === true,
+      getTrialActions: (query) => db.getActions(query, true),
     });
     await prepareProjectTrial(params, {
       baseUrl: process.env.CODECHAT_WORKSPACE_URL,

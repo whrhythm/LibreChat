@@ -308,6 +308,7 @@ class RequestExecutor {
     httpsAgent?: unknown;
     /** Milliseconds before the request is abandoned; unset waits indefinitely. */
     timeout?: number;
+    maxContentLength?: number;
     /** Aborts the request, for example when the run that called the action is stopped. */
     signal?: AbortSignal;
   }) {
@@ -337,6 +338,7 @@ class RequestExecutor {
       ...(options?.httpAgent != null ? { httpAgent: options.httpAgent } : {}),
       ...(options?.httpsAgent != null ? { httpsAgent: options.httpsAgent } : {}),
       ...(options?.timeout != null ? { timeout: options.timeout } : {}),
+      ...(options?.maxContentLength != null ? { maxContentLength: options.maxContentLength } : {}),
       ...requestSignal(options?.timeout, options?.signal),
     });
 

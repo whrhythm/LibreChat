@@ -3,7 +3,7 @@ import { atom, useAtom } from 'jotai';
 import { Button } from '@librechat/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectReleases, projectTrials, QueryKeys } from 'librechat-data-provider';
-import type { AIPublish } from 'librechat-data-provider';
+import type { AIPublish, AIReleaseToolReview } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import Sharing from './Sharing';
 
@@ -13,6 +13,8 @@ function sharingError(error: unknown) {
   if (code === 'ai_releases_changed') return 'com_sharing_conflict';
   if (code === 'ai_releases_expiry_invalid') return 'com_sharing_expiry_invalid';
   if (code === 'ai_releases_tool_trial_only') return 'com_project_tool_trial_only';
+  if (code === 'ai_releases_tool_review_required') return 'com_releases_tool_review_required';
+  if (code === 'ai_releases_tool_consent_required') return 'com_releases_tool_consent';
   return 'com_releases_error';
 }
 export default function Releases({
@@ -33,6 +35,7 @@ export default function Releases({
         expanded: embedded,
         budget: null as string | null,
         confirmed: false,
+        toolConsent: null as string | null,
         request: null as AIPublish | null,
       }),
     [embedded],
@@ -51,10 +54,23 @@ export default function Releases({
     enabled: enabled && !!token && ui.expanded,
     retry: false,
   });
+  const reference = trials.data?.config?.tool_reference;
+  const personal = reference?.startsWith('action:') ? reference : null;
+  const reviewKey = [...key, 'tool-review', personal];
+  const review = useQuery({
+    queryKey: reviewKey,
+    queryFn: () => projectReleases<AIReleaseToolReview>(token!, projectId, '/tool-review'),
+    enabled: enabled && !!token && ui.expanded && !!personal,
+    retry: false,
+  });
+  const submitReview = useMutation({
+    mutationFn: () => projectReleases<AIReleaseToolReview>(token!, projectId, '/tool-review', {}),
+    onSuccess: (value) => cache.setQueryData(reviewKey, value),
+  });
   const change = useMutation({
     mutationFn: ({ suffix, body }: { suffix: string; body: object }) =>
       projectReleases(token!, projectId, suffix, body),
-    onSuccess: () => setUI((s) => ({ ...s, request: null, confirmed: false })),
+    onSuccess: () => setUI((s) => ({ ...s, request: null, confirmed: false, toolConsent: null })),
     onSettled: () => {
       void cache.invalidateQueries(key);
       void cache.invalidateQueries([QueryKeys.assistantCatalog, user?.id]);
@@ -63,6 +79,12 @@ export default function Releases({
   });
   const app = list.data?.application;
   const accepted = trials.data?.trials.find((v) => v.acceptance_valid);
+  const toolReview = review.data?.review;
+  const toolTitle = trials.data?.available_tools?.find(
+    (tool) => tool.reference === personal,
+  )?.service;
+  const toolApproved =
+    !!personal && toolReview?.reference === personal && toolReview.state === 'approved';
   const input =
     'border-border-light bg-surface-primary text-text-primary w-full rounded border px-2 py-1.5 text-sm';
   const busy = change.isLoading;
@@ -96,6 +118,7 @@ export default function Releases({
             onClick={() => {
               void list.refetch();
               void trials.refetch();
+              if (personal) void review.refetch();
             }}
           >
             {t('com_releases_refresh')}
@@ -191,6 +214,45 @@ export default function Releases({
               ? t('com_releases_ready') + ' ' + accepted.number
               : t('com_releases_test_first')}
           </p>
+          {personal && (
+            <div className="border-border-light space-y-2 rounded border p-2">
+              <p className="font-medium">
+                {toolTitle ?? toolReview?.title ?? t('com_releases_tool_review')}
+              </p>
+              {review.isLoading && <p role="status">{t('com_knowledge_loading')}</p>}
+              {(review.isError || submitReview.isError) && (
+                <p role="alert">{t(sharingError(submitReview.error ?? review.error))}</p>
+              )}
+              {toolReview && <p>{t(`com_releases_tool_${toolReview.state}` as const)}</p>}
+              {review.isSuccess && !toolReview && (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  disabled={busy || submitReview.isLoading || !toolTitle}
+                  onClick={() => submitReview.mutate()}
+                >
+                  {t('com_releases_submit_tool')}
+                </Button>
+              )}
+              {toolApproved && (
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    disabled={busy}
+                    checked={ui.toolConsent === personal}
+                    onChange={(e) =>
+                      setUI((s) => ({
+                        ...s,
+                        toolConsent: e.target.checked ? personal : null,
+                        request: null,
+                      }))
+                    }
+                  />
+                  <span>{t('com_releases_tool_consent')}</span>
+                </label>
+              )}
+            </div>
+          )}
           <label className="flex items-start gap-2">
             <input
               type="checkbox"
@@ -203,7 +265,12 @@ export default function Releases({
           <Button
             size="sm"
             disabled={
-              busy || !accepted || !ui.confirmed || !Number.isFinite(budget) || budget < 1000
+              busy ||
+              !accepted ||
+              !ui.confirmed ||
+              !Number.isFinite(budget) ||
+              budget < 1000 ||
+              (!!personal && (!toolApproved || ui.toolConsent !== personal))
             }
             onClick={() => {
               if (!accepted) return;
@@ -213,6 +280,7 @@ export default function Releases({
                 expected_digest: accepted.digest,
                 budget_micros: budget,
                 confirm_sponsor: true as const,
+                ...(personal ? { confirm_tool_reference: personal } : {}),
               };
               setUI((s) => ({ ...s, request: body }));
               change.mutate({ suffix: '', body });

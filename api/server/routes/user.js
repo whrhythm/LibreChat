@@ -98,6 +98,10 @@ const libraries = createLibraryHandlers({
   enableProjectKnowledge,
 });
 const releases = createReleaseHandlers({
+  canUseTrialCapability: async (req, capability) =>
+    (await getEndpointsConfig(req))?.[EModelEndpoint.agents]?.capabilities?.includes(capability) ===
+    true,
+  getTrialActions: (query) => getActions(query, true),
   baseUrl: process.env.CODECHAT_WORKSPACE_URL,
   serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
   issuer: process.env.OPENID_ISSUER,
@@ -109,6 +113,19 @@ const releases = createReleaseHandlers({
   findUser,
 });
 router.get('/workspace/ai-projects/catalog', requireJwtAuth, configMiddleware, releases.catalog);
+router.get(
+  '/workspace/ai-projects/:projectId/releases/tool-review',
+  requireJwtAuth,
+  configMiddleware,
+  releases.toolReview,
+);
+router.post(
+  '/workspace/ai-projects/:projectId/releases/tool-review',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  releases.submitToolReview,
+);
 router.post(
   '/workspace/ai-projects/:projectId/releases/policy',
   requireJwtAuth,
