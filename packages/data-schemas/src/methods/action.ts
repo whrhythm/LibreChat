@@ -9,6 +9,7 @@ const ACTION_FIELDS: FieldMap<ActionQuery> = {
   agentId: 'agent_id',
   assistantId: 'assistant_id',
   user: 'user',
+  reusable: 'reusable',
 };
 
 /** Translates domain action criteria into a Mongo filter. */
@@ -21,6 +22,7 @@ export function createActionMethods(mongoose: typeof import('mongoose')): {
   updateAction: (query: ActionQuery, updateData: Partial<IAction>) => Promise<IAction | null>;
   deleteAction: (query: ActionQuery) => Promise<IAction | null>;
   deleteActions: (query: ActionQuery) => Promise<number>;
+  makeActionReusable: (actionId: string, ownerId: string) => Promise<IAction | null>;
 } {
   /**
    * Update an action with new data without overwriting existing properties,
@@ -77,11 +79,21 @@ export function createActionMethods(mongoose: typeof import('mongoose')): {
     return result.deletedCount;
   }
 
+  async function makeActionReusable(actionId: string, ownerId: string): Promise<IAction | null> {
+    const Action = mongoose.models.Action as Model<IAction>;
+    return Action.findOneAndUpdate(
+      { action_id: actionId, user: ownerId, agent_id: { $exists: true } },
+      { $set: { reusable: true } },
+      { new: true },
+    ).lean<IAction>();
+  }
+
   return {
     getActions,
     updateAction,
     deleteAction,
     deleteActions,
+    makeActionReusable,
   };
 }
 

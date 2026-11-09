@@ -28,6 +28,7 @@ const Action: mongoose.Schema<IAction> = new Schema<IAction>({
     index: true,
     required: true,
   },
+  reusable: Boolean,
   type: {
     type: String,
     default: 'action_prototype',

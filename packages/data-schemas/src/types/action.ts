@@ -4,6 +4,7 @@ import type { OneOrMany } from './query';
 export interface IAction extends Document {
   user: mongoose.Types.ObjectId;
   action_id: string;
+  reusable?: boolean;
   type: string;
   settings?: unknown;
   agent_id?: string;
@@ -39,4 +40,5 @@ export interface ActionQuery {
   agentId?: OneOrMany<string>;
   assistantId?: OneOrMany<string>;
   user?: string;
+  reusable?: boolean;
 }

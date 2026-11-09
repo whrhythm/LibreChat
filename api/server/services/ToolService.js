@@ -81,6 +81,7 @@ const {
   resolveMCPClientCapabilityProfile,
   getOutboundTimeoutMs,
   getToolErrorText,
+  getAgentActionSources,
 } = require('@librechat/api');
 const {
   Time,
@@ -269,11 +270,11 @@ const prepareStoredActionsForUse = async ({ actions, filters, decrypt }) => {
  * or create generic tool instances. The caller reuses the returned snapshot
  * for the rest of the request, avoiding a second read and TOCTOU drift.
  */
-const prepareActionSnapshotForTools = async ({ agentId, toolNames, filters, decrypt }) => {
+const prepareActionSnapshotForTools = async ({ agent, requester, toolNames, filters, decrypt }) => {
   if (!toolNames.some((toolName) => isActionTool(toolName))) {
     return null;
   }
-  const storedActions = (await loadActionSets({ agentId })) ?? [];
+  const storedActions = await getAgentActionSources(agent, requester, loadActionSets);
   if (storedActions.length === 0) {
     return { storedActions, actionSets: [] };
   }
@@ -960,7 +961,8 @@ async function loadToolDefinitionsWrapper({
     tools: filteredTools,
   });
   const preparedActionSnapshot = await prepareActionSnapshotForTools({
-    agentId: agent.id,
+    agent,
+    requester: req.user.id,
     toolNames: filteredTools,
     filters: req.config?.filters,
     decrypt: false,
@@ -1816,7 +1818,8 @@ async function loadAgentTools({
     tools: _agentTools,
   });
   const preparedActionSnapshot = await prepareActionSnapshotForTools({
-    agentId: agent.id,
+    agent,
+    requester: req.user.id,
     toolNames: _agentTools,
     filters: req.config?.filters,
     decrypt: true,
@@ -2337,7 +2340,8 @@ async function loadToolsForExecution({
   const preparedActionSnapshot =
     agent && actionsEnabled
       ? await prepareActionSnapshotForTools({
-          agentId: agent.id,
+          agent,
+          requester: req.user.id,
           toolNames: preflightActionToolNames,
           filters: req.config?.filters,
           decrypt: true,

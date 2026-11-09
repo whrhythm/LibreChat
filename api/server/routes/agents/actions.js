@@ -3,6 +3,7 @@ const { nanoid } = require('nanoid');
 const { logger } = require('@librechat/data-schemas');
 const {
   generateCheckAccess,
+  createActionBindingHandler,
   planAgentActionUpdate,
   isActionDomainAllowed,
   legacyActionDomainEncode,
@@ -68,8 +69,18 @@ router.get('/', async (req, res) => {
     });
 
     const editableAgentIds = agentsResponse.data.map((agent) => agent.id);
-    const actions =
-      editableAgentIds.length > 0 ? await db.getActions({ agentId: editableAgentIds }) : [];
+    const [editable, owned] = await Promise.all([
+      editableAgentIds.length > 0 ? db.getActions({ agentId: editableAgentIds }) : [],
+      db.getActions({ user: userId }),
+    ]);
+    const actions = Array.from(
+      new Map(
+        [
+          ...editable.filter((action) => !action.reusable),
+          ...owned.filter((action) => action.agent_id),
+        ].map((action) => [action.action_id, action]),
+      ).values(),
+    );
 
     for (const action of actions) {
       if (blockFilteredActionProjection(req.config?.filters, res, action)) {
@@ -82,6 +93,23 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+const bindAction = createActionBindingHandler({
+  getAgent: db.getAgent,
+  getActions: db.getActions,
+  updateAgent: db.updateAgent,
+  makeActionReusable: db.makeActionReusable,
+  encodeDomain: domainParser,
+});
+router.post(
+  '/:agent_id/:action_id/binding',
+  canAccessAgentResource({
+    requiredPermission: PermissionBits.EDIT,
+    resourceIdParam: 'agent_id',
+  }),
+  checkAgentCreate,
+  (req, res, next) => bindAction(req, res).catch(next),
+);
 
 /**
  * Adds or updates actions for a specific agent.
@@ -181,6 +209,11 @@ router.post(
 
       const storedAction = actions_result?.[0];
       if (storedAction) {
+        if (storedAction.reusable) {
+          return res
+            .status(409)
+            .json({ message: 'Reusable action definitions cannot be edited here' });
+        }
         if (storedAction.agent_id !== agent_id) {
           return res.status(403).json({ message: 'Action does not belong to this agent' });
         }
@@ -307,6 +340,12 @@ router.delete(
       }
 
       const { tools = [], actions = [] } = agent;
+      const [source] = await db.getActions({ actionId: action_id });
+      if (source?.reusable) {
+        return res
+          .status(409)
+          .json({ message: 'Remove the action binding to keep the reusable tool' });
+      }
 
       let storedDomain = '';
       const updatedActions = actions.filter((action) => {

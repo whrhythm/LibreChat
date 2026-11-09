@@ -53,6 +53,7 @@ const {
   checkNativeAgentLibraryWrite,
   applyInstructionsPromptUnset,
   instructionsContentForScan,
+  getAgentActionSources,
 } = require('@librechat/api');
 const {
   Time,
@@ -1563,7 +1564,9 @@ const duplicateAgentHandler = async (req, res) => {
       return res.status(subagentReferenceError.status).json(subagentReferenceError.body);
     }
 
-    const originalActions = (await db.getActions({ agentId: id }, true)) ?? [];
+    const originalActions = ((await db.getActions({ agentId: id }, true)) ?? []).filter(
+      (action) => !action.reusable,
+    );
     const sanitizedActions = originalActions.map((action) => {
       const metadata = { ...(action.metadata || {}) };
       for (const field of sensitiveFields) {
@@ -2134,13 +2137,13 @@ const revertAgentVersionHandler = async (req, res) => {
 
     // Permissions are enforced via route middleware (ACL EDIT)
 
-    const actionIds = (revertVersion.actions ?? [])
-      .map((action) => (typeof action === 'string' ? action.split(actionDelimiter)[1] : undefined))
-      .filter(Boolean);
-    const actions =
-      actionIds.length > 0
-        ? ((await db.getActions({ agentId: id, actionId: actionIds }, true)) ?? [])
-        : [];
+    const actions = revertVersion.actions?.length
+      ? await getAgentActionSources(
+          { id, author: existingAgent.author, actions: revertVersion.actions },
+          req.user.id,
+          (query) => db.getActions(query, true),
+        )
+      : [];
 
     if (
       (await blockFilteredAgentContent(

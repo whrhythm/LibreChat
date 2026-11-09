@@ -26,7 +26,7 @@ import type {
   UserSubmittedMessageFieldPath,
 } from 'librechat-data-provider';
 import type { ToolApprovalDecisionMap, AskUserQuestionResolution } from '@librechat/agents';
-import type { AppConfig, IUser } from '@librechat/data-schemas';
+import type { ActionQuery, AppConfig, IUser } from '@librechat/data-schemas';
 import type {
   AgentContentInput,
   MemoryContentInput,
@@ -62,6 +62,7 @@ import { ContentFilterError } from '~/middleware/contentFilter';
 import { applyCheckpointDelivery } from '../files/delivery';
 import { hasActiveFilePolicy } from '~/protection/files';
 import { parseSkillMarkdown } from '../../skills/parse';
+import { referencedActionIds } from '~/actions/reuse';
 import { inspectContent } from '~/protection/runtime';
 import { isSkillPrimeMessage } from '../skills';
 
@@ -179,7 +180,7 @@ export interface ResumeContentProtectionDependencies {
   getFiles: ResumeContentInspectionInput['getFiles'];
   getAgent: (filter: { id: string }) => Promise<Agent | null | undefined>;
   getActions: (
-    query: { agentId: string[] },
+    query: ActionQuery,
     includeSensitive: boolean,
   ) => Promise<ResumeAction[] | null | undefined>;
   getUserMemories: (params: { userId: string; agentId?: string }) => Promise<MemoryContentInput[]>;
@@ -644,6 +645,7 @@ async function getResumeMemoryAgentDefinition(
 async function getResumeActionSnapshots(
   filters: FiltersConfig | undefined,
   agents: readonly ResumeSnapshotAgent[],
+  requester: string,
   dependencies: ResumeContentProtectionDependencies,
 ): Promise<ResumeAction[]> {
   const inspectActionMetadata = hasActivePiiPatterns(filters?.actionMetadata?.pii);
@@ -665,8 +667,19 @@ async function getResumeActionSnapshots(
     filters?.actionMetadata?.pii,
     ENCRYPTED_ACTION_METADATA_FIELDS,
   );
-  const actions =
-    (await dependencies.getActions({ agentId: agentIds }, needsEncryptedMetadata)) ?? [];
+  const actionIds = agents
+    .filter((agent) => String(agent.author) === requester && agentIds.includes(agent.id))
+    .flatMap(referencedActionIds);
+  const [legacy, personal] = await Promise.all([
+    dependencies.getActions({ agentId: agentIds }, needsEncryptedMetadata),
+    actionIds.length
+      ? dependencies.getActions(
+          { actionId: actionIds, user: requester, reusable: true },
+          needsEncryptedMetadata,
+        )
+      : [],
+  ]);
+  const actions = [...(legacy ?? []).filter((action) => !action.reusable), ...(personal ?? [])];
   const withFunctions = actions.map((action) => {
     const rawSpec = action.metadata?.raw_spec;
     if (typeof rawSpec !== 'string') {
@@ -797,7 +810,7 @@ async function assertResumeAgentContentAllowed({
     ? await getResumeMemoryAgentDefinition(appConfig, primaryAgent, dependencies)
     : null;
   const [actions, memories] = await Promise.all([
-    getResumeActionSnapshots(appConfig?.filters, agents, dependencies),
+    getResumeActionSnapshots(appConfig?.filters, agents, String(user.id ?? user._id), dependencies),
     getResumeMemorySnapshots({
       appConfig,
       user,

@@ -169,7 +169,11 @@ function Directory({ path, actions }: { path: string; actions: TreeActions }) {
                 ) : (
                   <File aria-hidden="true" className="ms-4 size-3.5 shrink-0" />
                 )}
-                <span className="truncate">{entry.name}</span>
+                <span className="truncate" title={entry.name}>
+                  {folder && child === 'tools' && !projectLabel
+                    ? localize('com_codechat_tool_files')
+                    : entry.name}
+                </span>
                 {projectLabel && (
                   <span
                     className="bg-surface-secondary text-text-secondary max-w-[45%] truncate rounded px-1.5 text-xs"
@@ -287,6 +291,29 @@ export default function PersonalFiles({
     },
     retry: false,
   });
+  const toolPath = rootPath ? rootPath + '/tools' : 'tools';
+  const openTools = useMutation({
+    mutationFn: async () => {
+      const list = async () =>
+        (
+          (await (await personalFileRequest(token!, 'directories', 'GET', rootPath)).json()) as {
+            entries: WorkspaceEntry[];
+          }
+        ).entries.some((entry) => entry.name === 'tools' && entry.kind === 'directory');
+      if (!(await list())) {
+        try {
+          await personalFileRequest(token!, 'directories', 'POST', toolPath);
+        } catch (error) {
+          if (!(await list())) throw error;
+        }
+      }
+    },
+    onSuccess: async () => {
+      await client.invalidateQueries([QueryKeys.codechatFiles, user?.id]);
+      setFolders((previous) => new Set([...previous, toolPath]));
+      setPath(toolPath);
+    },
+  });
   if (!expanded) return null;
   if (space.isError)
     return (
@@ -381,12 +408,22 @@ export default function PersonalFiles({
           {localize(rootPath ? 'com_project_root' : 'com_codechat_workspace_root')}
         </Button>
         <NewFolder path={path} />
+        <Button
+          variant="ghost"
+          size="xs"
+          aria-pressed={path === toolPath || path.startsWith(toolPath + '/')}
+          disabled={openTools.isLoading}
+          onClick={() => openTools.mutate()}
+        >
+          {localize('com_codechat_tool_files')}
+        </Button>
         <Versions key={path} path={path} />
       </div>
       <p className="text-text-secondary h-4 truncate px-1 text-xs" title={path || '/'}>
         {localize('com_codechat_upload_to', { path: path || '/' })}
       </p>
       {upload.isError && <p role="alert">{localize('com_codechat_files_upload_error')}</p>}
+      {openTools.isError && <p role="alert">{localize('com_codechat_files_error')}</p>}
       {downloadError && <p role="alert">{localize('com_codechat_files_error')}</p>}
       <div>
         <Directory path={rootPath} actions={actions} />

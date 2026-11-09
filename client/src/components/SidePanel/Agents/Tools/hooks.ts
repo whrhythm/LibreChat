@@ -5,6 +5,7 @@ import { useFormContext, useWatch } from 'react-hook-form';
 import { useUpdateUserPluginsMutation } from 'librechat-data-provider/react-query';
 import {
   Tools,
+  actionDelimiter,
   AuthType,
   QueryKeys,
   Permissions,
@@ -15,7 +16,11 @@ import {
 import type { TSkillSummary } from 'librechat-data-provider';
 import type { AgentForm, ExtendedFile } from '~/common';
 import type { AgentItem } from './items/types';
-import { useVerifyAgentToolAuth, useGetAgentFiles } from '~/data-provider';
+import {
+  useVerifyAgentToolAuth,
+  useGetAgentFiles,
+  useGetExpandedAgentByIdQuery,
+} from '~/data-provider';
 import { useLocalize, useHasAccess, useHasMemoryAccess } from '~/hooks';
 import { useFileMapContext, useAgentPanelContext } from '~/Providers';
 import { deriveSelectedItems } from './items/selectors';
@@ -194,10 +199,20 @@ export function useAgentItems({
   const artifacts = (useWatch({ control, name: 'artifacts' }) ?? '') as string;
   const { contextFiles, knowledgeFiles, codeFiles } = useAgentFileEntries();
 
-  const agentActions = useMemo(
-    () => (actions ?? []).filter((a) => a.agent_id === agentId),
-    [actions, agentId],
+  const { data: agent } = useGetExpandedAgentByIdQuery(agentId, { enabled: false });
+  const availableActions = useMemo(
+    () =>
+      (actions ?? []).filter(
+        (a) => a.agent_id === agentId || (currentUserId != null && a.user === currentUserId),
+      ),
+    [actions, agentId, currentUserId],
   );
+  const agentActions = useMemo(() => {
+    const refs = new Set((agent?.actions ?? []).map((action) => action.split(actionDelimiter)[1]));
+    return availableActions.filter((a) =>
+      a.reusable ? refs.has(a.action_id) : a.agent_id === agentId,
+    );
+  }, [availableActions, agent?.actions, agentId]);
 
   const catalog = useMemo(
     () =>
@@ -206,7 +221,7 @@ export function useAgentItems({
         regularTools: regularTools ?? [],
         mcpServersMap: mcpServersMap ?? new Map(),
         skills,
-        actions: agentActions,
+        actions: availableActions,
         currentUserId,
         permissions: {
           mcp: hasMcpAccess,
@@ -224,7 +239,7 @@ export function useAgentItems({
       regularTools,
       mcpServersMap,
       skills,
-      agentActions,
+      availableActions,
       currentUserId,
       hasMcpAccess,
       hasWebSearchAccess,

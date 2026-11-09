@@ -119,6 +119,10 @@ export default function ToolsSection({ agentId }: Props) {
 
   const handleQuickRemove = useCallback(
     (item: AgentItem) => {
+      if (item.kind === 'action' && item.action?.reusable) {
+        setDialogItem(item);
+        return;
+      }
       if (opensFileManagerOnRemove(item)) {
         setDialogItem(item);
         return;

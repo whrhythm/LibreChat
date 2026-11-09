@@ -1,4 +1,4 @@
-import { AgentCapabilities } from 'librechat-data-provider';
+import { AgentCapabilities, validateAndParseOpenAPISpec } from 'librechat-data-provider';
 import type { TPlugin, TSkillSummary, Action } from 'librechat-data-provider';
 import type { AgentItem, SkillItem, BuiltinId } from './types';
 import type { MCPServerInfo } from '~/common';
@@ -232,11 +232,14 @@ export function buildCatalog(inputs: BuildCatalogInputs): AgentItem[] {
   }
 
   for (const action of inputs.actions) {
+    const spec = action.metadata?.raw_spec
+      ? validateAndParseOpenAPISpec(action.metadata.raw_spec).spec
+      : undefined;
     items.push({
       kind: 'action',
       id: action.action_id,
-      name: action.metadata?.domain ?? action.action_id,
-      description: '',
+      name: spec?.info?.title || action.metadata?.domain || action.action_id,
+      description: spec?.info?.description ?? action.metadata?.domain ?? '',
       iconKey: 'action',
       ownedByUser: inputs.currentUserId != null && action.user === inputs.currentUserId,
       action,

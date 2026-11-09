@@ -874,6 +874,15 @@ export const deleteAgentAction = async ({
     }),
   );
 
+export const setAgentActionBinding = (
+  agentId: string,
+  actionId: string,
+  attached: boolean,
+): Promise<{ actionId: string; attached: boolean }> =>
+  request.post(endpoints.agents({ path: `actions/${agentId}/${actionId}/binding` }), {
+    attached,
+  });
+
 /**
  * MCP Servers
  */
