@@ -20,6 +20,7 @@ import {
   generatedToolBuild,
   generatedToolTask,
   generatedToolReview,
+  generatedToolCatalogSchema,
 } from 'librechat-data-provider';
 import type { Response, NextFunction } from 'express';
 import type { TrialCapabilityDependencies } from './trialActions';
@@ -165,6 +166,7 @@ type TrialAction =
   | 'create'
   | 'resume'
   | 'accept'
+  | 'toolCatalog'
   | 'startTool'
   | 'toolStatus'
   | 'submitTool';
@@ -176,6 +178,8 @@ export function createTrialHandlers(
     res.setHeader('Cache-Control', 'no-store');
     try {
       const call = trialClient(req, deps);
+      if (action === 'toolCatalog')
+        return res.json(generatedToolCatalogSchema.parse(await call('generated-tools')));
       let toolAccess: Promise<boolean> | undefined;
       const canUseTools = () =>
         (toolAccess ??= deps.canUseReviewedTools?.(req) ?? Promise.resolve(false));
@@ -405,6 +409,7 @@ export function createTrialHandlers(
     create: handler('create'),
     resume: handler('resume'),
     accept: handler('accept'),
+    toolCatalog: handler('toolCatalog'),
     startTool: handler('startTool'),
     toolStatus: handler('toolStatus'),
     submitTool: handler('submitTool'),

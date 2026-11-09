@@ -199,6 +199,12 @@ const trials = createTrialHandlers({
   grantPermission,
 });
 router.get(
+  '/workspace/ai-projects/generated-tools',
+  requireJwtAuth,
+  configMiddleware,
+  trials.toolCatalog,
+);
+router.get(
   '/workspace/ai-projects/:projectId/trials',
   requireJwtAuth,
   configMiddleware,

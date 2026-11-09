@@ -1,4 +1,11 @@
 {
+  "com_project_tool_catalog_title": "项目工具",
+  "com_project_tool_catalog_review": "审核状态",
+  "com_project_tool_catalog_unsubmitted": "待送审",
+  "com_project_tool_catalog_failed": "暂时无法加载你的项目工具。",
+  "com_project_tool_catalog_scoped": "仅可在所属项目的智能体配置中选用。",
+  "com_project_tool_catalog_unavailable": "此版本暂不可选用。",
+  "com_project_tool_catalog_remove": "从草稿移除",
   "com_project_tool_build_prompt": "如果已授权目录中没有能够满足已确认需求的工具，且只读整数规则可以解决，请说明缺口。确认参数、单位和例子后，输出且仅输出一个 assistant-tool-build 围栏 JSON 块，字段为 name（英文下划线命名）、title、requirements、parameters（参数名数组）、cases（至少两个不同的用例，每个用例包含 inputs 和整数 result）。同时输出 assistant-draft 指令，要求相关问题实际调用该工具，并在 assistant-tool 中填 none。支持有界整数运算、最小值、最大值、比较和条件。不要提议访问文件、凭据、写入操作、外部连接或虚构工具。",
   "com_project_tool_build_scope": "OpenHands 将使用你的编程额度，在项目中生成一个规则文件。工具运行时只计算输入参数。",
   "com_project_tool_build_start": "用 OpenHands 开发工具",

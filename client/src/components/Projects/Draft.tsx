@@ -9,6 +9,7 @@ import type { DefaultValues } from 'react-hook-form';
 import type { AgentItem } from '~/components/SidePanel/Agents/Tools/items/types';
 import type { AgentForm } from '~/common';
 import MarketplaceCatalog from '~/components/SidePanel/Agents/Tools/MarketplaceCatalog';
+import ProjectToolCatalog from '~/components/SidePanel/Agents/Tools/ProjectToolCatalog';
 import { SelectedSection } from '~/components/SidePanel/Agents/Tools/ToolsSection';
 import AgentModelField from '~/components/SidePanel/Agents/AgentModelField';
 import Instructions from '~/components/SidePanel/Agents/Instructions';
@@ -53,7 +54,12 @@ export default function Draft({ projectId, draft }: { projectId: string; draft: 
   return (
     <div className="space-y-2">
       {draft.config ? (
-        <Editor draft={draft} pending={save.isLoading} onSave={(body) => save.mutateAsync(body)} />
+        <Editor
+          projectId={projectId}
+          draft={draft}
+          pending={save.isLoading}
+          onSave={(body) => save.mutateAsync(body)}
+        />
       ) : (
         <Button size="sm" onClick={() => save.mutate(undefined)} disabled={save.isLoading}>
           {t('com_trials_initialize')}
@@ -69,10 +75,12 @@ export default function Draft({ projectId, draft }: { projectId: string; draft: 
 }
 
 function Editor({
+  projectId,
   draft,
   pending,
   onSave,
 }: {
+  projectId: string;
   draft: AITrials;
   pending: boolean;
   onSave: (body: { config: TrialConfig; expected_digest: string }) => Promise<AITrials>;
@@ -83,6 +91,7 @@ function Editor({
   const base = savedBase ?? draft;
   const [view, setView] = useAtom(useMemo(() => atom<'config' | 'model' | 'tools'>('config'), []));
   const [search, setSearch] = useAtom(useMemo(() => atom(''), []));
+  const [ownedTools, setOwnedTools] = useAtom(useMemo(() => atom(false), []));
   const methods = useForm<AgentForm>({ defaultValues: defaults(base.config!) });
   const { control, reset, setValue, handleSubmit } = methods;
   const [instructions, model, parameters, toolReferences] = useWatch({
@@ -157,17 +166,24 @@ function Editor({
     (!calculator || !!canUseCalculator);
   const openTools = () => {
     setSearch('');
+    setOwnedTools(false);
     setView('tools');
   };
-  const selectTool = (item: AgentItem) => {
-    const next = item.id === config.tool_reference ? null : item.id;
-    const reference = item.id === 'calculator' ? config.tool_reference : next;
-    const enableCalculator = item.id === 'calculator' ? !calculator : calculator;
+  const toggleTool = (id: string) => {
+    const next = id === config.tool_reference ? null : id;
+    const reference = id === 'calculator' ? config.tool_reference : next;
+    const enableCalculator = id === 'calculator' ? !calculator : calculator;
     setValue('tools', [
       ...(reference ? [reference] : []),
       ...(enableCalculator ? ['calculator'] : []),
     ]);
   };
+  const selectTool = (item: AgentItem) => toggleTool(item.id);
+  const shown = catalog.filter(
+    (item) =>
+      (!ownedTools || item.id.startsWith('action:')) &&
+      (item.name + ' ' + item.description).toLowerCase().includes(search.trim().toLowerCase()),
+  );
   const save = handleSubmit(async () => {
     if (!parsed.success || !valid || !base.digest || stale || !dirty || pending) return;
     try {
@@ -203,22 +219,59 @@ function Editor({
                   {t('com_ui_back_to_builder')}
                 </Button>
               </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="xs"
+                  variant={ownedTools ? 'ghost' : 'outline'}
+                  aria-pressed={!ownedTools}
+                  onClick={() => setOwnedTools(false)}
+                >
+                  {t('com_ui_all_proper')}
+                </Button>
+                <Button
+                  type="button"
+                  size="xs"
+                  variant={ownedTools ? 'outline' : 'ghost'}
+                  aria-pressed={ownedTools}
+                  onClick={() => setOwnedTools(true)}
+                >
+                  {t('com_ui_tools_view_made_by_you')}
+                </Button>
+              </div>
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 aria-label={t('com_ui_tools_marketplace_search')}
                 placeholder={t('com_ui_tools_marketplace_search')}
               />
-              <MarketplaceCatalog
-                singleColumn
-                items={catalog.filter((item) =>
-                  (item.name + ' ' + item.description)
-                    .toLowerCase()
-                    .includes(search.trim().toLowerCase()),
-                )}
-                selectedIds={new Set(selected.map((tool) => 'tool:' + tool.id))}
-                onToggle={selectTool}
-              />
+              {(!ownedTools || shown.length > 0) && (
+                <MarketplaceCatalog
+                  singleColumn
+                  items={shown}
+                  selectedIds={new Set(selected.map((tool) => 'tool:' + tool.id))}
+                  onToggle={selectTool}
+                />
+              )}
+              {ownedTools && (
+                <ProjectToolCatalog
+                  projectId={projectId}
+                  search={search}
+                  selected={config.tool_reference}
+                  available={new Set(tools.map((tool) => tool.reference))}
+                  onSelect={toggleTool}
+                  fallback={
+                    shown.length === 0 ? (
+                      <MarketplaceCatalog
+                        items={[]}
+                        selectedIds={new Set()}
+                        onToggle={selectTool}
+                        view="mine"
+                      />
+                    ) : undefined
+                  }
+                />
+              )}
             </section>
           )}
           {view === 'config' && (

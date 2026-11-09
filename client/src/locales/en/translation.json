@@ -1,4 +1,11 @@
 {
+  "com_project_tool_catalog_title": "Project tools",
+  "com_project_tool_catalog_review": "Review",
+  "com_project_tool_catalog_unsubmitted": "Awaiting submission",
+  "com_project_tool_catalog_failed": "Could not load your project tools.",
+  "com_project_tool_catalog_scoped": "Select from the owning project's assistant settings.",
+  "com_project_tool_catalog_unavailable": "This version is unavailable for selection.",
+  "com_project_tool_catalog_remove": "Remove from draft",
   "com_project_tool_build_prompt": "If the authorized catalog cannot implement the confirmed business requirement and a read-only integer rule would fill the gap, explain the missing capability. After clarifying inputs, units and expected examples, include exactly one assistant-tool-build fenced JSON block with keys name (snake_case), title, requirements, parameters (array of snake_case names), cases (at least two different objects with inputs and integer result). Include assistant-draft instructions that require calling the proposed tool for relevant answers, and assistant-tool none. The rule engine supports bounded integer arithmetic, minimum, maximum, comparisons and conditions. Do not propose file access, credentials, writes, external connections, or an invented catalog reference.",
   "com_project_tool_build_scope": "OpenHands creates one rules file in this project using your coding allowance. The tool cannot access networks, credentials, or stored data.",
   "com_project_tool_build_start": "Develop tool with OpenHands",

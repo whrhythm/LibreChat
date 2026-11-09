@@ -29,6 +29,7 @@ import AddMcpServerDialog from './ItemDialog/AddMcpServerDialog';
 import { computeToggleAction } from './items/mutations';
 import { useLocalize, useToolFavorites } from '~/hooks';
 import MarketplaceCatalog from './MarketplaceCatalog';
+import ProjectToolCatalog from './ProjectToolCatalog';
 import ItemDialog from './ItemDialog/ItemDialog';
 import { applyFilter } from './items/filtering';
 import { NEW_ACTION_ID } from './items/types';
@@ -290,16 +291,33 @@ export default function ToolsMarketplaceDialog({
                 onCreateNew={handleCreateNew}
               />
             )}
-            <div className="min-h-0 flex-1 overflow-y-auto p-3 md:p-4">
-              <MarketplaceCatalog
-                items={filtered}
-                selectedIds={selectedIds}
-                onToggle={handleCardClick}
-                onConfigure={handleConfigure}
-                view={view}
-                favoriteKeys={favoriteKeys}
-                onToggleFavorite={toggleFavorite}
-              />
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 md:p-4">
+              {(view !== 'mine' || filtered.length > 0) && (
+                <MarketplaceCatalog
+                  items={filtered}
+                  selectedIds={selectedIds}
+                  onToggle={handleCardClick}
+                  onConfigure={handleConfigure}
+                  view={view}
+                  favoriteKeys={favoriteKeys}
+                  onToggleFavorite={toggleFavorite}
+                />
+              )}
+              {view === 'mine' && (
+                <ProjectToolCatalog
+                  search={search}
+                  fallback={
+                    filtered.length === 0 ? (
+                      <MarketplaceCatalog
+                        items={[]}
+                        selectedIds={selectedIds}
+                        onToggle={handleCardClick}
+                        view="mine"
+                      />
+                    ) : undefined
+                  }
+                />
+              )}
             </div>
           </div>
         </div>

@@ -134,7 +134,10 @@ export default function AssistantDraft({
             bounds: operation,
             expected_reference: build.data?.review?.reference ?? null,
           }),
-    onSuccess: (task) => cache.setQueryData(buildKey, task),
+    onSuccess: (task) => {
+      cache.setQueryData(buildKey, task);
+      void cache.invalidateQueries([QueryKeys.generatedToolCatalog, user?.id]);
+    },
   });
   const save = useMutation({
     mutationFn: async ({

@@ -61,6 +61,31 @@ export const generatedToolTask = z.object({
 });
 export type GeneratedToolProposal = z.infer<typeof generatedToolProposal>;
 export type GeneratedToolTask = z.infer<typeof generatedToolTask>;
+export const generatedToolCatalogSchema = z.object({
+  tools: z.array(
+    z.object({
+      id: z.string().uuid(),
+      reference: generatedToolReference.nullable(),
+      title: z.string().min(1).max(80),
+      project_id: z.string().uuid(),
+      project_name: z.string(),
+      state: z.enum(['unsubmitted', 'pending', 'approved', 'rejected', 'revoked']),
+    }),
+  ),
+});
+export type GeneratedToolCatalogItem = z.infer<typeof generatedToolCatalogSchema>['tools'][number];
+
+export async function generatedToolCatalog(
+  token: string,
+): Promise<z.infer<typeof generatedToolCatalogSchema>> {
+  const response = await fetch('/api/user/workspace/ai-projects/generated-tools', {
+    credentials: 'same-origin',
+    cache: 'no-store',
+    headers: { Authorization: 'Bearer ' + token },
+  });
+  if (!response.ok) throw new AITrialError('ai_generated_tool_unavailable');
+  return generatedToolCatalogSchema.parse(await response.json());
+}
 export const trialToolSchema = z.object({
   reference: trialToolReference,
   name: z.string().max(64),
