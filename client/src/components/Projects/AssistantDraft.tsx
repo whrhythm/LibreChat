@@ -23,6 +23,7 @@ import { projectInspector } from './navigation';
 import { authoringContext } from './context';
 
 const proposalPattern = /^```assistant-draft[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/gm;
+const toolPattern = /^```assistant-tool[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/gm;
 
 export default function AssistantDraft({
   projectId,
@@ -43,7 +44,11 @@ export default function AssistantDraft({
   const { data: startup } = useGetStartupConfig();
   const latest = useLatestMessage(0, conversationId);
   const trigger = useRef<HTMLButtonElement>(null);
-  const [review, setReview] = useState<{ instructions: string; draft: AITrials } | null>(null);
+  const [review, setReview] = useState<{
+    instructions: string;
+    toolReference: string | null;
+    draft: AITrials;
+  } | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const select = useSetAtom(projectInspector(user?.id ?? 'anonymous'));
   const enabled = !!token && !!startup?.aiTrialsEnabled && window.self === window.top;
@@ -64,16 +69,22 @@ export default function AssistantDraft({
     enabled: enabled && !!id && !!linked,
   });
   const save = useMutation({
-    mutationFn: async ({ instructions, draft }: NonNullable<typeof review>) => {
+    mutationFn: async ({ instructions, toolReference, draft }: NonNullable<typeof review>) => {
       if (!id || !token) throw new AITrialError('ai_trials_unavailable');
       const result =
         draft.config && draft.digest
           ? await projectTrials(token, id, '/update', {
-              config: { ...draft.config, instructions },
+              config: { ...draft.config, instructions, tool_reference: toolReference },
               expected_digest: draft.digest,
             })
-          : await projectTrials(token, id, '/initialize', { instructions });
-      if (result.config?.instructions !== instructions)
+          : await projectTrials(token, id, '/initialize', {
+              instructions,
+              tool_reference: toolReference,
+            });
+      if (
+        result.config?.instructions !== instructions ||
+        (result.config.tool_reference ?? null) !== toolReference
+      )
         throw new AITrialError('ai_trials_draft_changed');
       return result;
     },
@@ -97,6 +108,17 @@ export default function AssistantDraft({
       ? Array.from(getSpeechText(latest).matchAll(proposalPattern))
       : [];
   const proposal = proposals.length === 1 ? proposals[0][1].trim() : '';
+  const tools = current.data.available_tools ?? [];
+  const choices = latest ? Array.from(getSpeechText(latest).matchAll(toolPattern)) : [];
+  const requested = choices[0]?.[1].trim();
+  const toolReference =
+    requested === 'none' ? null : (requested ?? current.data.config?.tool_reference ?? null);
+  const invalidTool =
+    choices.length > 1 ||
+    (requested != null &&
+      requested !== 'none' &&
+      !tools.some((tool) => tool.reference === requested));
+  const reviewedTool = tools.find((tool) => tool.reference === review?.toolReference);
   const source = messages?.find(
     (message) => message.isCreatedByUser && message.messageId === latest?.parentMessageId,
   );
@@ -120,6 +142,8 @@ export default function AssistantDraft({
               (data.digest ?? 'new') +
               ']\n' +
               t('com_project_authoring_prompt') +
+              '\n' +
+              t('com_project_authoring_tool_prompt') +
               '\n\n' +
               t('com_project_authoring_current') +
               '\n' +
@@ -133,14 +157,17 @@ export default function AssistantDraft({
         {t(current.data.config ? 'com_project_authoring_edit' : 'com_project_authoring_create')}
       </Button>
       {outdated && <span role="status">{t('com_trials_changed')}</span>}
-      {canReview && !outdated && (
+      {canReview && !outdated && invalidTool && (
+        <span role="alert">{t('com_project_tool_unavailable')}</span>
+      )}
+      {canReview && !outdated && !invalidTool && (
         <Button
           ref={trigger}
           size="xs"
           disabled={busy}
           onClick={() => {
             save.reset();
-            setReview({ instructions: proposal, draft: current.data });
+            setReview({ instructions: proposal, toolReference, draft: current.data });
           }}
         >
           {t('com_project_authoring_review')}
@@ -177,12 +204,41 @@ export default function AssistantDraft({
                 value={review.instructions}
                 onChange={(event) => setReview({ ...review, instructions: event.target.value })}
               />
+              {(tools.length > 0 || review.toolReference) && (
+                <label className="block space-y-1 text-sm">
+                  <span>{t('com_project_reviewed_tool')}</span>
+                  <select
+                    className="border-border-light bg-surface-primary block w-full rounded border p-2"
+                    value={review.toolReference ?? ''}
+                    disabled={save.isLoading}
+                    onChange={(event) =>
+                      setReview({ ...review, toolReference: event.target.value || null })
+                    }
+                  >
+                    <option value="">{t('com_trials_none')}</option>
+                    {review.toolReference && !reviewedTool && (
+                      <option value={review.toolReference} disabled>
+                        {t('com_project_tool_unavailable')}
+                      </option>
+                    )}
+                    {tools.map((tool) => (
+                      <option key={tool.reference} value={tool.reference}>
+                        {tool.service} / {tool.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {reviewedTool && (
+                <p className="text-text-secondary text-xs">
+                  {t('com_project_tool_disclosure')} {reviewedTool.data_notice}
+                </p>
+              )}
               {save.isError && (
                 <p role="alert">
                   {t(
-                    save.error instanceof AITrialError &&
-                      save.error.code === 'ai_trials_draft_changed'
-                      ? 'com_trials_changed'
+                    save.error instanceof AITrialError
+                      ? authoringError(save.error.code)
                       : 'com_trials_error',
                   )}
                 </p>
@@ -196,7 +252,14 @@ export default function AssistantDraft({
                 >
                   {t('com_ui_cancel')}
                 </Button>
-                <Button type="submit" disabled={save.isLoading || !review.instructions.trim()}>
+                <Button
+                  type="submit"
+                  disabled={
+                    save.isLoading ||
+                    !review.instructions.trim() ||
+                    (!!review.toolReference && !reviewedTool)
+                  }
+                >
                   {t('com_trials_save')}
                 </Button>
               </div>
@@ -206,4 +269,10 @@ export default function AssistantDraft({
       </OGDialog>
     </div>
   );
+}
+
+function authoringError(code: string) {
+  if (code === 'ai_trials_draft_changed') return 'com_trials_changed';
+  if (code === 'ai_trials_tool_unavailable') return 'com_project_tool_unavailable';
+  return 'com_trials_error';
 }

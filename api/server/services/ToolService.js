@@ -8,6 +8,7 @@ const {
 } = require('@librechat/agents');
 const {
   sendEvent,
+  createReviewedTrialTool,
   getToolkitKey,
   createGitHubCompareRegistry,
   getUserMCPAuthMap,
@@ -106,6 +107,7 @@ const {
   defaultAgentCapabilities,
   validateAndParseOpenAPISpec,
   resolveMCPAppsPolicy,
+  reviewedTrialToolName,
 } = require('librechat-data-provider');
 const {
   createActionTool,
@@ -1759,7 +1761,9 @@ async function loadAgentTools({
   };
   const areToolsEnabled = checkCapability(AgentCapabilities.tools);
   const actionsEnabled = checkCapability(AgentCapabilities.actions);
-  const hasMCPTools = agent.tools?.some((tool) => tool?.includes(Constants.mcp_delimiter));
+  const hasMCPTools = agent.tools?.some(
+    (tool) => tool === reviewedTrialToolName || tool?.includes(Constants.mcp_delimiter),
+  );
   const mcpPermissionContext = createMCPPermissionContext(req);
   const canUseMCP = hasMCPTools ? await mcpPermissionContext.canUseServers(req.user) : true;
   const canUseTool = await resolveAgentToolPermissions(req, agent.tools, enabledCapabilities);
@@ -1779,7 +1783,7 @@ async function loadAgentTools({
       return checkCapability(AgentCapabilities.ask_user_question);
     } else if (isActionTool(tool)) {
       return actionsEnabled;
-    } else if (tool?.includes(Constants.mcp_delimiter)) {
+    } else if (tool === reviewedTrialToolName || tool?.includes(Constants.mcp_delimiter)) {
       return areToolsEnabled && canUseMCP;
     } else if (!areToolsEnabled) {
       return false;
@@ -1867,7 +1871,7 @@ async function loadAgentTools({
     signal,
     userMCPAuthMap,
     user: req.user.id,
-    tools: _agentTools,
+    tools: _agentTools.filter((name) => name !== reviewedTrialToolName),
     options: {
       req,
       res,
@@ -1894,6 +1898,10 @@ async function loadAgentTools({
   });
 
   /** Build tool registry from MCP tools and create PTC/tool search tools if configured */
+  const reviewedTool = _agentTools.includes(reviewedTrialToolName)
+    ? createReviewedTrialTool(req, agent.id, signal)
+    : undefined;
+  if (reviewedTool) loadedTools.push(reviewedTool);
   const deferredToolsEnabled = checkCapability(AgentCapabilities.deferred_tools);
   const programmaticToolsEnabled = enabledCapabilities.has(AgentCapabilities.programmatic_tools);
   const { toolRegistry, toolDefinitions, additionalTools, hasDeferredTools, mcpToolAliases } =
@@ -1920,7 +1928,12 @@ async function loadAgentTools({
   const agentTools = [];
   for (let i = 0; i < loadedTools.length; i++) {
     const tool = loadedTools[i];
-    if (tool.name && (tool.name === Tools.execute_code || tool.name === Tools.file_search)) {
+    if (
+      tool.name &&
+      (tool.name === Tools.execute_code ||
+        tool.name === Tools.file_search ||
+        tool.name === reviewedTrialToolName)
+    ) {
       agentTools.push(tool);
       continue;
     }
@@ -2490,7 +2503,12 @@ async function loadToolsForExecution({
   const actionToolNames = [];
   const regularToolNames = [];
   for (const name of allToolNamesToLoad) {
-    (isActionTool(name) ? actionToolNames : regularToolNames).push(name);
+    if (name !== reviewedTrialToolName)
+      (isActionTool(name) ? actionToolNames : regularToolNames).push(name);
+  }
+  if (toolNames.includes(reviewedTrialToolName)) {
+    const reviewedTool = createReviewedTrialTool(req, agent?.id, signal);
+    if (reviewedTool) allLoadedTools.push(reviewedTool);
   }
 
   if (regularToolNames.length > 0) {

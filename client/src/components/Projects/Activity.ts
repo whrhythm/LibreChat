@@ -1,64 +1,76 @@
 import { useEffect, useRef, useState } from 'react';
-import { toUIMessage } from 'librechat-data-provider';
+import { reviewedTrialToolName, toUIMessage } from 'librechat-data-provider';
 import type { TMessage } from 'librechat-data-provider';
 
 export type Status = 'running' | 'done' | 'failed' | 'waiting' | 'stopped';
 export type Activity = {
   assistant?: Status;
   knowledge?: Status;
+  tool?: Status;
   result?: Status;
   answer?: Status;
   calls: number;
+  toolCalls?: number;
 };
 
 const kind = 'starbridge:trial-activity';
 const isStatus = (value: unknown): value is Status =>
   ['running', 'done', 'failed', 'waiting', 'stopped'].includes(String(value));
 
+function summarize(states: Map<string, Status>): Status | undefined {
+  const values = [...states.values()];
+  return (
+    values.find((status) => ['running', 'waiting', 'stopped'].includes(status)) ??
+    (values.includes('failed') ? 'failed' : values[0])
+  );
+}
+
 /** Only lifecycle evidence and counts leave the embedded conversation, never tool payloads. */
 export function trialActivity(busy: boolean, reply?: TMessage): Activity {
   const activity: Activity = { assistant: busy ? 'running' : 'stopped', calls: 0 };
   let answered = false;
-  const seen = new Set<string>();
-  const states = new Map<string, Status>();
+  const searches = new Map<string, Status>();
+  const tools = new Map<string, Status>();
   for (const part of reply ? toUIMessage(reply).parts : []) {
     if (part.type === 'text' && part.text.trim()) answered = true;
-    if (part.type !== 'tool-file_search' || !('toolCallId' in part)) continue;
+    if (!('toolCallId' in part)) continue;
+    const states = part.type === 'tool-file_search' ? searches : tools;
+    if (states === tools && part.type !== 'tool-' + reviewedTrialToolName) continue;
     answered = false;
-    if (!seen.has(part.toolCallId)) activity.calls++;
-    seen.add(part.toolCallId);
+    let state: Status;
     if (part.state === 'output-error' || part.state === 'output-denied') {
-      activity.knowledge = 'failed';
-      activity.result = 'failed';
+      state = 'failed';
     } else if (part.state === 'output-available') {
-      activity.knowledge = 'done';
-      activity.result = 'done';
+      state = 'done';
     } else {
-      activity.result = undefined;
-      activity.knowledge = part.state === 'approval-requested' ? 'waiting' : 'running';
-      if (!busy) activity.knowledge = 'stopped';
+      state = part.state === 'approval-requested' ? 'waiting' : 'running';
+      if (!busy) state = 'stopped';
     }
-    states.set(part.toolCallId, activity.knowledge);
+    states.set(part.toolCallId, state);
   }
   // Parallel calls may close out of order. Keep the tool active until all calls settle.
-  const pending = Array.from(states.values()).find((status) =>
-    ['running', 'waiting', 'stopped'].includes(status),
-  );
-  if (pending) {
-    activity.knowledge = pending;
+  activity.calls = searches.size;
+  if (searches.size) activity.knowledge = summarize(searches);
+  if (tools.size) {
+    activity.tool = summarize(tools);
+    activity.toolCalls = tools.size;
+  }
+  const states = [activity.knowledge, activity.tool];
+  const pending = states.some((state) => state === 'running' || state === 'waiting');
+  const stopped = states.includes('stopped');
+  if (pending || stopped) {
     activity.result = undefined;
-  } else if (Array.from(states.values()).includes('failed')) {
-    activity.knowledge = 'failed';
-    activity.result = 'failed';
+  } else {
+    if (states.includes('failed')) activity.result = 'failed';
+    else if (states.includes('done')) activity.result = 'done';
   }
   if (busy) {
-    if (activity.knowledge === 'running' || activity.knowledge === 'waiting')
-      activity.assistant = undefined;
+    if (pending) activity.assistant = undefined;
     else if (answered) activity.answer = 'running';
   } else if (reply?.error) {
     activity.assistant = 'failed';
     activity.answer = 'failed';
-  } else if (!reply?.unfinished && answered && activity.knowledge !== 'stopped') {
+  } else if (!reply?.unfinished && answered && !stopped) {
     activity.assistant = 'done';
     activity.answer = 'done';
   } else {
@@ -111,7 +123,9 @@ export function useTrialActivity(agent?: string) {
         data.agent !== agent ||
         !Number.isSafeInteger(data.calls) ||
         data.calls < 0 ||
-        ['assistant', 'knowledge', 'result', 'answer'].some(
+        (data.toolCalls !== undefined &&
+          (!Number.isSafeInteger(data.toolCalls) || data.toolCalls < 0)) ||
+        ['assistant', 'knowledge', 'tool', 'result', 'answer'].some(
           (key) => data[key] !== undefined && !isStatus(data[key]),
         )
       )
@@ -121,9 +135,11 @@ export function useTrialActivity(agent?: string) {
         status: {
           assistant: data.assistant,
           knowledge: data.knowledge,
+          tool: data.tool,
           result: data.result,
           answer: data.answer,
           calls: data.calls,
+          toolCalls: data.toolCalls,
         },
       });
     }

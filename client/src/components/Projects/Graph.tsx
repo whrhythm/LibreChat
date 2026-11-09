@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { Cpu, Database, MessageCircle, ArrowRight, CornerUpLeft } from 'lucide-react';
+import { Cpu, Database, MessageCircle, ArrowRight, CornerUpLeft, Wrench } from 'lucide-react';
 import {
   ReactFlow,
   Controls,
@@ -17,7 +17,7 @@ import type { Activity, Status } from './Activity';
 import { useLocalize } from '~/hooks';
 import '@xyflow/react/dist/style.css';
 
-export type GraphNode = 'input' | 'assistant' | 'knowledge' | 'result' | 'answer';
+export type GraphNode = 'input' | 'assistant' | 'knowledge' | 'tool' | 'result' | 'answer';
 type Layout = Partial<Record<GraphNode, XYPosition>>;
 type FlowNode = Node<{
   label: string;
@@ -45,7 +45,7 @@ function Step({ id, data }: NodeProps<FlowNode>) {
   const Icon = data.icon;
   let target = Position.Left;
   let source = Position.Right;
-  if (id === 'knowledge') {
+  if (id === 'knowledge' || id === 'tool') {
     target = Position.Top;
     source = Position.Left;
   }
@@ -64,7 +64,9 @@ function Step({ id, data }: NodeProps<FlowNode>) {
       )}
       <div className="flex items-center gap-1.5">
         <Icon aria-hidden="true" className="size-3.5 shrink-0" />
-        <span className="flex-1 truncate font-medium">{data.label}</span>
+        <span className="flex-1 truncate font-medium" title={data.label}>
+          {data.label}
+        </span>
         {data.status && (
           <span
             role="status"
@@ -89,7 +91,7 @@ function Step({ id, data }: NodeProps<FlowNode>) {
 }
 const nodeTypes = { step: Step };
 
-function Fit({ knowledge }: { knowledge: boolean }) {
+function Fit({ nodeCount }: { nodeCount: number }) {
   const ready = useNodesInitialized();
   const width = useStore((state) => state.width);
   const height = useStore((state) => state.height);
@@ -102,7 +104,7 @@ function Fit({ knowledge }: { knowledge: boolean }) {
   }, [ready, width, height, viewportInitialized, getNodes, getNodesBounds, setViewport]);
   useEffect(() => {
     fit();
-  }, [knowledge, fit]);
+  }, [nodeCount, fit]);
   return (
     <Controls
       showInteractive={false}
@@ -117,7 +119,7 @@ function readLayout(key: string): Layout {
   try {
     const raw = JSON.parse(localStorage.getItem(key) ?? '{}');
     return Object.fromEntries(
-      ['input', 'assistant', 'knowledge', 'result', 'answer'].flatMap((id) => {
+      ['input', 'assistant', 'knowledge', 'tool', 'result', 'answer'].flatMap((id) => {
         const point = raw?.[id];
         return Number.isFinite(point?.x) && Number.isFinite(point?.y) ? [[id, point]] : [];
       }),
@@ -136,6 +138,10 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
   const [measured, setMeasured] = useState<
     Partial<Record<GraphNode, { width: number; height: number }>>
   >({});
+  const toolRef = draft?.config?.tool_reference;
+  const tool = draft?.available_tools?.find((item) => item.reference === toolRef);
+  const toolName = tool?.name ?? toolRef?.split(':')[2];
+  const hasKnowledge = !!draft?.knowledge_revision_id;
   const nodes = useMemo(() => {
     const make = (
       id: GraphNode,
@@ -163,7 +169,7 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
       make('assistant', 180, 0, Cpu, 'LLM', draft?.config?.model),
       make('answer', 360, 0, MessageCircle, t('com_project_graph_answer')),
     ];
-    if (draft?.knowledge_revision_id) {
+    if (hasKnowledge) {
       result.push(
         make(
           'knowledge',
@@ -175,11 +181,37 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
             ? t('com_project_graph_calls', { count: activity.calls })
             : t('com_project_graph_on_demand'),
         ),
-        make('result', 40, 130, CornerUpLeft, t('com_project_graph_result')),
       );
     }
+    if (toolName) {
+      result.push(
+        make(
+          'tool',
+          hasKnowledge ? 405 : 240,
+          hasKnowledge ? 205 : 130,
+          Wrench,
+          toolName,
+          activity?.toolCalls
+            ? t('com_project_graph_calls', { count: activity.toolCalls })
+            : (tool?.service ?? t('com_project_tool_unavailable')),
+        ),
+      );
+    }
+    if (hasKnowledge || toolName) {
+      result.push(make('result', 40, 130, CornerUpLeft, t('com_project_graph_result')));
+    }
     return result;
-  }, [activity, draft?.config?.model, draft?.knowledge_revision_id, dragging, layout, measured, t]);
+  }, [
+    activity,
+    draft?.config?.model,
+    hasKnowledge,
+    toolName,
+    tool?.service,
+    dragging,
+    layout,
+    measured,
+    t,
+  ]);
   const edge = (
     id: string,
     source: string,
@@ -212,7 +244,7 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
     edge('input-assistant', 'input', 'assistant', !!activity),
     edge('assistant-answer', 'assistant', 'answer', !!activity?.answer),
   ];
-  if (draft?.knowledge_revision_id) {
+  if (hasKnowledge) {
     edges.push(
       edge(
         'assistant-knowledge',
@@ -223,7 +255,25 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
         'call',
         'in',
       ),
-      edge('knowledge-result', 'knowledge', 'result', !!activity?.result),
+      edge('knowledge-result', 'knowledge', 'result', activity?.knowledge === 'done'),
+    );
+  }
+  if (toolName) {
+    edges.push(
+      edge(
+        'assistant-tool',
+        'assistant',
+        'tool',
+        !!activity?.toolCalls,
+        t('com_project_graph_call'),
+        'call',
+        'in',
+      ),
+      edge('tool-result', 'tool', 'result', activity?.tool === 'done'),
+    );
+  }
+  if (hasKnowledge || toolName) {
+    edges.push(
       edge(
         'result-assistant',
         'result',
@@ -287,7 +337,7 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
           }
         }}
       >
-        <Fit knowledge={!!draft?.knowledge_revision_id} />
+        <Fit nodeCount={nodes.length} />
       </ReactFlow>
     </div>
   );

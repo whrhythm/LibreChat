@@ -4,6 +4,10 @@ type TrialContext = {
   projectId: string;
   revisionId: string | null;
   entryId?: string;
+  reviewedTool?: {
+    definition: z.infer<typeof trialToolSchema>;
+    invoke: (arguments_: Record<string, unknown>, signal?: AbortSignal) => Promise<string>;
+  };
 };
 const contexts = new WeakMap<object, TrialContext>();
 export function getTrialContext(request?: object): TrialContext | undefined {
@@ -28,3 +32,5 @@ export function appIdFromAgent(id: unknown): string | null {
   if (typeof id !== 'string' || !/^agent_app_[0-9a-f]{32}$/.test(id)) return null;
   return trialIdFromAgent(id.replace('agent_app_', 'agent_trial_'));
 }
+import type { z } from 'zod';
+import type { trialToolSchema } from 'librechat-data-provider';

@@ -1,6 +1,9 @@
 import type { AITrials } from 'librechat-data-provider';
 
-type Draft = Pick<AITrials, 'revision' | 'config' | 'knowledge_revision_id' | 'unavailable_reason'>;
+type Draft = Pick<
+  AITrials,
+  'revision' | 'config' | 'knowledge_revision_id' | 'unavailable_reason' | 'available_tools'
+>;
 
 /** Describe only capabilities confirmed by the authenticated, current draft response. */
 export function authoringContext(data: Draft) {
@@ -20,6 +23,11 @@ export function authoringContext(data: Draft) {
       state: knowledgeState,
       revision_id: data.knowledge_revision_id,
     },
+    selected_tool: data.config?.tool_reference,
+    available_tools: data.available_tools?.map(({ input_schema, ...tool }) => ({
+      ...tool,
+      parameters: Object.keys(input_schema.properties ?? {}).slice(0, 20),
+    })),
     instructions: data.config?.instructions,
   };
 }

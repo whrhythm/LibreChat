@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { ContentTypes, ToolCallTypes } from 'librechat-data-provider';
+import { ContentTypes, ToolCallTypes, reviewedTrialToolName } from 'librechat-data-provider';
 import type { TMessage, TMessageContentParts } from 'librechat-data-provider';
 import { trialActivity, useTrialActivity, useSendTrialActivity } from './Activity';
 
@@ -18,12 +18,13 @@ const text: TMessageContentParts = { type: ContentTypes.TEXT, text: 'Answer' };
 const tool = (
   id: string,
   state: 'running' | 'completed' | 'failed' = 'running',
+  name = 'file_search',
 ): TMessageContentParts => ({
   type: ContentTypes.TOOL_CALL,
   tool_call: {
     type: ToolCallTypes.TOOL_CALL,
     id,
-    name: 'file_search',
+    name,
     args: '{}',
     ...(state === 'running' ? {} : { runStepStatus: state }),
     ...(state === 'completed' ? { output: 'Synthetic evidence' } : {}),
@@ -102,6 +103,24 @@ it('does not count unsupported tools or disclose tool payloads', () => {
   const activity = trialActivity(true, reply([part]));
   expect(JSON.stringify(activity)).not.toContain('Synthetic evidence');
   expect(JSON.stringify(activity)).not.toContain('args');
+});
+it('shows a real reviewed tool result separately from knowledge search', () => {
+  expect(
+    trialActivity(true, reply([tool('query', 'running', reviewedTrialToolName)])),
+  ).toMatchObject({
+    tool: 'running',
+    toolCalls: 1,
+    calls: 0,
+  });
+  expect(
+    trialActivity(true, reply([tool('query', 'completed', reviewedTrialToolName)])),
+  ).toMatchObject({
+    tool: 'done',
+    toolCalls: 1,
+    result: 'done',
+    assistant: 'running',
+    calls: 0,
+  });
 });
 it('accepts only the selected frame, origin, agent and valid status schema', () => {
   const iframe = document.createElement('iframe');

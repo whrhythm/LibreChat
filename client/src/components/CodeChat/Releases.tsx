@@ -12,6 +12,7 @@ function sharingError(error: unknown) {
   if (code === 'ai_releases_member_unavailable') return 'com_sharing_unavailable';
   if (code === 'ai_releases_changed') return 'com_sharing_conflict';
   if (code === 'ai_releases_expiry_invalid') return 'com_sharing_expiry_invalid';
+  if (code === 'ai_releases_tool_trial_only') return 'com_project_tool_trial_only';
   return 'com_releases_error';
 }
 export default function Releases({

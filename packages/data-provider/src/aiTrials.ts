@@ -1,5 +1,18 @@
 import { z } from 'zod';
 
+export const trialToolReference = z
+  .string()
+  .regex(/^mcp:(?:deepwiki|mcp-[0-9a-f]{32}):[A-Za-z0-9_-]{1,64}:[1-9][0-9]{0,8}$/);
+export const trialToolSchema = z.object({
+  reference: trialToolReference,
+  name: z.string().max(64),
+  service: z.string().max(80),
+  description: z.string().max(500),
+  data_notice: z.string().max(500),
+  input_schema: z.record(z.string(), z.unknown()),
+});
+export const reviewedTrialToolName = 'reviewed_tool';
+
 export const trialConfigSchema = z
   .object({
     instructions: z.string().trim().min(1).max(32000),
@@ -7,6 +20,7 @@ export const trialConfigSchema = z
     temperature: z.number().min(0).max(2),
     max_output_tokens: z.number().int().min(256).max(16384),
     response_style: z.enum(['grounded', 'support']),
+    tool_reference: trialToolReference.nullish(),
   })
   .strict();
 export const trialCreateSchema = z
@@ -62,6 +76,7 @@ export const trialsSchema = z.object({
   models: z.array(z.string()),
   output_limit: z.number(),
   trials: z.array(trialSchema),
+  available_tools: z.array(trialToolSchema).max(12).optional(),
 });
 export type TrialConfig = z.infer<typeof trialConfigSchema>;
 export type AITrial = z.infer<typeof trialSchema>;
