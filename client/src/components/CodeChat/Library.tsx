@@ -229,7 +229,7 @@ export default function Library({
     queryFn: () => libraryRequest<LibraryDetail>(token!, '/' + id),
     enabled: !!token && enabled,
     retry: false,
-    refetchInterval: 3000,
+    refetchInterval: enabled ? 3000 : false,
   });
   const changed = () => {
     void cache.invalidateQueries([QueryKeys.knowledgeLibraries, user?.id]);

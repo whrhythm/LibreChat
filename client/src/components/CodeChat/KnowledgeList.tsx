@@ -1,12 +1,12 @@
 import { useMemo, useRef } from 'react';
 import { atom, useAtom } from 'jotai';
 import { Button } from '@librechat/client';
-import { BookOpen, Plus } from 'lucide-react';
+import { ArrowLeft, BookOpen, Plus } from 'lucide-react';
 import { libraryRequest, QueryKeys } from 'librechat-data-provider';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { LibraryDetail } from 'librechat-data-provider';
-import { LibraryDialog, libraryError } from './Library';
 import { useAuthContext, useLocalize } from '~/hooks';
+import Library, { libraryError } from './Library';
 
 export default function KnowledgeList({ enabled }: { enabled: boolean }) {
   const { user, token } = useAuthContext();
@@ -17,10 +17,16 @@ export default function KnowledgeList({ enabled }: { enabled: boolean }) {
   const nameAtom = useMemo(() => atom<string | null>(null), []);
   const [name, setName] = useAtom(nameAtom);
   const requestId = useRef(crypto.randomUUID());
+  const dirty = useRef(false);
+  const back = () => {
+    if (dirty.current && !window.confirm(t('com_codechat_file_unsaved'))) return;
+    dirty.current = false;
+    setSelected(null);
+  };
   const list = useQuery({
     queryKey: [QueryKeys.knowledgeLibraries, user?.id],
     queryFn: () => libraryRequest(token!),
-    enabled: enabled && !!token,
+    enabled: enabled && !!token && !selected,
     retry: false,
     refetchInterval: enabled ? 5000 : false,
   });
@@ -34,6 +40,26 @@ export default function KnowledgeList({ enabled }: { enabled: boolean }) {
       requestId.current = crypto.randomUUID();
     },
   });
+  if (selected) {
+    return (
+      <div className="space-y-3">
+        <Button size="sm" variant="ghost" onClick={back}>
+          <ArrowLeft className="me-1 size-4" aria-hidden="true" />
+          {t('com_library_title')}
+        </Button>
+        <Library
+          key={selected}
+          id={selected}
+          onClose={back}
+          onDirty={(value) => {
+            dirty.current = value;
+          }}
+          enabled={enabled}
+          compact
+        />
+      </div>
+    );
+  }
   return (
     <div className="space-y-3">
       <Button
@@ -113,7 +139,6 @@ export default function KnowledgeList({ enabled }: { enabled: boolean }) {
           </span>
         </button>
       ))}
-      <LibraryDialog id={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }

@@ -37,18 +37,26 @@ const links: NavLink[] = [
   },
 ];
 
-it('loads project controls only when opened and preserves drafts across sidebar navigation', () => {
-  const view = render(<Nav links={links} />);
-  expect(mounted).not.toHaveBeenCalled();
-  mockActive = 'personal-space';
-  view.rerender(<Nav links={links} />);
-  fireEvent.change(screen.getByLabelText('Draft'), { target: { value: 'Unsaved draft' } });
-  mockActive = 'conversations';
-  view.rerender(<Nav links={links} />);
-  expect(screen.getByLabelText('Draft')).not.toBeVisible();
-  mockActive = 'personal-space';
-  view.rerender(<Nav links={links} />);
-  expect(screen.getByLabelText('Draft')).toHaveValue('Unsaved draft');
-  expect(screen.getByLabelText('Draft')).toBeVisible();
-  expect(mounted).toHaveBeenCalledTimes(1);
-});
+it.each(['personal-space', 'knowledge-libraries'])(
+  'keeps unsaved %s edits across sidebar navigation',
+  (panel) => {
+    mockActive = 'conversations';
+    mounted.mockClear();
+    const panelLinks = links.map((link) =>
+      link.id === 'personal-space' ? { ...link, id: panel } : link,
+    );
+    const view = render(<Nav links={panelLinks} />);
+    expect(mounted).not.toHaveBeenCalled();
+    mockActive = panel;
+    view.rerender(<Nav links={panelLinks} />);
+    fireEvent.change(screen.getByLabelText('Draft'), { target: { value: 'Unsaved draft' } });
+    mockActive = 'conversations';
+    view.rerender(<Nav links={panelLinks} />);
+    expect(screen.getByLabelText('Draft')).not.toBeVisible();
+    mockActive = panel;
+    view.rerender(<Nav links={panelLinks} />);
+    expect(screen.getByLabelText('Draft')).toHaveValue('Unsaved draft');
+    expect(screen.getByLabelText('Draft')).toBeVisible();
+    expect(mounted).toHaveBeenCalledTimes(1);
+  },
+);

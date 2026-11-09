@@ -4,13 +4,14 @@ import { useRecoilValue } from 'recoil';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserKeyQuery } from 'librechat-data-provider/react-query';
 import { getConfigDefaults, getEndpointField } from 'librechat-data-provider';
-import { BarChart3, Bot, FolderKanban, MessagesSquare, Rocket } from 'lucide-react';
+import { BarChart3, BookOpen, Bot, FolderKanban, MessagesSquare, Rocket } from 'lucide-react';
 import type { TEndpointsConfig } from 'librechat-data-provider';
 import type { NavLink } from '~/common';
 import { useGetEndpointsQuery, useGetStartupConfig, useInsightsAccessQuery } from '~/data-provider';
 import ConversationsSection from '~/components/UnifiedSidebar/ConversationsSection';
 import PersonalSpace, { DeploymentPanel } from '~/components/CodeChat/Space';
 import UsagePanel, { UsageIcon } from '~/components/CodeChat/Usage';
+import KnowledgePanel from '~/components/CodeChat/KnowledgePanel';
 import { activePanelAtom } from '~/Providers/ActivePanelContext';
 import { isCodeChatEnabled } from '~/components/CodeChat/config';
 import { spaceNavigation } from '~/components/CodeChat/dock';
@@ -75,6 +76,23 @@ export default function useUnifiedSidebarLinks() {
   });
 
   const links = useMemo(() => {
+    const knowledge: NavLink[] =
+      user?.id && isCodeChatEnabled()
+        ? [
+            {
+              id: 'knowledge-libraries',
+              title: 'com_library_title',
+              label: '',
+              icon: BookOpen,
+              Component: KnowledgePanel,
+            },
+          ]
+        : [];
+    const builderLinks = [
+      ...sideNavLinks.filter((link) => link.id === 'agents'),
+      ...knowledge,
+      ...sideNavLinks.filter((link) => link.id === 'skills'),
+    ];
     const conversationLink: NavLink = {
       title: 'com_ui_chat_history',
       label: '',
@@ -130,7 +148,7 @@ export default function useUnifiedSidebarLinks() {
     ) {
       return [
         conversationLink,
-        ...sideNavLinks.filter((link) => ['agents', 'skills'].includes(link.id)),
+        ...builderLinks,
         ...workspace,
         ...sideNavLinks.filter((link) => !['agents', 'skills'].includes(link.id)),
       ];
@@ -148,11 +166,11 @@ export default function useUnifiedSidebarLinks() {
         }
       },
     };
-    const mcpIndex = sideNavLinks.findIndex((link) => link.id === 'mcp-builder');
-    const nextLinks = [...sideNavLinks];
+    const nextLinks = sideNavLinks.filter((link) => !['agents', 'skills'].includes(link.id));
+    const mcpIndex = nextLinks.findIndex((link) => link.id === 'mcp-builder');
     nextLinks.splice(mcpIndex >= 0 ? mcpIndex + 1 : nextLinks.length, 0, insightsLink);
 
-    return [conversationLink, ...workspace, ...nextLinks];
+    return [conversationLink, ...builderLinks, ...workspace, ...nextLinks];
   }, [
     insightsAccess?.access,
     insightsFeatureEnabled,

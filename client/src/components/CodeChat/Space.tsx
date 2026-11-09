@@ -1,20 +1,17 @@
 import { X } from 'lucide-react';
-import { atomFamily } from 'jotai/utils';
 import { Button } from '@librechat/client';
 import { useQuery } from '@tanstack/react-query';
-import { atom, useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { personalFileRequest, QueryKeys } from 'librechat-data-provider';
 import type { PersonalSpace, WorkspaceEntry } from 'librechat-data-provider';
 import { activePanelAtom } from '~/Providers/ActivePanelContext';
 import { useAuthContext, useLocalize } from '~/hooks';
 import ApplicationNotice from './ApplicationNotice';
 import StorageSummary from './StorageSummary';
-import KnowledgeList from './KnowledgeList';
 import Applications from './Applications';
 import { spaceNavigation } from './dock';
 import { StorageDetails } from './Usage';
 
-const assetSection = atomFamily((_owner: string) => atom('files'));
 import useAccount from './useAccount';
 import PersonalFiles from './Files';
 
@@ -99,7 +96,6 @@ export default function PersonalSpacePanel() {
   const [view, setView] = useAtom(spaceNavigation(user?.id ?? 'anonymous'));
   const active = useAtomValue(activePanelAtom) === 'personal-space';
   const setActive = useSetAtom(activePanelAtom);
-  const [section, setSection] = useAtom(assetSection(user?.id ?? 'anonymous'));
   const account = useAccount(active);
   let title: 'com_codechat_workspace' | 'com_codechat_apps' | 'com_codechat_projects_tab' =
     'com_codechat_projects_tab';
@@ -132,31 +128,20 @@ export default function PersonalSpacePanel() {
       <div className="min-h-0 flex-1 overflow-auto px-4 pb-4">
         <div hidden={view.pane !== 'files'}>
           <nav className="mb-3 flex gap-1" aria-label={localize('com_assets_sections')}>
-            <Button
-              size="xs"
-              variant={section === 'files' ? 'outline' : 'ghost'}
-              aria-pressed={section === 'files'}
-              onClick={() => setSection('files')}
-            >
+            <Button size="xs" variant="outline" aria-pressed>
               {localize('com_assets_files')}
             </Button>
-            <Button
-              size="xs"
-              variant={section === 'knowledge' ? 'outline' : 'ghost'}
-              aria-pressed={section === 'knowledge'}
-              onClick={() => setSection('knowledge')}
-            >
+            <Button size="xs" variant="ghost" onClick={() => setActive('knowledge-libraries')}>
               {localize('com_library_title')}
             </Button>
           </nav>
-          <div hidden={section !== 'files'}>
+          <div>
             <PersonalFiles
-              expanded={active && view.pane === 'files' && section === 'files'}
+              expanded={active && view.pane === 'files'}
               path={view.path}
               onPathChange={setPath}
             />
           </div>
-          {section === 'knowledge' && <KnowledgeList enabled={active && view.pane === 'files'} />}
           <details className="border-border-light mt-4 border-t py-3">
             <summary className="cursor-pointer text-xs">
               {localize('com_assets_storage_details')}
