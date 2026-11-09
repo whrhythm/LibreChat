@@ -203,7 +203,7 @@ export default function Workbench({
               <Button
                 size="xs"
                 variant="outline"
-                disabled={!browse || browse === rootPath}
+                disabled={!browse}
                 onClick={() => change({ project_path: browse })}
               >
                 {t('com_codechat_programming_select_folder')}

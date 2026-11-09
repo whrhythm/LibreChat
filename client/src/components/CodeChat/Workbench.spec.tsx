@@ -25,7 +25,7 @@ it.each(['default', 'project-owned'])(
     (programmingPreference as jest.Mock).mockResolvedValue({
       conversation_id: scope,
       revision: 2,
-      project_path: scope === 'default' ? '' : 'owned',
+      project_path: scope === 'default' ? '' : 'owned/subdirectory',
       strategy: 'implement',
       approval: 'strict',
       mcp_servers: [],
@@ -46,6 +46,13 @@ it.each(['default', 'project-owned'])(
       </QueryClientProvider>,
     );
     await screen.findByRole('option', { name: 'coder' });
+    if (scope !== 'default') {
+      fireEvent.click(screen.getByRole('button', { name: 'com_codechat_folder_up' }));
+      expect(screen.getByRole('button', { name: 'com_codechat_folder_up' })).toBeDisabled();
+      fireEvent.click(
+        screen.getByRole('button', { name: 'com_codechat_programming_select_folder' }),
+      );
+    }
     fireEvent.change(screen.getByRole('combobox', { name: 'com_codechat_programming_model' }), {
       target: { value: 'coder' },
     });
@@ -53,7 +60,12 @@ it.each(['default', 'project-owned'])(
     await waitFor(() =>
       expect(saveProgrammingPreference).toHaveBeenCalledWith(
         'owner-token',
-        expect.objectContaining({ conversation_id: scope, coding_model: 'coder', revision: 2 }),
+        expect.objectContaining({
+          conversation_id: scope,
+          coding_model: 'coder',
+          project_path: scope === 'default' ? '' : 'owned',
+          revision: 2,
+        }),
       ),
     );
     expect(chooseModel).not.toHaveBeenCalled();
