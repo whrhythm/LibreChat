@@ -813,6 +813,7 @@ export enum TokenExchangeMethodEnum {
 
 export type Action = {
   action_id: string;
+  user?: string;
   type?: string;
   settings?: Record<string, unknown>;
   metadata: ActionMetadata;

@@ -238,6 +238,7 @@ export function buildCatalog(inputs: BuildCatalogInputs): AgentItem[] {
       name: action.metadata?.domain ?? action.action_id,
       description: '',
       iconKey: 'action',
+      ownedByUser: inputs.currentUserId != null && action.user === inputs.currentUserId,
       action,
       endpointCount: countEndpoints(action.settings),
     });

@@ -23,6 +23,19 @@ const askInputs: BuildCatalogInputs = {
 };
 
 describe('buildCatalog', () => {
+  test('marks actions owned by the current user, even when other actions are editable', () => {
+    const items = buildCatalog({
+      ...emptyInputs,
+      currentUserId: 'owner',
+      actions: [
+        { ...makeAction(), action_id: 'own', user: 'owner' },
+        { ...makeAction(), action_id: 'shared', user: 'other' },
+        { ...makeAction(), action_id: 'legacy' },
+      ],
+    });
+    expect(items.filter((item) => item.ownedByUser).map((item) => item.id)).toEqual(['own']);
+  });
+
   test('offers handoffs without the subagents capability', () => {
     expect(buildCatalog(emptyInputs).map((item) => item.id)).toEqual(['handoffs']);
   });

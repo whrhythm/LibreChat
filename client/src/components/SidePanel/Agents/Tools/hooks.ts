@@ -159,6 +159,8 @@ export function useAgentItems({
 }: UseAgentItemsOptions): AgentItemsResult {
   const { control } = useFormContext<AgentForm>();
   const { agentsConfig, regularTools, mcpServersMap, actions } = useAgentPanelContext();
+  const { user } = useAuthContext();
+  const currentUserId = user?.id;
   const hasMcpAccess = useHasAccess({
     permissionType: PermissionTypes.MCP_SERVERS,
     permission: Permissions.USE,
@@ -205,6 +207,7 @@ export function useAgentItems({
         mcpServersMap: mcpServersMap ?? new Map(),
         skills,
         actions: agentActions,
+        currentUserId,
         permissions: {
           mcp: hasMcpAccess,
           skills: skillsPermission,
@@ -222,6 +225,7 @@ export function useAgentItems({
       mcpServersMap,
       skills,
       agentActions,
+      currentUserId,
       hasMcpAccess,
       hasWebSearchAccess,
       hasRunCodeAccess,
