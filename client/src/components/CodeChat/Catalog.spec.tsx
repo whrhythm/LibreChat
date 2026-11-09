@@ -9,7 +9,9 @@ jest.mock('~/hooks', () => ({
   useLocalize: () => (key: string) => key,
 }));
 jest.mock('~/data-provider', () => ({ useGetStartupConfig: () => ({ data: {} }) }));
-jest.mock('./Releases', () => () => <div>{'owner controls'}</div>);
+jest.mock('./Releases', () => ({ initialTab }: { initialTab: string }) => (
+  <div>{'owner controls: ' + initialTab}</div>
+));
 jest.mock('librechat-data-provider', () => ({
   ...jest.requireActual('librechat-data-provider'),
   assistantCatalog: jest.fn(),
@@ -44,8 +46,8 @@ it('shows shared releases without edit, delete or sharing controls and does not 
   const url = window.location.href;
   mount();
   await screen.findByText(item.name);
-  expect(screen.queryByText('com_sharing_manage')).not.toBeInTheDocument();
-  expect(screen.queryByText('owner controls')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'com_sharing_manage' })).not.toBeInTheDocument();
+  expect(screen.queryByText(/owner controls/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'com_catalog_shared' }));
   expect(window.location.href).toBe(url);
   expect(screen.getByRole('link', { name: 'com_catalog_open' })).toHaveAttribute(
@@ -73,11 +75,11 @@ it('requires explicit invitation acceptance and sends only the current revision'
 });
 it('keeps published owner management explicit and shows request failures', async () => {
   (assistantCatalog as jest.Mock).mockResolvedValue({
-    items: [{ ...item, kind: 'mine' }],
+    items: [{ ...item, kind: 'mine', member_summary: { active: 1, pending: 0 } }],
     invitations: [],
   });
   mount();
   await screen.findByText(item.name);
-  fireEvent.click(screen.getByText('com_sharing_manage'));
-  expect(await screen.findByText('owner controls')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'com_catalog_active_count' }));
+  expect(await screen.findByText('owner controls: members')).toBeVisible();
 });

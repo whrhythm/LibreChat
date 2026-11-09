@@ -57,6 +57,9 @@ function catalogItem() {
     name: z.string(),
     number: z.number(),
     kind: z.enum(['mine', 'shared']),
+    member_summary: z
+      .object({ active: z.number().int().nonnegative(), pending: z.number().int().nonnegative() })
+      .optional(),
     state: z.enum(['active', 'pending']),
     payer: z.literal('creator'),
     revision: z.number(),

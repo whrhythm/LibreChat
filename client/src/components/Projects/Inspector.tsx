@@ -371,7 +371,14 @@ export default function ProjectInspector() {
           if (!value) close();
         }}
       >
-        <OGDialogContent placement="center" className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+        <OGDialogContent
+          placement="center"
+          className={
+            work === 'publish'
+              ? 'max-h-[85dvh] overflow-y-auto sm:max-w-xl'
+              : 'max-h-[90vh] overflow-y-auto sm:max-w-4xl'
+          }
+        >
           <OGDialogTitle>{title}</OGDialogTitle>
           <OGDialogDescription>{project?.name}</OGDialogDescription>
           {work && project && (work === 'prepareAssistant' || work === 'prepareCode') && (

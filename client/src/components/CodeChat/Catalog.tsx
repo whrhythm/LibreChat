@@ -1,13 +1,13 @@
 import { useMemo, useRef } from 'react';
-import { Bot, RefreshCw } from 'lucide-react';
 import { atom, useAtom, useAtomValue } from 'jotai';
+import { Bot, MoreHorizontal, RefreshCw, UsersRound } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, OGDialog, OGDialogContent, OGDialogTitle } from '@librechat/client';
 import { assistantCatalog, projectReleases, QueryKeys } from 'librechat-data-provider';
 import { activePanelAtom } from '~/Providers/ActivePanelContext';
+import Releases, { type ReleaseTab } from './Releases';
 import { useGetStartupConfig } from '~/data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
-import Releases from './Releases';
 
 const filters = {
   all: 'com_catalog_all',
@@ -21,9 +21,17 @@ export default function Catalog() {
   const active = useAtomValue(activePanelAtom) === 'assistant-catalog';
   const cache = useQueryClient();
   const { data: startup } = useGetStartupConfig();
-  const state = useMemo(() => atom({ filter: 'all', manage: '' }), []);
+  const state = useMemo(
+    () =>
+      atom({
+        filter: 'all',
+        sharedOnly: false,
+        manage: null as null | { id: string; name: string; tab: ReleaseTab },
+      }),
+    [],
+  );
   const [ui, setUI] = useAtom(state);
-  const trigger = useRef<HTMLButtonElement>(null);
+  const trigger = useRef<HTMLButtonElement | null>(null);
   const key = [QueryKeys.assistantCatalog, user?.id];
   const list = useQuery({
     queryKey: key,
@@ -45,8 +53,20 @@ export default function Catalog() {
     retry: false,
   });
   const items =
-    list.data?.items.filter((item) => ui.filter === 'all' || item.kind === ui.filter) ?? [];
+    list.data?.items.filter((item) => {
+      if (ui.filter !== 'all' && item.kind !== ui.filter) return false;
+      const count = item.member_summary;
+      return ui.filter !== 'mine' || !ui.sharedOnly || !!(count && count.active + count.pending);
+    }) ?? [];
   const coding = startup?.codechat?.capabilities;
+  const openCoding = ui.filter === 'all' && coding?.enabled;
+  const invitations = ui.filter !== 'mine' ? (list.data?.invitations ?? []) : [];
+  const openManagement = (button: HTMLButtonElement, id: string, name: string, tab: ReleaseTab) => {
+    trigger.current = button;
+    setUI((s) => ({ ...s, manage: { id, name, tab } }));
+  };
+  const openClass =
+    'border-border-light hover:bg-surface-hover inline-flex h-7 items-center rounded-md border px-2 text-xs';
   return (
     <section
       className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 text-sm"
@@ -63,7 +83,10 @@ export default function Catalog() {
           <RefreshCw className="size-4" />
         </Button>
       </header>
-      <div className="flex gap-1" aria-label={t('com_catalog_filter')}>
+      <div
+        className="border-border-light flex flex-wrap gap-1 border-b pb-2"
+        aria-label={t('com_catalog_filter')}
+      >
         {(['all', 'mine', 'shared'] as const).map((filter) => (
           <Button
             size="xs"
@@ -76,21 +99,29 @@ export default function Catalog() {
           </Button>
         ))}
       </div>
+      {ui.filter === 'mine' && (
+        <label className="text-text-secondary flex w-fit items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={ui.sharedOnly}
+            onChange={(e) => setUI((s) => ({ ...s, sharedOnly: e.target.checked }))}
+          />
+          {t('com_catalog_shared_only')}
+        </label>
+      )}
       {(list.isError || reply.isError) && <p role="alert">{t('com_catalog_error')}</p>}
       {list.isLoading && <p role="status">{t('com_ui_loading')}</p>}
-      {!!list.data?.invitations.length && (
+      {!!invitations.length && (
         <div className="border-border-light space-y-2 rounded-lg border p-2">
           <h3 className="font-medium">
-            {t('com_catalog_invitations')} · {list.data.invitations.length}
+            {t('com_catalog_invitations')} · {invitations.length}
           </h3>
-          {list.data.invitations.map((item) => (
+          {invitations.map((item) => (
             <article key={item.project_id} className="border-border-light space-y-2 border-t pt-2">
               <p className="font-medium break-words">{item.name}</p>
               <p className="text-text-secondary text-xs">
-                {t('com_releases_creator_pays')} · {t('com_sharing_limit')} $
-                {(item.budget_micros / 1e6).toFixed(2)}
+                {`${t('com_releases_creator_pays')} · $${(item.budget_micros / 1e6).toFixed(2)}`}
               </p>
-              <p className="text-text-secondary text-xs">{t('com_sharing_readonly')}</p>
               {item.expires_at && (
                 <p className="text-xs">
                   {t('com_sharing_expiry')} {new Date(item.expires_at).toLocaleString()}
@@ -115,88 +146,120 @@ export default function Catalog() {
           ))}
         </div>
       )}
-      {ui.filter === 'all' && coding?.enabled && (
-        <article className="border-border-light space-y-2 rounded-lg border p-3">
-          <h3 className="flex items-center gap-2 font-medium">
-            <Bot className="size-4" />
-            {t('com_catalog_coding')}
-          </h3>
-          <p className="text-text-secondary text-xs">{t('com_catalog_system')}</p>
-          <a
-            className="border-border-light hover:bg-surface-hover inline-flex rounded border px-3 py-1.5 text-xs"
-            target="_blank"
-            rel="noreferrer"
-            href={
-              '/c/new?endpoint=' +
-              encodeURIComponent(coding.endpoint) +
-              '&model=' +
-              encodeURIComponent(coding.codingRoute)
-            }
-          >
-            {t('com_catalog_open')}
-          </a>
-        </article>
-      )}
-      {items.map((item) => (
-        <article
-          key={item.project_id}
-          className="border-border-light space-y-2 rounded-lg border p-3"
-        >
-          <h3 className="font-medium break-words">{item.name}</h3>
-          <p className="text-text-secondary text-xs">
-            {t('com_releases_current')} {item.number} ·{' '}
-            {t(item.kind === 'mine' ? 'com_catalog_mine' : 'com_catalog_shared')}
-          </p>
-          <p className="text-xs">
-            {t('com_sharing_occupied')}{' '}
-            {`$${(item.held_micros / 1e6).toFixed(4)} / $${(item.budget_micros / 1e6).toFixed(2)}`}
-          </p>
-          <p className="text-text-secondary text-xs">{t('com_releases_creator_pays')}</p>
-          {item.expires_at && (
-            <p className="text-xs">
-              {t('com_sharing_expiry')} {new Date(item.expires_at).toLocaleString()}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2">
+      <div className="divide-border-light divide-y">
+        {openCoding && (
+          <article className="flex min-w-0 items-center gap-2 py-2.5">
+            <Bot className="text-text-secondary size-4 shrink-0" aria-hidden="true" />
+            <h3 className="min-w-0 flex-1 truncate font-medium" title={t('com_catalog_coding')}>
+              {t('com_catalog_coding')}
+            </h3>
             <a
-              className="border-border-light hover:bg-surface-hover inline-flex rounded border px-3 py-1.5 text-xs"
+              className={openClass}
               target="_blank"
               rel="noreferrer"
-              href={'/application/' + encodeURIComponent(item.project_id)}
+              href={
+                '/c/new?endpoint=' +
+                encodeURIComponent(coding.endpoint) +
+                '&model=' +
+                encodeURIComponent(coding.codingRoute)
+              }
             >
               {t('com_catalog_open')}
             </a>
-            {item.kind === 'mine' && (
-              <Button
-                size="xs"
-                variant="ghost"
-                ref={trigger}
-                onClick={() => setUI((s) => ({ ...s, manage: item.project_id }))}
-              >
-                {t('com_sharing_manage')}
-              </Button>
-            )}
-          </div>
-        </article>
-      ))}
-      {list.isSuccess && !items.length && (
+          </article>
+        )}
+        {items.map((item) => {
+          const count = item.member_summary;
+          const shareLabel =
+            count && count.active + count.pending > 0
+              ? [
+                  count.active ? t('com_catalog_active_count', { 0: count.active }) : '',
+                  count.pending ? t('com_catalog_pending_count', { 0: count.pending }) : '',
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+              : t(count ? 'com_catalog_private' : 'com_sharing_members_tab');
+          return (
+            <article key={item.project_id} className="flex min-w-0 items-start gap-2 py-2.5">
+              <Bot className="text-text-secondary mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate font-medium" title={item.name}>
+                  {item.name}
+                </h3>
+                <div className="text-text-secondary mt-0.5 flex flex-wrap items-center gap-x-2 text-xs">
+                  <span>{`v${item.number}`}</span>
+                  {item.kind === 'mine' ? (
+                    <button
+                      type="button"
+                      className="hover:text-text-primary inline-flex items-center gap-1 rounded px-0.5 hover:underline"
+                      onClick={(e) =>
+                        openManagement(e.currentTarget, item.project_id, item.name, 'members')
+                      }
+                    >
+                      <UsersRound className="size-3 shrink-0" aria-hidden="true" />
+                      {shareLabel}
+                    </button>
+                  ) : (
+                    <span>{t('com_catalog_shared')}</span>
+                  )}
+                  {item.expires_at && <span>{new Date(item.expires_at).toLocaleDateString()}</span>}
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <a
+                  className={openClass}
+                  target="_blank"
+                  rel="noreferrer"
+                  href={'/application/' + encodeURIComponent(item.project_id)}
+                >
+                  {t('com_catalog_open')}
+                </a>
+                {item.kind === 'mine' && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-7"
+                    aria-label={t('com_sharing_manage')}
+                    title={t('com_sharing_manage')}
+                    onClick={(e) =>
+                      openManagement(e.currentTarget, item.project_id, item.name, 'version')
+                    }
+                  >
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      {list.isSuccess && !items.length && !openCoding && !invitations.length && (
         <p className="text-text-secondary py-4 text-xs">{t('com_catalog_empty')}</p>
       )}
       <OGDialog
         open={!!ui.manage}
         onOpenChange={(open) => {
-          if (!open) setUI((s) => ({ ...s, manage: '' }));
+          if (!open) setUI((s) => ({ ...s, manage: null }));
         }}
       >
         <OGDialogContent
-          className="max-h-[85dvh] max-w-2xl overflow-y-auto"
+          className="max-h-[85dvh] max-w-xl overflow-y-auto"
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             trigger.current?.focus();
           }}
         >
-          <OGDialogTitle>{t('com_sharing_manage')}</OGDialogTitle>
-          {ui.manage && <Releases key={ui.manage} projectId={ui.manage} embedded />}
+          <OGDialogTitle className="mr-6 truncate text-base">
+            {ui.manage?.name ?? t('com_sharing_manage')}
+          </OGDialogTitle>
+          {ui.manage && (
+            <Releases
+              key={ui.manage.id}
+              projectId={ui.manage.id}
+              initialTab={ui.manage.tab}
+              embedded
+            />
+          )}
         </OGDialogContent>
       </OGDialog>
     </section>
