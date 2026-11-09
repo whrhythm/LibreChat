@@ -20,6 +20,7 @@ const tool = (
   id: string,
   state: 'running' | 'completed' | 'failed' = 'running',
   name = 'file_search',
+  output = 'Synthetic evidence',
 ): TMessageContentParts => ({
   type: ContentTypes.TOOL_CALL,
   tool_call: {
@@ -28,8 +29,23 @@ const tool = (
     name,
     args: '{}',
     ...(state === 'running' ? {} : { runStepStatus: state }),
-    ...(state === 'completed' ? { output: 'Synthetic evidence' } : {}),
+    ...(state === 'completed' ? { output } : {}),
   },
+});
+
+it('shows a reviewed gateway error as a failure even if the stream step completed', () => {
+  const part = tool(
+    'reviewed',
+    'completed',
+    reviewedTrialToolName,
+    'Error: ai_trials_tool_failed\n Please fix your mistakes.',
+  );
+  expect(trialTrace(false, reply([part, text]))).toContainEqual({
+    kind: 'result',
+    tool: 'reviewed',
+    status: 'failed',
+  });
+  expect(trialActivity(false, reply([part, text])).tool).toBe('failed');
 });
 
 it('uses the observed result and subsequent output to build the next model step', () => {

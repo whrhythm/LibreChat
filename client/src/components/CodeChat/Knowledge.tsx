@@ -81,6 +81,19 @@ export default function Knowledge({
           </Button>
         </p>
       )}
+      {inlineLibrary && binding.data?.library && (
+        <Library
+          key={binding.data.library.id}
+          id={binding.data.library.id}
+          enabled={enabled}
+          compact
+          onClose={() => {
+            setDirty(false);
+            void binding.refetch();
+          }}
+          onDirty={setDirty}
+        />
+      )}
       <label className="block text-sm">
         {t('com_library_binding')}
         <select
@@ -115,18 +128,6 @@ export default function Knowledge({
       </div>
       {!list.data?.libraries.length && list.isSuccess && (
         <p className="text-text-secondary text-xs">{t('com_library_create_hint')}</p>
-      )}
-      {inlineLibrary && binding.data?.library && (
-        <Library
-          key={binding.data.library.id}
-          id={binding.data.library.id}
-          enabled={enabled}
-          onClose={() => {
-            setDirty(false);
-            void binding.refetch();
-          }}
-          onDirty={setDirty}
-        />
       )}
       {!inlineLibrary && <LibraryDialog id={manage} onClose={() => setManage(null)} />}
     </Container>

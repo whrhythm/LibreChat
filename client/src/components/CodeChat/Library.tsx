@@ -201,11 +201,13 @@ export default function Library({
   onClose,
   onDirty,
   enabled = true,
+  compact = false,
 }: {
   id: string;
   onClose: () => void;
   onDirty: (dirty: boolean) => void;
   enabled?: boolean;
+  compact?: boolean;
 }) {
   const { user, token } = useAuthContext();
   const t = useLocalize();
@@ -386,7 +388,9 @@ export default function Library({
           )}
           <div
             className={
-              selected ? 'grid gap-4 lg:grid-cols-[minmax(220px,1fr)_minmax(0,2fr)]' : 'grid gap-4'
+              selected && !compact
+                ? 'grid gap-4 lg:grid-cols-[minmax(220px,1fr)_minmax(0,2fr)]'
+                : 'grid gap-4'
             }
           >
             <div className="min-w-0">

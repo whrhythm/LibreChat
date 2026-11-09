@@ -25,6 +25,7 @@ interface MarketplaceCatalogProps {
   ariaLabel?: string;
   /** Live state per item, such as an MCP server's connection. */
   statusFor?: (item: AgentItem) => ItemStatus | undefined;
+  singleColumn?: boolean;
 }
 
 const SKELETON_COUNT = 3;
@@ -64,6 +65,7 @@ export default function MarketplaceCatalog({
   emptyKey,
   ariaLabel,
   statusFor,
+  singleColumn = false,
 }: MarketplaceCatalogProps) {
   const localize = useLocalize();
   const showSkeletons = isLoadingSkills && skillsInView;
@@ -81,7 +83,11 @@ export default function MarketplaceCatalog({
 
   return (
     <ul
-      className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3"
+      className={
+        singleColumn
+          ? 'grid grid-cols-1 gap-2'
+          : 'grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3'
+      }
       aria-label={ariaLabel ?? localize('com_ui_tools_marketplace')}
       aria-busy={showSkeletons}
     >

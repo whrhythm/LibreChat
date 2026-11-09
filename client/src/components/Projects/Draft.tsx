@@ -185,6 +185,7 @@ function Editor({
                 placeholder={t('com_ui_tools_marketplace_search')}
               />
               <MarketplaceCatalog
+                singleColumn
                 items={catalog.filter((item) =>
                   (item.name + ' ' + item.description)
                     .toLowerCase()

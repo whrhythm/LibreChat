@@ -17,6 +17,19 @@ export type TraceStep = {
   status?: 'running' | 'done' | 'failed' | 'waiting' | 'stopped';
 };
 
+export function trialParts(reply: TMessage) {
+  return toUIMessage(reply, {
+    resolveToolFailure: (call) =>
+      'name' in call &&
+      call.name === reviewedTrialToolName &&
+      'output' in call &&
+      typeof call.output === 'string' &&
+      /^Error: ai_trials_tool_failed(?:\s|$)/.test(call.output)
+        ? 'ai_trials_tool_failed'
+        : undefined,
+  }).parts;
+}
+
 export function isTrace(value: unknown): value is TraceStep[] {
   return (
     Array.isArray(value) &&
@@ -39,7 +52,7 @@ export function trialTrace(busy: boolean, reply?: TMessage): TraceStep[] {
   let observedModel = false;
   let previousWasTool = false;
   let finalText = false;
-  for (const part of reply ? toUIMessage(reply).parts : []) {
+  for (const part of reply ? trialParts(reply) : []) {
     const isText = part.type === 'text' && !!part.text.trim();
     const isReasoning = part.type === 'reasoning' && !!part.text.trim();
     const isTool =

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { reviewedTrialToolName, toUIMessage } from 'librechat-data-provider';
+import { reviewedTrialToolName } from 'librechat-data-provider';
 import type { TMessage } from 'librechat-data-provider';
 import type { TraceStep } from './Trace';
-import { isTrace, trialTrace } from './Trace';
+import { isTrace, trialParts, trialTrace } from './Trace';
 
 export type Status = 'running' | 'done' | 'failed' | 'waiting' | 'stopped';
 export type Activity = {
@@ -34,7 +34,7 @@ export function trialActivity(busy: boolean, reply?: TMessage): Activity {
   let answered = false;
   const searches = new Map<string, Status>();
   const tools = new Map<string, Status>();
-  for (const part of reply ? toUIMessage(reply).parts : []) {
+  for (const part of reply ? trialParts(reply) : []) {
     if (part.type === 'text' && part.text.trim()) answered = true;
     if (!('toolCallId' in part)) continue;
     const states = part.type === 'tool-file_search' ? searches : tools;

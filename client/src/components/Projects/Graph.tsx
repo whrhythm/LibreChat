@@ -61,8 +61,13 @@ function Step({ data }: NodeProps<TraceNode>) {
           {label}
         </span>
       </div>
-      <div className="text-text-secondary truncate" title={name}>
-        {[name, step.status && t(states[step.status])].filter(Boolean).join(' · ')}
+      <div className="text-text-secondary flex min-w-0 items-center gap-1">
+        {name && (
+          <span className="min-w-0 flex-1 truncate" title={name}>
+            {name}
+          </span>
+        )}
+        {step.status && <span className="shrink-0">{t(states[step.status])}</span>}
       </div>
       <Handle
         type="source"
