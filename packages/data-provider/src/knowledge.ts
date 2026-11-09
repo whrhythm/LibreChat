@@ -42,7 +42,8 @@ export const libraryEditInput = z
   .object({
     request_id: z.string().uuid(),
     expected_revision_id: z.string().uuid().nullable(),
-    action: z.enum(['upsert', 'rename', 'remove']),
+    action: z.enum(['upsert', 'rename', 'remove', 'rebuild']),
+    embedding_profile: z.union([z.literal('local'), z.string().uuid()]).optional(),
     files: knowledgeImportInput.shape.files.optional(),
     name: z.string().min(1).max(124).optional(),
     new_name: z.string().min(1).max(124).optional(),
@@ -65,7 +66,13 @@ export const librarySchema = z.object({
   updated_at: z.string(),
   head: knowledgeRevisionSchema.nullable(),
 });
+const embeddingProfile = z.object({
+  id: z.string(),
+  model: z.string(),
+  url: z.string().nullable(),
+});
 export const libraryDetailSchema = librarySchema.extend({
+  embedding: z.object({ active: embeddingProfile, recommended: embeddingProfile }).optional(),
   limits: z.object({ files: z.number(), file_bytes: z.number(), revisions: z.number() }),
   revisions: z.array(knowledgeRevisionSchema),
   references: z.object({

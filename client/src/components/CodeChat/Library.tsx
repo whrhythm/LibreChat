@@ -548,6 +548,41 @@ export default function Library({
                 count: data.references.fixed_trials,
               })}
             </p>
+            {data.embedding && (
+              <div className="my-2 space-y-2 text-xs">
+                <p>{t('com_library_embedding_active', { model: data.embedding.active.model })}</p>
+                <p>
+                  {t('com_library_embedding_recommended', {
+                    model: data.embedding.recommended.model,
+                  })}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={
+                    dirty ||
+                    mutate.isLoading ||
+                    head?.state === 'queued' ||
+                    head?.state === 'indexing'
+                  }
+                  onClick={() => {
+                    const profile = data.embedding!.recommended;
+                    const prompt = profile.url
+                      ? t('com_library_embedding_external_confirm', { url: profile.url })
+                      : t('com_library_embedding_local_confirm');
+                    if (!window.confirm(prompt)) return;
+                    perform('/files', {
+                      request_id: crypto.randomUUID(),
+                      expected_revision_id: data.head_revision_id,
+                      action: 'rebuild',
+                      embedding_profile: profile.id,
+                    });
+                  }}
+                >
+                  {t('com_library_embedding_rebuild')}
+                </Button>
+              </div>
+            )}
             <Button
               size="sm"
               variant="ghost"
