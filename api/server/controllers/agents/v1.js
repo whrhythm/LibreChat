@@ -50,6 +50,7 @@ const {
   resolveMarketplaceListQuery,
   mapMarketplaceListError,
   checkInstructionsPromptWrite,
+  checkNativeAgentLibraryWrite,
   applyInstructionsPromptUnset,
   instructionsContentForScan,
 } = require('@librechat/api');
@@ -98,6 +99,11 @@ const { instructionsPromptAccess } = require('~/server/services/Agents/instructi
 const { getMCPServersRegistry } = require('~/config');
 const { getLogStores } = require('~/cache');
 const db = require('~/models');
+const knowledgeDependencies = {
+  baseUrl: process.env.CODECHAT_WORKSPACE_URL,
+  serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
+  issuer: process.env.OPENID_ISSUER,
+};
 
 const systemTools = {
   [Tools.execute_code]: true,
@@ -729,6 +735,12 @@ const createAgentHandler = async (req, res) => {
      */
     normalizeToolResourceFiles(req.body?.tool_resources);
     const validatedData = agentCreateSchema.parse(req.body);
+    const libraryError = await checkNativeAgentLibraryWrite(
+      req,
+      knowledgeDependencies,
+      validatedData.knowledge_library_id,
+    );
+    if (libraryError) return res.status(libraryError.status).json(libraryError.body);
     const { tools = [], ...agentData } = removeNullishValues(validatedData);
 
     if (
@@ -962,6 +974,7 @@ const getAgentHandler = async (req, res, expandProperties = false) => {
 
     if (agent.author !== author) {
       delete agent.author;
+      delete agent.knowledge_library_id;
     }
 
     if (!expandProperties) {
@@ -1225,6 +1238,13 @@ const updateAgentHandler = async (req, res) => {
     if (!existingAgent) {
       return res.status(404).json({ error: 'Agent not found' });
     }
+    const libraryError = await checkNativeAgentLibraryWrite(
+      req,
+      knowledgeDependencies,
+      updateData.knowledge_library_id,
+      existingAgent,
+    );
+    if (libraryError) return res.status(libraryError.status).json(libraryError.body);
 
     applyAgentInferenceInput(updateData, existingAgent, req.config);
 
@@ -1392,6 +1412,7 @@ const updateAgentHandler = async (req, res) => {
 
     if (updatedAgent.author !== req.user.id) {
       delete updatedAgent.author;
+      delete updatedAgent.knowledge_library_id;
     }
 
     // Same EDIT-scoped restricted-stub treatment as the GET handler.

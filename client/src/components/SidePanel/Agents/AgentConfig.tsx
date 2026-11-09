@@ -2,8 +2,10 @@ import { Input, Label } from '@librechat/client';
 import { Controller, useWatch, useFormContext } from 'react-hook-form';
 import type { InstructionsPromptStatus } from './Instructions';
 import type { AgentForm } from '~/common';
+import { isCodeChatEnabled } from '~/components/CodeChat/config';
 import AgentCategorySelector from './AgentCategorySelector';
 import { useLocalize, useAgentCapabilities } from '~/hooks';
+import KnowledgeLibraryField from './KnowledgeLibraryField';
 import { useAgentFileEntries } from './Tools/hooks';
 import { useAgentPanelContext } from '~/Providers';
 import AgentModelField from './AgentModelField';
@@ -114,6 +116,8 @@ export default function AgentConfig({
         promptStatus={instructionsPromptStatus}
         onRetryLoad={onRetryInstructionsPrompt}
       />
+
+      {isCodeChatEnabled() && <KnowledgeLibraryField />}
 
       {/* TOOLS — unified built-ins / tools / actions / mcp / skills */}
       <ToolsSection agentId={agent_id} />

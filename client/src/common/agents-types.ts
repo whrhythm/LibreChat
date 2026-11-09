@@ -60,6 +60,7 @@ export type AgentForm = {
   code_environment_id?: string | null;
   code_environment_ids?: string[];
   code_workspace_id?: string;
+  knowledge_library_id?: string;
   repositoryInstructions?: 'prefer' | 'defer' | 'off';
   /** Git authorship applied to sandboxed commands for this agent. */
   git_identity?: Agent['git_identity'];

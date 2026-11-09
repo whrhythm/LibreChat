@@ -8,10 +8,11 @@ const {
   executeFileSearchQuery,
   primeProjectKnowledge,
   createProjectFileSearchTool,
+  createNativeLibraryFileSearchTool,
 } = require('@librechat/api');
 const { Tools, EToolResources } = require('librechat-data-provider');
 const { filterFilesByAgentAccess } = require('~/server/services/Files/permissions');
-const { getFiles } = require('~/models');
+const { getAgent, getFiles } = require('~/models');
 
 const fileSearchJsonSchema = {
   type: 'object',
@@ -96,35 +97,30 @@ const primeFiles = async (options) => {
  * @param {boolean} [options.fileCitations=false] - Whether to include citation instructions
  * @returns
  */
-const createFileSearchTool = async ({
-  userId,
-  files,
-  entity_id,
-  fileCitations = false,
-  appConfig,
-}) => {
-  return tool(
-    ({ query }) =>
-      executeFileSearchQuery({
-        query,
-        userId,
-        files,
-        entity_id,
-        fileCitations,
-        appConfig,
-        ragApiUrl: process.env.RAG_API_URL,
-        httpClient: axios,
-        generateShortLivedToken,
-        logAxiosError,
-        selectFileCitationSources,
-        logger,
-      }),
-    {
-      name: Tools.file_search,
-      responseFormat: 'content_and_artifact',
-      description: `Performs semantic search across attached "${Tools.file_search}" documents using natural language queries. This tool analyzes the content of uploaded files to find relevant information, quotes, and passages that best match your query. Use this to extract specific information or find relevant sections within the available documents.${
-        fileCitations
-          ? `
+const searchFiles = ({ userId, files, entity_id, fileCitations = false, appConfig }, query) =>
+  executeFileSearchQuery({
+    query,
+    userId,
+    files,
+    entity_id,
+    fileCitations,
+    appConfig,
+    ragApiUrl: process.env.RAG_API_URL,
+    httpClient: axios,
+    generateShortLivedToken,
+    logAxiosError,
+    selectFileCitationSources,
+    logger,
+  });
+
+const createFileSearchTool = async (options) => {
+  const { fileCitations = false } = options;
+  return tool(({ query }) => searchFiles(options, query), {
+    name: Tools.file_search,
+    responseFormat: 'content_and_artifact',
+    description: `Performs semantic search across attached "${Tools.file_search}" documents using natural language queries. This tool analyzes the content of uploaded files to find relevant information, quotes, and passages that best match your query. Use this to extract specific information or find relevant sections within the available documents.${
+      fileCitations
+        ? `
 
 **CITE FILE SEARCH RESULTS:**
 Use the EXACT anchor markers shown below (copy them verbatim) immediately after statements derived from file content. Reference the filename in your text:
@@ -134,11 +130,10 @@ Use the EXACT anchor markers shown below (copy them verbatim) immediately after 
 
 **CRITICAL:** Output these escape sequences EXACTLY as shown (e.g., \\ue202turn0file0). Do NOT substitute with other characters like † or similar symbols.
 **ALWAYS mention the filename in your text before the citation marker. NEVER use markdown links or footnotes.**`
-          : ''
-      }`,
-      schema: fileSearchJsonSchema,
-    },
-  );
+        : ''
+    }`,
+    schema: fileSearchJsonSchema,
+  });
 };
 
 module.exports = {
@@ -150,7 +145,18 @@ module.exports = {
         serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
         issuer: process.env.OPENID_ISSUER,
       },
-      createFileSearchTool,
+      (value) =>
+        createNativeLibraryFileSearchTool(
+          value,
+          {
+            baseUrl: process.env.CODECHAT_WORKSPACE_URL,
+            serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
+            issuer: process.env.OPENID_ISSUER,
+          },
+          (id) => getAgent({ id }, { author: 1, knowledge_library_id: 1 }),
+          (query) => searchFiles(value, query),
+          createFileSearchTool,
+        ),
     ),
   primeFiles: (options) => primeProjectKnowledge(options, primeFiles),
   fileSearchJsonSchema,

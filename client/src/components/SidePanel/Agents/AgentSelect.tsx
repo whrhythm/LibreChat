@@ -162,6 +162,7 @@ function AgentSelect({
         code_environment_ids: fullAgent.code_environment_ids ?? [],
         repositoryInstructions: fullAgent.repositoryInstructions,
         code_workspace_id: fullAgent.code_workspace_id,
+        knowledge_library_id: fullAgent.knowledge_library_id,
         git_identity: fullAgent.git_identity,
         instructionsSource: resolvedInstructionsSource,
         instructionsPrompt: resolvedInstructionsPrompt,

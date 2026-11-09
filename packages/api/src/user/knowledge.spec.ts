@@ -4,6 +4,8 @@ import {
   createLibraryHandlers,
   primeProjectKnowledge,
   createProjectFileSearchTool,
+  checkNativeAgentLibraryWrite,
+  createNativeLibraryFileSearchTool,
 } from './knowledge';
 
 const id = '00000000-0000-4000-8000-000000000001';
@@ -61,6 +63,59 @@ function setup(value: unknown = revision) {
   res.status.mockReturnValue(res);
   return { deps, request, res, handlers: createKnowledgeHandlers(deps) };
 }
+
+it('checks an owner library on save and rejects a collaborator changing the binding', async () => {
+  const { deps, request } = setup({ ...library, active_revision_id: id });
+  expect(await checkNativeAgentLibraryWrite(req, deps, id)).toBeUndefined();
+  expect(String(request.mock.calls[0][0])).toMatch('/knowledge-libraries/' + id);
+  expect(
+    await checkNativeAgentLibraryWrite(req, deps, '', {
+      id: 'agent_nativeTest',
+      author: 'b'.repeat(24),
+      knowledge_library_id: id,
+    }),
+  ).toMatchObject({ status: 403 });
+  expect(request).toHaveBeenCalledTimes(1);
+});
+
+it('searches a native owner library alongside attachments and excludes shared users', async () => {
+  const { deps, request } = setup({
+    revision_id: id,
+    sources: [{ name: 'policy.md', line: 3, content: 'fixture result', ordinal: 0, distance: 0.1 }],
+  });
+  const attached = jest.fn<Promise<[string, unknown]>, [string]>(async () => [
+    'attached text',
+    undefined,
+  ]);
+  const fallback = jest.fn(async () => 'fallback');
+  const options = {
+    req: req as NonNullable<Parameters<typeof createNativeLibraryFileSearchTool>[0]['req']>,
+    entity_id: 'agent_nativeTest',
+    files: [{}],
+  };
+  const search = await createNativeLibraryFileSearchTool(
+    options,
+    deps,
+    async () => ({ author: user.id, knowledge_library_id: id }),
+    attached,
+    fallback,
+  );
+  if (typeof search === 'string') throw new Error('Library tool not loaded');
+  const result = await search.invoke({ query: 'policy' });
+  expect(result).toContain('fixture result');
+  expect(result).toContain('attached text');
+  expect(String(request.mock.calls[0][0])).toMatch('/knowledge-libraries/' + id + '/search');
+  expect(
+    await createNativeLibraryFileSearchTool(
+      options,
+      deps,
+      async () => ({ author: 'b'.repeat(24), knowledge_library_id: id }),
+      attached,
+      fallback,
+    ),
+  ).toBe('fallback');
+  expect(request).toHaveBeenCalledTimes(1);
+});
 it('routes library creation using server identity and rejects owner injection', async () => {
   const { deps, res, request } = setup(library);
   const handlers = createLibraryHandlers(deps);

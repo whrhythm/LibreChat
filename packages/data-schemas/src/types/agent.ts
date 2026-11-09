@@ -46,6 +46,7 @@ export interface IAgent extends Omit<Document, 'model'> {
   code_environment_id?: string;
   code_environment_ids?: string[];
   code_workspace_id?: string;
+  knowledge_library_id?: string;
   repositoryInstructions?: 'prefer' | 'defer' | 'off';
   git_identity?: AgentGitIdentity | null;
   /** Links these instructions to a native prompt group revision instead of inline text. */

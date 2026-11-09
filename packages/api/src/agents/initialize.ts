@@ -147,6 +147,7 @@ import { resolveAgentCodeExecution } from '~/code/agent';
 import { hasActiveFileFieldPolicy } from '~/protection';
 import { applyBackgroundToolCalls } from './background';
 import { admitCurrentFileBudget } from './files/budget';
+import { nativeAgentLibrary } from '~/user/knowledge';
 import { applyTurnDelivery } from './files/delivery';
 import { generateArtifactsPrompt } from '~/prompts';
 import { getAgentInferencePolicy } from './input';
@@ -1509,7 +1510,15 @@ export async function initializeAgent(
   }
 
   let currentFiles: Array<IMongoFile | TFile> | undefined;
-  const baseToolNames = agent.tools ?? [];
+  const baseToolNames = [...(agent.tools ?? [])];
+  if (
+    params.fileSearchAvailable === true &&
+    params.req?.config?.config?.aiProjects?.knowledgeEnabled &&
+    nativeAgentLibrary(agent, params.req?.user?.id) &&
+    !baseToolNames.includes(Tools.file_search)
+  ) {
+    baseToolNames.push(Tools.file_search);
+  }
   /**
    * Pre-resolve manually-invoked + always-apply skill primes so their
    * `allowed-tools` can be unioned into the agent's effective tool set

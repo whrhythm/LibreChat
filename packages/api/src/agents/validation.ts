@@ -433,6 +433,7 @@ type AgentBaseShape = {
   code_environment_id: z.ZodOptional<z.ZodString>;
   code_environment_ids: z.ZodOptional<typeof agentCodeEnvironmentIdsSchema>;
   code_workspace_id: z.ZodOptional<typeof agentCodeWorkspaceIdSchema>;
+  knowledge_library_id: typeof agentKnowledgeLibraryIdSchema;
   repositoryInstructions: z.ZodOptional<EnumOf<'prefer' | 'defer' | 'off'>>;
   git_identity: typeof agentGitIdentitySchema;
   artifacts: z.ZodOptional<z.ZodString>;
@@ -444,6 +445,10 @@ type AgentBaseShape = {
   support_contact: typeof agentSupportContactSchema;
   category: z.ZodOptional<z.ZodString>;
 };
+
+const agentKnowledgeLibraryIdSchema: z.ZodOptional<
+  z.ZodUnion<readonly [z.ZodString, z.ZodLiteral<''>]>
+> = z.union([z.string().uuid(), z.literal('')]).optional();
 
 export const agentBaseSchema: z.ZodObject<AgentBaseShape> = z.object({
   name: z.string().nullable().optional(),
@@ -468,6 +473,7 @@ export const agentBaseSchema: z.ZodObject<AgentBaseShape> = z.object({
   code_environment_id: agentCodeEnvironmentIdSchema.optional(),
   code_environment_ids: agentCodeEnvironmentIdsSchema.optional(),
   code_workspace_id: agentCodeWorkspaceIdSchema.optional(),
+  knowledge_library_id: agentKnowledgeLibraryIdSchema,
   repositoryInstructions: z.enum(['prefer', 'defer', 'off']).optional(),
   git_identity: agentGitIdentitySchema,
   artifacts: z.string().optional(),

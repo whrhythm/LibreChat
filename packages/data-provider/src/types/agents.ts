@@ -1139,6 +1139,7 @@ export type Agent = {
   code_environment_ids?: string[];
   /** Default attached workspace for new chats; empty means no agent default. */
   code_workspace_id?: string;
+  knowledge_library_id?: string;
   repositoryInstructions?: 'prefer' | 'defer' | 'off';
   /** Non-secret Git authorship injected into this agent's sandboxed commands. */
   git_identity?: AgentGitIdentity | null;
@@ -1207,6 +1208,7 @@ export type AgentCreateParams = {
   | 'code_environment_id'
   | 'code_environment_ids'
   | 'code_workspace_id'
+  | 'knowledge_library_id'
   | 'repositoryInstructions'
   | 'artifacts'
   | 'recursion_limit'
@@ -1247,6 +1249,7 @@ export type AgentUpdateParams = {
   | 'code_environment_ids'
   | 'git_identity'
   | 'code_workspace_id'
+  | 'knowledge_library_id'
   | 'repositoryInstructions'
   | 'artifacts'
   | 'recursion_limit'
