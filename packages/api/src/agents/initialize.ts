@@ -968,6 +968,7 @@ export interface InitializeAgentParams {
   loadTools?: (params: {
     provider: string;
     agentId: string;
+    actionSource?: Pick<Agent, 'author' | 'actions'>;
     tools: string[];
     model: string | null;
     tool_options: AgentToolOptions | undefined;
@@ -2214,6 +2215,7 @@ export async function initializeAgent(
     loadTools?.({
       provider,
       agentId: agent.id,
+      ...(agent.actions?.length ? { actionSource: { author: agent.author, actions: agent.actions } } : {}),
       tools,
       model: agent.model,
       tool_options: agent.tool_options,

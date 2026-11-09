@@ -412,6 +412,8 @@ describe('initializeAgent — execution context', () => {
 
   it('initializes without Express request or response objects', async () => {
     const { agent, loadTools, db } = createMocks();
+    agent.author = 'user-1';
+    agent.actions = ['host_action_quote'];
     const previousReqDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'req');
     Object.defineProperty(globalThis, 'req', {
       configurable: true,
@@ -464,6 +466,9 @@ describe('initializeAgent — execution context', () => {
 
     expect(loadTools).toHaveBeenCalledWith(expect.not.objectContaining({ req: expect.anything() }));
     expect(loadTools).toHaveBeenCalledWith(expect.not.objectContaining({ res: expect.anything() }));
+    expect(loadTools).toHaveBeenCalledWith(
+      expect.objectContaining({ actionSource: { author: 'user-1', actions: ['host_action_quote'] } }),
+    );
   });
 });
 

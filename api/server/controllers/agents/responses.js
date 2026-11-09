@@ -183,6 +183,7 @@ function createToolLoader({ req, res, signal, definitionsOnly = true }) {
     tools,
     model,
     agentId,
+    actionSource,
     provider,
     tool_options,
     tool_resources,
@@ -191,7 +192,7 @@ function createToolLoader({ req, res, signal, definitionsOnly = true }) {
     attachedEnvironmentOptOut,
     accessibleMcpServerNames,
   }) {
-    const agent = { id: agentId, tools, provider, model, tool_options };
+    const agent = { ...actionSource, id: agentId, tools, provider, model, tool_options };
     try {
       return await loadAgentTools({
         req,
