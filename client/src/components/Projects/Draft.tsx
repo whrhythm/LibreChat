@@ -28,7 +28,10 @@ function defaults(config: TrialConfig): DefaultValues<AgentForm> {
       temperature: config.temperature,
       max_output_tokens: config.max_output_tokens,
     },
-    tools: config.tool_reference ? [config.tool_reference] : [],
+    tools: [
+      ...(config.tool_reference ? [config.tool_reference] : []),
+      ...(config.calculator_enabled ? ['calculator'] : []),
+    ],
   };
 }
 
@@ -87,20 +90,25 @@ function Editor({
     name: ['instructions', 'model', 'model_parameters', 'tools'],
   });
   const original = base.config!;
+  const calculator = toolReferences?.includes('calculator') ?? false;
   const config = {
     ...original,
     instructions: instructions ?? '',
     model: model ?? '',
     temperature: parameters?.temperature ?? original.temperature,
     max_output_tokens: parameters?.max_output_tokens ?? original.max_output_tokens,
-    tool_reference: toolReferences?.[0] ?? null,
+    tool_reference: toolReferences?.find((id) => id !== 'calculator') ?? null,
+    ...(calculator || original.calculator_enabled != null
+      ? { calculator_enabled: calculator }
+      : {}),
   };
   const dirty =
     config.instructions !== original.instructions ||
     config.model !== original.model ||
     config.temperature !== original.temperature ||
     config.max_output_tokens !== original.max_output_tokens ||
-    config.tool_reference !== (original.tool_reference ?? null);
+    config.tool_reference !== (original.tool_reference ?? null) ||
+    calculator !== Boolean(original.calculator_enabled);
   const stale = draft.digest !== base.digest;
   useEffect(() => {
     if (!savedBase) setBase(draft);
@@ -123,10 +131,20 @@ function Editor({
   const catalog = tools.map((tool) =>
     makeItem(tool.reference, tool.service + ' / ' + tool.name, tool.description),
   );
-  const selected = catalog.filter((tool) => tool.id === config.tool_reference);
+  const canUseCalculator = draft.available_builtin_tools?.includes('calculator');
+  const calculatorItem = makeItem('calculator', t('com_project_calculator'), '');
+  if (canUseCalculator) catalog.push(calculatorItem);
+  const selected = catalog.filter(
+    (tool) => tool.id === config.tool_reference || (tool.id === 'calculator' && calculator),
+  );
+  if (calculator && !canUseCalculator) selected.push({ ...calculatorItem, status: 'needs_setup' });
   if (config.tool_reference && !current) {
     selected.push({
-      ...makeItem(config.tool_reference, config.tool_reference.split(':')[2], ''),
+      ...makeItem(
+        config.tool_reference,
+        config.tool_reference.split(':')[config.tool_reference.startsWith('mcp:') ? 2 : 1],
+        '',
+      ),
       status: 'needs_setup',
     });
   }
@@ -135,13 +153,20 @@ function Editor({
     parsed.success &&
     parsed.data.max_output_tokens <= draft.output_limit &&
     draft.models.includes(parsed.data.model) &&
-    (!config.tool_reference || !!current);
+    (!config.tool_reference || !!current) &&
+    (!calculator || !!canUseCalculator);
   const openTools = () => {
     setSearch('');
     setView('tools');
   };
   const selectTool = (item: AgentItem) => {
-    setValue('tools', item.id === config.tool_reference ? [] : [item.id]);
+    const next = item.id === config.tool_reference ? null : item.id;
+    const reference = item.id === 'calculator' ? config.tool_reference : next;
+    const enableCalculator = item.id === 'calculator' ? !calculator : calculator;
+    setValue('tools', [
+      ...(reference ? [reference] : []),
+      ...(enableCalculator ? ['calculator'] : []),
+    ]);
   };
   const save = handleSubmit(async () => {
     if (!parsed.success || !valid || !base.digest || stale || !dirty || pending) return;
@@ -216,7 +241,8 @@ function Editor({
         </fieldset>
         {current && (
           <p className="text-text-secondary text-xs">
-            {t('com_project_tool_disclosure')} {current.data_notice}
+            {current.reference.startsWith('action:') ? '' : t('com_project_tool_disclosure') + ' '}
+            {current.data_notice}
           </p>
         )}
         {stale && dirty && (

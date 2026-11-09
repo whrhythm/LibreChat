@@ -121,6 +121,8 @@ const {
 } = require('./backgroundCompletion');
 const { logViolation } = require('~/cache');
 const db = require('~/models');
+const { domainParser } = require('~/server/services/ActionService');
+const { getEndpointsConfig } = require('~/server/services/Config');
 const { getFileStorage } = require('~/server/services/Files/operations');
 const { getAppConfig } = require('~/server/services/Config');
 const { getStrategyFunctions } = require('~/server/services/Files/strategies');
@@ -2159,6 +2161,12 @@ function createInitializeClient(dependencies = {}) {
       baseUrl: process.env.CODECHAT_WORKSPACE_URL,
       serviceToken: process.env.CODECHAT_SERVICE_TOKEN,
       issuer: process.env.OPENID_ISSUER,
+      canUseTrialCapability: async (req, capability) =>
+        (await getEndpointsConfig(req))?.[EModelEndpoint.agents]?.capabilities?.includes(
+          capability,
+        ) === true,
+      getTrialActions: (query) => db.getActions(query, true),
+      encodeTrialActionDomain: (domain) => domainParser(domain, true),
     });
     const upstreamTokenProviderResolver = createScheduleUpstreamTokenProviderResolver(
       params.req,

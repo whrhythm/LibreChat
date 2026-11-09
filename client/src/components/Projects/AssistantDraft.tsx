@@ -24,6 +24,7 @@ import { authoringContext } from './context';
 
 const proposalPattern = /^```assistant-draft[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/gm;
 const toolPattern = /^```assistant-tool[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/gm;
+const builtinPattern = /^```assistant-builtin[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/gm;
 
 export default function AssistantDraft({
   projectId,
@@ -47,6 +48,7 @@ export default function AssistantDraft({
   const [review, setReview] = useState<{
     instructions: string;
     toolReference: string | null;
+    calculator?: boolean;
     draft: AITrials;
   } | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -69,21 +71,33 @@ export default function AssistantDraft({
     enabled: enabled && !!id && !!linked,
   });
   const save = useMutation({
-    mutationFn: async ({ instructions, toolReference, draft }: NonNullable<typeof review>) => {
+    mutationFn: async ({
+      instructions,
+      toolReference,
+      calculator,
+      draft,
+    }: NonNullable<typeof review>) => {
       if (!id || !token) throw new AITrialError('ai_trials_unavailable');
+      const selection = {
+        instructions,
+        tool_reference: toolReference,
+        ...(calculator == null ? {} : { calculator_enabled: calculator }),
+      };
       const result =
         draft.config && draft.digest
           ? await projectTrials(token, id, '/update', {
-              config: { ...draft.config, instructions, tool_reference: toolReference },
+              config: { ...draft.config, ...selection },
               expected_digest: draft.digest,
             })
           : await projectTrials(token, id, '/initialize', {
-              instructions,
-              tool_reference: toolReference,
+              ...selection,
+              expected_knowledge_revision_id: draft.knowledge_revision_id,
             });
       if (
         result.config?.instructions !== instructions ||
-        (result.config.tool_reference ?? null) !== toolReference
+        (result.config.tool_reference ?? null) !== toolReference ||
+        result.knowledge_revision_id !== draft.knowledge_revision_id ||
+        Boolean(result.config.calculator_enabled) !== Boolean(calculator)
       )
         throw new AITrialError('ai_trials_draft_changed');
       return result;
@@ -111,10 +125,17 @@ export default function AssistantDraft({
   const tools = current.data.available_tools ?? [];
   const choices = latest ? Array.from(getSpeechText(latest).matchAll(toolPattern)) : [];
   const requested = choices[0]?.[1].trim();
+  const builtinChoices = latest ? Array.from(getSpeechText(latest).matchAll(builtinPattern)) : [];
+  const builtin = builtinChoices[0]?.[1].trim();
+  const calculator =
+    builtin == null ? current.data.config?.calculator_enabled : builtin === 'calculator';
   const toolReference =
     requested === 'none' ? null : (requested ?? current.data.config?.tool_reference ?? null);
   const invalidTool =
     choices.length > 1 ||
+    builtinChoices.length > 1 ||
+    (builtin != null && builtin !== 'none' && builtin !== 'calculator') ||
+    (calculator === true && !current.data.available_builtin_tools?.includes('calculator')) ||
     (requested != null &&
       requested !== 'none' &&
       !tools.some((tool) => tool.reference === requested));
@@ -167,7 +188,7 @@ export default function AssistantDraft({
           disabled={busy}
           onClick={() => {
             save.reset();
-            setReview({ instructions: proposal, toolReference, draft: current.data });
+            setReview({ instructions: proposal, toolReference, calculator, draft: current.data });
           }}
         >
           {t('com_project_authoring_review')}
@@ -204,8 +225,15 @@ export default function AssistantDraft({
               )}
               {reviewedTool && (
                 <p className="text-text-secondary text-xs">
-                  {t('com_project_tool_disclosure')} {reviewedTool.data_notice}
+                  {reviewedTool.reference.startsWith('action:')
+                    ? ''
+                    : t('com_project_tool_disclosure') + ' '}
+                  {reviewedTool.data_notice}
                 </p>
+              )}
+              {review.calculator && <p className="text-sm">{t('com_project_calculator')}</p>}
+              {review.draft.knowledge_revision_id && (
+                <p className="text-sm">{t('com_project_fixed_knowledge')}</p>
               )}
               {save.isError && (
                 <p role="alert">
@@ -230,7 +258,9 @@ export default function AssistantDraft({
                   disabled={
                     save.isLoading ||
                     !review.instructions.trim() ||
-                    (!!review.toolReference && !reviewedTool)
+                    (!!review.toolReference && !reviewedTool) ||
+                    (!!review.calculator &&
+                      !current.data.available_builtin_tools?.includes('calculator'))
                   }
                 >
                   {t('com_trials_save')}

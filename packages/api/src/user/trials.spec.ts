@@ -1,5 +1,7 @@
+import { actionDelimiter } from 'librechat-data-provider';
 import type { Response } from 'express';
 import { createTrialHandlers, prepareProjectTrial, createTrialConversationGuard } from './trials';
+import { availableTrialActions } from './trialActions';
 import { getTrialContext } from './trialContext';
 
 const project = '00000000-0000-4000-8000-000000000001';
@@ -151,6 +153,69 @@ it('uses an immutable snapshot instead of mutable native configuration or browse
     native_owner_id: user.id,
     conversation_id: conversation,
   });
+});
+it('loads only the owner-approved definition alongside calculator and fixed knowledge', async () => {
+  const { deps } = setup();
+  const domain = 'https://quote.example.test';
+  const raw_spec = JSON.stringify({
+    openapi: '3.0.3',
+    info: { title: 'Quote', version: '1' },
+    servers: [{ url: domain }],
+    paths: {
+      '/quote': { get: { operationId: 'quote', responses: { 200: { description: 'OK' } } } },
+    },
+  });
+  const owned = {
+    action_id: 'personal',
+    user: user.id,
+    reusable: true,
+    metadata: { domain, raw_spec },
+  };
+  const getTrialActions = jest
+    .fn()
+    .mockResolvedValue([
+      { ...owned, action_id: 'foreign', user: 'b'.repeat(24) },
+      { ...owned, action_id: 'credential', metadata: { domain, raw_spec, api_key: 'excluded' } },
+      owned,
+    ]);
+  const transport = {
+    ...deps,
+    canUseTrialCapability: async () => true,
+    getTrialActions,
+    encodeTrialActionDomain: async () => 'encoded',
+  };
+  const request = req({ agent_id: agentId, conversationId: conversation });
+  Object.assign(request.config!, { actions: { allowedAddresses: ['quote.example.test:443'] } });
+  const listed = await availableTrialActions(request, transport);
+  expect(listed.map(({ id }) => id)).toEqual(['personal']);
+  expect(listed[0].definition).not.toHaveProperty('domain');
+  const fixedTools = ['file_search', 'calculator', listed[0].definition.reference];
+  const resolve = () =>
+    new globalThis.Response(
+      JSON.stringify({
+        ...record,
+        knowledge_revision_id: project,
+        snapshot: { ...snapshot, tools: fixedTools.map((tool_id) => ({ tool_id })) },
+      }),
+    );
+  const params = {
+    req: request as Parameters<typeof prepareProjectTrial>[0]['req'],
+    foregroundRunId: 'run',
+    endpointOption: { agent_id: agentId, agent: Promise.resolve({ id: agentId }) },
+  };
+  deps.request.mockResolvedValueOnce(resolve());
+  await prepareProjectTrial(params, transport);
+  expect(await params.endpointOption.agent).toMatchObject({
+    actions: ['encoded' + actionDelimiter + 'personal'],
+    tools: ['file_search', 'calculator', 'quote' + actionDelimiter + 'encoded'],
+  });
+  deps.request.mockResolvedValueOnce(resolve());
+  getTrialActions.mockResolvedValueOnce([
+    { ...owned, metadata: { domain, raw_spec: raw_spec + '\n' } },
+  ]);
+  await expect(prepareProjectTrial(params, transport)).rejects.toThrow(
+    'ai_trials_tool_unavailable',
+  );
 });
 it('leaves ordinary chats untouched and rejects added unversioned context before calling a model', async () => {
   const { deps } = setup();

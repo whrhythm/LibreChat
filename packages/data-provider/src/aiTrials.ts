@@ -1,8 +1,12 @@
 import { z } from 'zod';
 
-export const trialToolReference = z
+export const personalTrialToolReference = z
   .string()
-  .regex(/^mcp:(?:deepwiki|mcp-[0-9a-f]{32}):[A-Za-z0-9_-]{1,64}:[1-9][0-9]{0,8}$/);
+  .regex(/^action:[A-Za-z0-9_-]{1,64}:[0-9a-f]{64}$/);
+export const trialToolReference = z.union([
+  z.string().regex(/^mcp:(?:deepwiki|mcp-[0-9a-f]{32}):[A-Za-z0-9_-]{1,64}:[1-9][0-9]{0,8}$/),
+  personalTrialToolReference,
+]);
 export const trialToolSchema = z.object({
   reference: trialToolReference,
   name: z.string().max(64),
@@ -21,6 +25,7 @@ export const trialConfigSchema = z
     max_output_tokens: z.number().int().min(256).max(16384),
     response_style: z.enum(['grounded', 'support']),
     tool_reference: trialToolReference.nullish(),
+    calculator_enabled: z.boolean().optional(),
   })
   .strict();
 export const trialCreateSchema = z
@@ -77,6 +82,7 @@ export const trialsSchema = z.object({
   output_limit: z.number(),
   trials: z.array(trialSchema),
   available_tools: z.array(trialToolSchema).max(12).optional(),
+  available_builtin_tools: z.array(z.literal('calculator')).optional(),
 });
 export type TrialConfig = z.infer<typeof trialConfigSchema>;
 export type AITrial = z.infer<typeof trialSchema>;

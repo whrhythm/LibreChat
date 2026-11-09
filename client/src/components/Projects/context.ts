@@ -2,7 +2,12 @@ import type { AITrials } from 'librechat-data-provider';
 
 type Draft = Pick<
   AITrials,
-  'revision' | 'config' | 'knowledge_revision_id' | 'unavailable_reason' | 'available_tools'
+  | 'revision'
+  | 'config'
+  | 'knowledge_revision_id'
+  | 'unavailable_reason'
+  | 'available_tools'
+  | 'available_builtin_tools'
 >;
 
 /** Describe only capabilities confirmed by the authenticated, current draft response. */
@@ -24,6 +29,8 @@ export function authoringContext(data: Draft) {
       revision_id: data.knowledge_revision_id,
     },
     selected_tool: data.config?.tool_reference,
+    selected_builtin_tools: data.config?.calculator_enabled ? ['calculator'] : [],
+    available_builtin_tools: data.available_builtin_tools ?? [],
     available_tools: data.available_tools?.map(({ input_schema, ...tool }) => ({
       ...tool,
       parameters: Object.keys(input_schema.properties ?? {}).slice(0, 20),

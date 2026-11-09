@@ -48,6 +48,7 @@ const { ensurePrivateTrialAgent, getAgent, getConvo, getMessages, findUser } = r
 const { grantPermission } = require('~/server/services/PermissionService');
 const { createMCPPermissionContext } = require('~/server/services/MCP');
 const { getEndpointsConfig } = require('~/server/services/Config');
+const { getActions } = require('~/models');
 const {
   getChatProject,
   ensureLinkedChatProject,
@@ -157,6 +158,10 @@ router.get(
   releases.source,
 );
 const trials = createTrialHandlers({
+  canUseTrialCapability: async (req, capability) =>
+    (await getEndpointsConfig(req))?.[EModelEndpoint.agents]?.capabilities?.includes(capability) ===
+    true,
+  getTrialActions: (query) => getActions(query, true),
   canUseReviewedTools: async (req) => {
     const [endpoints, allowed] = await Promise.all([
       getEndpointsConfig(req),

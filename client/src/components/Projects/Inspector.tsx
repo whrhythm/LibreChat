@@ -257,7 +257,9 @@ export default function ProjectInspector() {
                           trace={activity?.trace}
                           toolName={
                             selectedTrial?.digest === trials.data?.digest
-                              ? trials.data?.config?.tool_reference?.split(':')[2]
+                              ? trials.data?.available_tools?.find(
+                                  (tool) => tool.reference === trials.data?.config?.tool_reference,
+                                )?.service
                               : undefined
                           }
                         />
