@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { reviewedTrialToolName, toUIMessage } from 'librechat-data-provider';
 import type { TMessage } from 'librechat-data-provider';
+import type { TraceStep } from './Trace';
+import { isTrace, trialTrace } from './Trace';
 
 export type Status = 'running' | 'done' | 'failed' | 'waiting' | 'stopped';
 export type Activity = {
@@ -11,6 +13,7 @@ export type Activity = {
   answer?: Status;
   calls: number;
   toolCalls?: number;
+  trace?: TraceStep[];
 };
 
 const kind = 'starbridge:trial-activity';
@@ -100,7 +103,7 @@ export function useSendTrialActivity(agent: string | undefined, busy: boolean, r
       // Regeneration can keep its message ID. Compare immutable message references.
       const answer = reply !== observed.baseline ? reply : undefined;
       window.parent.postMessage(
-        { kind, agent, ...trialActivity(busy, answer) },
+        { kind, agent, ...trialActivity(busy, answer), trace: trialTrace(busy, answer) },
         window.location.origin,
       );
       if (!busy) observed.active = false;
@@ -123,6 +126,7 @@ export function useTrialActivity(agent?: string) {
         data.agent !== agent ||
         !Number.isSafeInteger(data.calls) ||
         data.calls < 0 ||
+        (data.trace !== undefined && !isTrace(data.trace)) ||
         (data.toolCalls !== undefined &&
           (!Number.isSafeInteger(data.toolCalls) || data.toolCalls < 0)) ||
         ['assistant', 'knowledge', 'tool', 'result', 'answer'].some(
@@ -140,6 +144,7 @@ export function useTrialActivity(agent?: string) {
           answer: data.answer,
           calls: data.calls,
           toolCalls: data.toolCalls,
+          trace: data.trace,
         },
       });
     }

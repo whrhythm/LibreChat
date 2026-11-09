@@ -3,17 +3,19 @@ import { atom, useAtom } from 'jotai';
 import { Button } from '@librechat/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { libraryRequest, projectLibrary, QueryKeys } from 'librechat-data-provider';
-import { LibraryDialog, libraryError } from './Library';
+import Library, { LibraryDialog, libraryError } from './Library';
 import { useAuthContext, useLocalize } from '~/hooks';
 
 export default function Knowledge({
   projectId,
   embedded = false,
   enabled = true,
+  inlineLibrary = false,
 }: {
   projectId: string;
   embedded?: boolean;
   enabled?: boolean;
+  inlineLibrary?: boolean;
 }) {
   const { user, token } = useAuthContext();
   const t = useLocalize();
@@ -24,6 +26,8 @@ export default function Knowledge({
   const [selection, setSelection] = useAtom(selectionAtom);
   const manageAtom = useMemo(() => atom<string | null>(null), []);
   const [manage, setManage] = useAtom(manageAtom);
+  const dirtyAtom = useMemo(() => atom(false), []);
+  const [dirty, setDirty] = useAtom(dirtyAtom);
   const active = enabled && expanded && !!token;
   const list = useQuery({
     queryKey: [QueryKeys.knowledgeLibraries, user?.id],
@@ -53,7 +57,10 @@ export default function Knowledge({
   return (
     <Container
       className="space-y-3"
-      onToggle={(e) => setExpanded((e.currentTarget as HTMLDetailsElement).open)}
+      onToggle={(e) => {
+        if (!embedded && e.currentTarget === e.target)
+          setExpanded((e.currentTarget as HTMLDetailsElement).open);
+      }}
     >
       {!embedded && (
         <summary className="cursor-pointer text-sm font-medium">{t('com_knowledge_title')}</summary>
@@ -79,7 +86,7 @@ export default function Knowledge({
         <select
           aria-label={t('com_library_binding')}
           className="border-border-light bg-surface-primary mt-2 w-full rounded border p-2"
-          disabled={!list.isSuccess || !binding.isSuccess || bind.isLoading}
+          disabled={!list.isSuccess || !binding.isSuccess || bind.isLoading || dirty}
           value={selection ?? binding.data?.library?.id ?? ''}
           onChange={(e) => setSelection(e.target.value)}
         >
@@ -95,12 +102,12 @@ export default function Knowledge({
       <div className="flex gap-2">
         <Button
           size="sm"
-          disabled={selection === null || bind.isLoading || !binding.isSuccess}
+          disabled={selection === null || bind.isLoading || !binding.isSuccess || dirty}
           onClick={() => bind.mutate()}
         >
           {t('com_ui_save')}
         </Button>
-        {binding.data?.library && (
+        {binding.data?.library && !inlineLibrary && (
           <Button size="sm" variant="outline" onClick={() => setManage(binding.data!.library!.id)}>
             {t('com_library_manage')}
           </Button>
@@ -109,7 +116,19 @@ export default function Knowledge({
       {!list.data?.libraries.length && list.isSuccess && (
         <p className="text-text-secondary text-xs">{t('com_library_create_hint')}</p>
       )}
-      <LibraryDialog id={manage} onClose={() => setManage(null)} />
+      {inlineLibrary && binding.data?.library && (
+        <Library
+          key={binding.data.library.id}
+          id={binding.data.library.id}
+          enabled={enabled}
+          onClose={() => {
+            setDirty(false);
+            void binding.refetch();
+          }}
+          onDirty={setDirty}
+        />
+      )}
+      {!inlineLibrary && <LibraryDialog id={manage} onClose={() => setManage(null)} />}
     </Container>
   );
 }

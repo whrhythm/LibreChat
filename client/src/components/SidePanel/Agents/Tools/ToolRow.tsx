@@ -10,7 +10,7 @@ import { cn } from '~/utils';
 
 interface Props {
   item: AgentItem;
-  onInfo: (item: AgentItem) => void;
+  onInfo?: (item: AgentItem) => void;
   onRemove: (item: AgentItem) => void;
 }
 
@@ -78,20 +78,22 @@ function ToolRowImpl({ item, onInfo, onRemove }: Props) {
           'no-touch:opacity-0 group-focus-within:opacity-100 group-hover:opacity-100',
         )}
       >
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => onInfo(item)}
-          aria-label={
-            configurable ? localize('com_ui_tools_configure') : localize('com_ui_tools_info')
-          }
-          className={cn(
-            'text-text-secondary rounded-md',
-            'hover:text-text-secondary focus-visible:opacity-100',
-          )}
-        >
-          <DetailIcon className="size-3.5" aria-hidden="true" />
-        </Button>
+        {onInfo && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => onInfo(item)}
+            aria-label={
+              configurable ? localize('com_ui_tools_configure') : localize('com_ui_tools_info')
+            }
+            className={cn(
+              'text-text-secondary rounded-md',
+              'hover:text-text-secondary focus-visible:opacity-100',
+            )}
+          >
+            <DetailIcon className="size-3.5" aria-hidden="true" />
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon-xs"

@@ -2,6 +2,7 @@ import { renderHook, act } from '@testing-library/react';
 import { ContentTypes, ToolCallTypes, reviewedTrialToolName } from 'librechat-data-provider';
 import type { TMessage, TMessageContentParts } from 'librechat-data-provider';
 import { trialActivity, useTrialActivity, useSendTrialActivity } from './Activity';
+import { trialTrace } from './Trace';
 
 const agent = 'agent_trial_' + 'a'.repeat(32);
 const reply = (content: TMessageContentParts[] = [], extra: Partial<TMessage> = {}): TMessage => ({
@@ -29,6 +30,32 @@ const tool = (
     ...(state === 'running' ? {} : { runStepStatus: state }),
     ...(state === 'completed' ? { output: 'Synthetic evidence' } : {}),
   },
+});
+
+it('uses the observed result and subsequent output to build the next model step', () => {
+  const part = tool('reviewed', 'completed', reviewedTrialToolName);
+  expect(trialTrace(true).map((step) => step.kind)).toEqual(['submitted']);
+  expect(trialTrace(true, reply([part])).map((step) => step.kind)).toEqual([
+    'submitted',
+    'model',
+    'call',
+    'tool',
+    'result',
+  ]);
+  expect(trialTrace(false, reply([part, text])).map((step) => step.kind)).toEqual([
+    'submitted',
+    'model',
+    'call',
+    'tool',
+    'result',
+    'model',
+    'answer',
+  ]);
+  expect(
+    trialTrace(true, reply([part, tool('parallel', 'completed', reviewedTrialToolName)])).filter(
+      (step) => step.kind === 'model',
+    ),
+  ).toHaveLength(1);
 });
 
 it('allows a direct answer without inventing a tool call', () => {

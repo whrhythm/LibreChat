@@ -200,10 +200,12 @@ export default function Library({
   id,
   onClose,
   onDirty,
+  enabled = true,
 }: {
   id: string;
   onClose: () => void;
   onDirty: (dirty: boolean) => void;
+  enabled?: boolean;
 }) {
   const { user, token } = useAuthContext();
   const t = useLocalize();
@@ -223,7 +225,7 @@ export default function Library({
   const list = useQuery({
     queryKey: [QueryKeys.knowledgeLibraries, user?.id, id],
     queryFn: () => libraryRequest<LibraryDetail>(token!, '/' + id),
-    enabled: !!token,
+    enabled: !!token && enabled,
     retry: false,
     refetchInterval: 3000,
   });

@@ -29,8 +29,13 @@ jest.mock('~/components/CodeChat/config', () => ({ isCodeChatEnabled: () => true
 jest.mock('~/components/CodeChat/CodeEditor', () => ({ __esModule: true, default: () => null }));
 jest.mock('./Graph', () => ({
   __esModule: true,
-  default: ({ onEdit }: { onEdit: (node: 'assistant') => void }) => (
-    <button onClick={() => onEdit('assistant')}>{'Assistant node'}</button>
+  default: () => <p>{'Trial graph'}</p>,
+}));
+jest.mock('./Draft', () => ({ __esModule: true, default: () => <p>{'Shared draft editor'}</p> }));
+jest.mock('~/components/CodeChat/Knowledge', () => ({
+  __esModule: true,
+  default: ({ inlineLibrary }: { inlineLibrary: boolean }) => (
+    <p>{inlineLibrary ? 'Inline library' : 'Library dialog'}</p>
   ),
 }));
 jest.mock('librechat-data-provider', () => ({
@@ -80,7 +85,7 @@ function mount() {
   return store;
 }
 
-it('opens node settings and materials while preserving the versioned trial frame', async () => {
+it('switches inline tabs while preserving the versioned trial frame', async () => {
   const store = mount();
   const trial = await screen.findByRole('link', { name: /com_project_trial_new_tab/ });
   expect(trial).toHaveAttribute('target', '_blank');
@@ -94,14 +99,22 @@ it('opens node settings and materials while preserving the versioned trial frame
   );
   const frame = screen.getByTitle('com_project_trial_frame');
   expect(frame.closest('[role="tabpanel"]')).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Assistant node' }));
-  expect(await screen.findByRole('dialog')).toHaveClass('left-0');
+  expect(screen.getByText('Trial graph')).toBeVisible();
+  fireEvent.keyDown(screen.getByRole('tab', { name: 'com_project_trace_config' }), {
+    key: 'Enter',
+  });
+  expect(screen.getByRole('tabpanel', { name: 'com_project_trace_config' })).toBeVisible();
+  expect(screen.getByText('Shared draft editor')).toBeVisible();
   expect(frame).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'com_project_return_chat' }));
-  fireEvent.click(screen.getByRole('button', { name: 'com_project_materials' }));
-  expect(await screen.findByRole('dialog')).toHaveClass('left-0');
+  fireEvent.keyDown(screen.getByRole('tab', { name: 'com_project_trace_knowledge' }), {
+    key: 'Enter',
+  });
+  expect(screen.getByText('Inline library')).toBeVisible();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(screen.getByTitle('com_project_trial_frame')).toBe(frame);
-  fireEvent.click(screen.getByRole('button', { name: 'com_project_return_chat' }));
+  fireEvent.keyDown(screen.getByRole('tab', { name: 'com_project_trace_overview' }), {
+    key: 'Enter',
+  });
   expect(screen.getByTitle('com_project_trial_frame')).toBe(frame);
   expect(screen.getByLabelText('chat draft')).toHaveValue('Keep this unsent request');
   fireEvent.click(screen.getByRole('button', { name: 'com_ui_close' }));

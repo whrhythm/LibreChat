@@ -1,304 +1,159 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
-import { Cpu, Database, MessageCircle, ArrowRight, CornerUpLeft, Wrench } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
 import {
   ReactFlow,
+  Background,
   Controls,
-  Position,
   Handle,
   MarkerType,
-  useReactFlow,
+  Position,
+  useNodesState,
   useNodesInitialized,
+  useReactFlow,
   useStore,
   getViewportForBounds,
 } from '@xyflow/react';
-import type { Edge, Node, NodeProps, NodeMouseHandler, XYPosition } from '@xyflow/react';
-import type { AITrials } from 'librechat-data-provider';
-import type { Activity, Status } from './Activity';
+import type { Node, NodeProps, Edge } from '@xyflow/react';
+import type { TraceStep } from './Trace';
 import { useLocalize } from '~/hooks';
 import '@xyflow/react/dist/style.css';
 
-export type GraphNode = 'input' | 'assistant' | 'knowledge' | 'tool' | 'result' | 'answer';
-type Layout = Partial<Record<GraphNode, XYPosition>>;
-type FlowNode = Node<{
-  label: string;
-  detail?: string;
-  status?: Status;
-  editable: boolean;
-  icon: typeof Cpu;
-}>;
-const indicators = {
-  running: { label: 'com_project_graph_running', glyph: '…' },
-  done: { label: 'com_project_graph_done', glyph: '✓' },
-  failed: { label: 'com_trials_failed', glyph: '!' },
-  waiting: { label: 'com_project_graph_waiting', glyph: '…' },
-  stopped: { label: 'com_project_graph_stopped', glyph: '■' },
+const labels = {
+  submitted: 'com_project_trace_submitted',
+  model: 'com_project_trace_model',
+  call: 'com_project_trace_call',
+  tool: 'com_project_trace_execute',
+  result: 'com_project_trace_result',
+  answer: 'com_project_graph_answer',
+  failed: 'com_trials_failed',
+  stopped: 'com_project_graph_stopped',
 } as const;
-type Props = {
-  layoutKey: string;
-  draft?: AITrials;
-  activity?: Activity;
-  onEdit: (id: 'assistant' | 'knowledge', trigger?: HTMLElement) => void;
-};
 
-function Step({ id, data }: NodeProps<FlowNode>) {
+const states = {
+  running: 'com_project_graph_running',
+  done: 'com_project_graph_done',
+  failed: 'com_trials_failed',
+  waiting: 'com_project_graph_waiting',
+  stopped: 'com_project_graph_stopped',
+} as const;
+
+type TraceNode = Node<{ step: TraceStep; index: number; name?: string; label: string }, 'trace'>;
+
+function Step({ data }: NodeProps<TraceNode>) {
   const t = useLocalize();
-  const Icon = data.icon;
-  let target = Position.Left;
-  let source = Position.Right;
-  if (id === 'knowledge' || id === 'tool') {
-    target = Position.Top;
-    source = Position.Left;
-  }
-  if (id === 'result') {
-    target = Position.Right;
-    source = Position.Top;
-  }
+  const { step, index, name, label } = data;
+  const side = Math.floor(index / 3) % 2 ? Position.Left : Position.Right;
+  const reverse = side === Position.Left ? Position.Right : Position.Left;
   return (
     <div
-      data-status={data.status ?? 'idle'}
-      className={`bg-surface-primary text-text-primary w-[126px] rounded-md border px-2 py-2 text-xs ${data.status === 'running' ? 'border-text-primary ring-border-heavy ring-1' : 'border-border-light'} ${data.editable ? 'cursor-pointer' : ''}`}
+      data-status={step.status ?? 'observed'}
+      className="bg-surface-primary border-border-light text-text-primary flex h-[54px] w-[144px] flex-col justify-center rounded-md border px-2 text-xs"
     >
-      {id !== 'input' && <Handle type="target" position={target} id="in" />}
-      {id === 'assistant' && (
-        <Handle type="target" position={Position.Bottom} id="return" style={{ left: '25%' }} />
+      {index > 0 && (
+        <Handle
+          type="target"
+          position={index % 3 === 0 ? Position.Top : reverse}
+          isConnectable={false}
+        />
       )}
-      <div className="flex items-center gap-1.5">
-        <Icon aria-hidden="true" className="size-3.5 shrink-0" />
-        <span className="flex-1 truncate font-medium" title={data.label}>
-          {data.label}
+      <div className="flex items-center gap-1">
+        <span className="text-text-secondary tabular-nums">{index + 1}</span>
+        <span className="truncate font-medium" title={label}>
+          {label}
         </span>
-        {data.status && (
-          <span
-            role="status"
-            aria-label={t(indicators[data.status].label)}
-            title={t(indicators[data.status].label)}
-          >
-            {indicators[data.status].glyph}
-          </span>
-        )}
       </div>
-      {data.detail && (
-        <div className="text-text-secondary text-3xs mt-1 truncate" title={data.detail}>
-          {data.detail}
-        </div>
-      )}
-      {id !== 'answer' && <Handle type="source" position={source} id="out" />}
-      {id === 'assistant' && (
-        <Handle type="source" position={Position.Bottom} id="call" style={{ left: '75%' }} />
-      )}
+      <div className="text-text-secondary truncate" title={name}>
+        {[name, step.status && t(states[step.status])].filter(Boolean).join(' · ')}
+      </div>
+      <Handle
+        type="source"
+        position={index % 3 === 2 ? Position.Bottom : side}
+        isConnectable={false}
+      />
     </div>
   );
 }
-const nodeTypes = { step: Step };
+const types = { trace: Step };
+const empty: TraceStep[] = [];
 
-function Fit({ nodeCount }: { nodeCount: number }) {
+function Fit({ count }: { count: number }) {
   const ready = useNodesInitialized();
   const width = useStore((state) => state.width);
   const height = useStore((state) => state.height);
-  const { getNodes, getNodesBounds, setViewport, viewportInitialized } = useReactFlow();
-  const fit = useCallback(() => {
-    if (!ready || !width || !height || !viewportInitialized) return;
-    // Fit the measured nodes directly. Controlled nodes need not change on a container resize.
-    const bounds = getNodesBounds(getNodes());
-    void setViewport(getViewportForBounds(bounds, width, height, 0.25, 1, 0.2));
-  }, [ready, width, height, viewportInitialized, getNodes, getNodesBounds, setViewport]);
+  const { getNodesBounds, getNodes, setViewport, viewportInitialized } = useReactFlow();
   useEffect(() => {
-    fit();
-  }, [nodeCount, fit]);
-  return (
-    <Controls
-      showInteractive={false}
-      position="bottom-right"
-      onFitView={fit}
-      className="[&_button]:border-border-light! [&_button]:bg-surface-primary! [&_button]:text-text-primary! [&_button:hover]:bg-surface-hover! shadow-none!"
-    />
-  );
+    if (ready && count && width && height && viewportInitialized) {
+      void setViewport(
+        getViewportForBounds(getNodesBounds(getNodes()), width, height, 0.2, 1, 0.15),
+      );
+    }
+  }, [ready, count, width, height, getNodesBounds, getNodes, setViewport, viewportInitialized]);
+  return null;
 }
 
-function readLayout(key: string): Layout {
-  try {
-    const raw = JSON.parse(localStorage.getItem(key) ?? '{}');
-    return Object.fromEntries(
-      ['input', 'assistant', 'knowledge', 'tool', 'result', 'answer'].flatMap((id) => {
-        const point = raw?.[id];
-        return Number.isFinite(point?.x) && Number.isFinite(point?.y) ? [[id, point]] : [];
+export default function Graph({
+  trace = empty,
+  toolName,
+}: {
+  trace?: TraceStep[];
+  toolName?: string;
+}) {
+  const t = useLocalize();
+  const initial = useMemo(
+    () =>
+      trace.map((step, index): TraceNode => {
+        const row = Math.floor(index / 3);
+        const col = row % 2 ? 2 - (index % 3) : index % 3;
+        const label = t(labels[step.kind]);
+        let name: string | undefined;
+        if (step.tool === 'knowledge') name = t('com_project_graph_search');
+        if (step.tool === 'reviewed') name = toolName ?? t('com_project_reviewed_tool');
+        return {
+          id: index + '-' + step.kind,
+          type: 'trace',
+          position: { x: col * 185, y: row * 95 },
+          data: { step, index, label, name },
+          ariaLabel: [label, name].filter(Boolean).join(' '),
+        };
+      }),
+    [trace, toolName, t],
+  );
+  const [nodes, setNodes, onNodesChange] = useNodesState(initial);
+  useEffect(() => {
+    setNodes((current) =>
+      initial.map((node, index) => {
+        const previous = current[index];
+        return previous?.id === node.id
+          ? { ...previous, data: node.data, ariaLabel: node.ariaLabel }
+          : node;
       }),
     );
-  } catch {
-    return {};
-  }
-}
-
-export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
-  const t = useLocalize();
-  // The previous dependency-only layout remains available; this layout has extra loop nodes.
-  const key = 'starbridge:assistant-loop-layout:' + layoutKey;
-  const [layout, setLayout] = useState(() => readLayout(key));
-  const [dragging, setDragging] = useState<Layout>({});
-  const [measured, setMeasured] = useState<
-    Partial<Record<GraphNode, { width: number; height: number }>>
-  >({});
-  const toolRef = draft?.config?.tool_reference;
-  const tool = draft?.available_tools?.find((item) => item.reference === toolRef);
-  const toolName = tool?.name ?? toolRef?.split(':')[2];
-  const hasKnowledge = !!draft?.knowledge_revision_id;
-  const nodes = useMemo(() => {
-    const make = (
-      id: GraphNode,
-      x: number,
-      y: number,
-      icon: typeof Cpu,
-      label: string,
-      detail?: string,
-    ): FlowNode => ({
-      id,
-      type: 'step',
-      position: dragging[id] ?? layout[id] ?? { x, y },
-      measured: measured[id],
-      ariaLabel: label,
-      data: {
-        label,
-        detail,
-        icon,
-        editable: id === 'assistant' || id === 'knowledge',
-        status: id === 'input' ? undefined : activity?.[id],
-      },
-    });
-    const result = [
-      make('input', 0, 0, ArrowRight, t('com_project_graph_input')),
-      make('assistant', 180, 0, Cpu, 'LLM', draft?.config?.model),
-      make('answer', 360, 0, MessageCircle, t('com_project_graph_answer')),
-    ];
-    if (hasKnowledge) {
-      result.push(
-        make(
-          'knowledge',
-          240,
-          130,
-          Database,
-          t('com_project_graph_search'),
-          activity?.calls
-            ? t('com_project_graph_calls', { count: activity.calls })
-            : t('com_project_graph_on_demand'),
-        ),
-      );
-    }
-    if (toolName) {
-      result.push(
-        make(
-          'tool',
-          hasKnowledge ? 405 : 240,
-          hasKnowledge ? 205 : 130,
-          Wrench,
-          toolName,
-          activity?.toolCalls
-            ? t('com_project_graph_calls', { count: activity.toolCalls })
-            : (tool?.service ?? t('com_project_tool_unavailable')),
-        ),
-      );
-    }
-    if (hasKnowledge || toolName) {
-      result.push(make('result', 40, 130, CornerUpLeft, t('com_project_graph_result')));
-    }
-    return result;
-  }, [
-    activity,
-    draft?.config?.model,
-    hasKnowledge,
-    toolName,
-    tool?.service,
-    dragging,
-    layout,
-    measured,
-    t,
-  ]);
-  const edge = (
-    id: string,
-    source: string,
-    target: string,
-    active: boolean,
-    label?: string,
-    sourceHandle = 'out',
-    targetHandle = 'in',
-  ): Edge => ({
-    id,
-    source,
-    target,
-    sourceHandle,
-    targetHandle,
-    label,
+  }, [initial, setNodes]);
+  const edges: Edge[] = initial.slice(1).map((node, index) => ({
+    id: node.id,
+    source: initial[index].id,
+    target: node.id,
     type: 'smoothstep',
-    markerEnd: {
-      type: MarkerType.ArrowClosed,
-      color: active ? 'rgb(var(--text-primary))' : 'rgb(var(--text-secondary))',
-    },
-    style: {
-      stroke: active ? 'rgb(var(--text-primary))' : 'rgb(var(--text-secondary))',
-      strokeWidth: active ? 2 : 1.5,
-    },
-    labelStyle: { fill: 'rgb(var(--text-secondary))', fontSize: 10 },
-    labelBgStyle: { fill: 'rgb(var(--surface-canvas))' },
+    markerEnd: { type: MarkerType.ArrowClosed, color: 'rgb(var(--text-secondary))' },
+    style: { stroke: 'rgb(var(--text-secondary))' },
     focusable: false,
-  });
-  const edges: Edge[] = [
-    edge('input-assistant', 'input', 'assistant', !!activity),
-    edge('assistant-answer', 'assistant', 'answer', !!activity?.answer),
-  ];
-  if (hasKnowledge) {
-    edges.push(
-      edge(
-        'assistant-knowledge',
-        'assistant',
-        'knowledge',
-        !!activity?.calls,
-        t('com_project_graph_call'),
-        'call',
-        'in',
-      ),
-      edge('knowledge-result', 'knowledge', 'result', activity?.knowledge === 'done'),
+  }));
+  if (!initial.length) {
+    return (
+      <div className="text-text-secondary grid h-full place-items-center px-3 text-center text-sm">
+        {t('com_project_trace_empty')}
+      </div>
     );
   }
-  if (toolName) {
-    edges.push(
-      edge(
-        'assistant-tool',
-        'assistant',
-        'tool',
-        !!activity?.toolCalls,
-        t('com_project_graph_call'),
-        'call',
-        'in',
-      ),
-      edge('tool-result', 'tool', 'result', activity?.tool === 'done'),
-    );
-  }
-  if (hasKnowledge || toolName) {
-    edges.push(
-      edge(
-        'result-assistant',
-        'result',
-        'assistant',
-        !!activity?.result,
-        t('com_project_graph_feedback'),
-        'out',
-        'return',
-      ),
-    );
-  }
-  const open: NodeMouseHandler<FlowNode> = (event, node) => {
-    if (node.id === 'assistant' || node.id === 'knowledge') {
-      onEdit(node.id, event.currentTarget instanceof HTMLElement ? event.currentTarget : undefined);
-    }
-  };
   return (
-    <div className="min-h-0 flex-1 overflow-clip" aria-label={t('com_project_graph')}>
+    <div aria-label={t('com_project_graph')} className="h-full min-h-0 overflow-clip">
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        nodeTypes={nodeTypes}
+        nodeTypes={types}
+        onNodesChange={onNodesChange}
         fitView
-        fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
-        minZoom={0.25}
+        fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
+        minZoom={0.2}
         maxZoom={2}
         autoPanOnNodeFocus={false}
         autoPanOnNodeDrag={false}
@@ -308,36 +163,14 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
         deleteKeyCode={null}
         zoomOnScroll={false}
         proOptions={{ hideAttribution: true }}
-        onNodeClick={open}
-        onNodeDragStart={() =>
-          document.activeElement instanceof HTMLElement && document.activeElement.blur()
-        }
-        onNodesChange={(changes) => {
-          const positions: Layout = {};
-          const dimensions: typeof measured = {};
-          for (const change of changes) {
-            if (change.type === 'position' && change.position)
-              positions[change.id as GraphNode] = change.position;
-            if (change.type === 'dimensions' && change.dimensions)
-              dimensions[change.id as GraphNode] = change.dimensions;
-          }
-          if (Object.keys(dimensions).length > 0)
-            setMeasured((current) => ({ ...current, ...dimensions }));
-          if (Object.keys(positions).length === 0) return;
-          setDragging((current) => ({ ...current, ...positions }));
-        }}
-        onNodeDragStop={(_event, node) => {
-          const next = { ...layout, [node.id]: node.position };
-          setDragging({});
-          setLayout(next);
-          try {
-            localStorage.setItem(key, JSON.stringify(next));
-          } catch {
-            /* Browser storage may be disabled; the in-memory layout still works. */
-          }
-        }}
       >
-        <Fit nodeCount={nodes.length} />
+        <Background color="rgb(var(--border-light))" gap={18} />
+        <Fit count={nodes.length} />
+        <Controls
+          showInteractive={false}
+          position="bottom-right"
+          className="[&_button]:border-border-light! [&_button]:bg-surface-primary! [&_button]:text-text-primary!"
+        />
       </ReactFlow>
     </div>
   );

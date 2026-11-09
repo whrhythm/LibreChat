@@ -194,40 +194,13 @@ export default function AssistantDraft({
                 save.mutate({ ...review, instructions: review.instructions.trim() });
               }}
             >
-              <textarea
-                rows={10}
-                maxLength={32000}
-                required
-                disabled={save.isLoading}
-                className="border-border-light bg-surface-primary w-full rounded border p-2 text-sm"
-                aria-label={t('com_trials_instructions')}
-                value={review.instructions}
-                onChange={(event) => setReview({ ...review, instructions: event.target.value })}
-              />
-              {(tools.length > 0 || review.toolReference) && (
-                <label className="block space-y-1 text-sm">
-                  <span>{t('com_project_reviewed_tool')}</span>
-                  <select
-                    className="border-border-light bg-surface-primary block w-full rounded border p-2"
-                    value={review.toolReference ?? ''}
-                    disabled={save.isLoading}
-                    onChange={(event) =>
-                      setReview({ ...review, toolReference: event.target.value || null })
-                    }
-                  >
-                    <option value="">{t('com_trials_none')}</option>
-                    {review.toolReference && !reviewedTool && (
-                      <option value={review.toolReference} disabled>
-                        {t('com_project_tool_unavailable')}
-                      </option>
-                    )}
-                    {tools.map((tool) => (
-                      <option key={tool.reference} value={tool.reference}>
-                        {tool.service} / {tool.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              <pre className="border-border-light bg-surface-secondary max-h-64 overflow-auto rounded border p-2 text-sm whitespace-pre-wrap">
+                {review.instructions}
+              </pre>
+              {reviewedTool && (
+                <p className="text-sm font-medium">
+                  {reviewedTool.service} / {reviewedTool.name}
+                </p>
               )}
               {reviewedTool && (
                 <p className="text-text-secondary text-xs">

@@ -342,11 +342,11 @@ interface SelectedSectionProps {
   emptyHint: string;
   items: AgentItem[];
   onAdd: () => void;
-  onInfo: (item: AgentItem) => void;
+  onInfo?: (item: AgentItem) => void;
   onRemove: (item: AgentItem) => void;
 }
 
-function SelectedSection({
+export function SelectedSection({
   title,
   addLabel,
   emptyLabel,

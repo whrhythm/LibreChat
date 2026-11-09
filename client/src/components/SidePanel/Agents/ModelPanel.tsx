@@ -38,10 +38,11 @@ export default function ModelPanel({
   setActivePanel,
   models: modelsData,
   modelsReady,
+  parameterKeys,
 }: Pick<
   AgentModelPanelProps,
   'models' | 'modelsError' | 'modelsReady' | 'providers' | 'setActivePanel'
->) {
+> & { parameterKeys?: readonly (keyof t.AgentModelParameters)[] }) {
   const localize = useLocalize();
   const { announcePolite } = useLiveAnnouncer();
 
@@ -105,6 +106,7 @@ export default function ModelPanel({
    * if the endpoint config later stops dropping it, with no control to inspect or clear it.
    */
   useEffect(() => {
+    if (parameterKeys) return;
     const currentParameters = getValues('model_parameters') ?? ({} as t.AgentModelParameters);
     const prunedParameters = pruneAgentModelParameters(currentParameters, parameterSettings);
     if (prunedParameters === currentParameters) {
@@ -112,7 +114,7 @@ export default function ModelPanel({
     }
 
     setValue('model_parameters', prunedParameters);
-  }, [parameterSettings, getValues, setValue]);
+  }, [parameterSettings, getValues, setValue, parameterKeys]);
 
   /** Same grouping as the chat panel: region choices are filled in first, and a
    *  control with nothing to render is dropped so no section stands empty. */
@@ -125,9 +127,15 @@ export default function ModelPanel({
               ? { ...setting, options: bedrockRegions }
               : setting,
           )
-          .filter((setting) => componentMapping[setting.component] != null && hasControl(setting)),
+          .filter(
+            (setting) =>
+              (!parameterKeys ||
+                parameterKeys.includes(setting.key as keyof t.AgentModelParameters)) &&
+              componentMapping[setting.component] != null &&
+              hasControl(setting),
+          ),
       ),
-    [parameters, bedrockRegions],
+    [parameters, bedrockRegions, parameterKeys],
   );
 
   const setOption = (optionKey: keyof t.AgentModelParameters) => (value: t.AgentParameterValue) => {

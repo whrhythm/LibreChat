@@ -55,16 +55,19 @@ function SourceToggle({ disabled = false }: { disabled?: boolean }) {
 export default function Instructions({
   promptStatus = 'ready',
   onRetryLoad,
+  inlineOnly = false,
 }: {
   promptStatus?: InstructionsPromptStatus;
   onRetryLoad?: () => void;
+  inlineOnly?: boolean;
 }) {
   const localize = useLocalize();
+  const editorId = useId();
   const { control } = useFormContext<AgentForm>();
   const instructionsSource = useWatch({ control, name: 'instructionsSource' });
   const instructionsPrompt = useWatch({ control, name: 'instructionsPrompt' });
   const restricted = isRestrictedInstructionsPrompt(instructionsPrompt);
-  const isPromptMode = instructionsSource === 'prompt';
+  const isPromptMode = !inlineOnly && instructionsSource === 'prompt';
   const isReady = promptStatus === 'ready';
 
   return (
@@ -73,7 +76,7 @@ export default function Instructions({
         <Label variant="section" data-testid="instructions-heading">
           {localize('com_ui_instructions')}
         </Label>
-        <SourceToggle disabled={!isReady} />
+        {!inlineOnly && <SourceToggle disabled={!isReady} />}
       </div>
 
       {/* The expanded agent query (the only source of `instructionsPrompt`) has not
@@ -104,7 +107,7 @@ export default function Instructions({
               className={cn('flex flex-col', isPromptMode && 'hidden')}
             >
               <VariableEditor
-                id="instructions"
+                id={inlineOnly ? editorId : 'instructions'}
                 label={localize('com_ui_instructions')}
                 value={field.value ?? ''}
                 onChange={field.onChange}

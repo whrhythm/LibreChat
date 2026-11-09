@@ -10,6 +10,10 @@ import {
   OGDialogContent,
   OGDialogTitle,
   OGDialogDescription,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
 } from '@librechat/client';
 import type { AITrial } from 'librechat-data-provider';
 import { useProjectQuery, useGetStartupConfig } from '~/data-provider';
@@ -25,14 +29,8 @@ import ProjectApplication from './Application';
 import { useTrialActivity } from './Activity';
 import ProjectWeb from './Web';
 import Graph from './Graph';
-type WorkView =
-  | 'prepareAssistant'
-  | 'prepareCode'
-  | 'preview'
-  | 'publish'
-  | 'operations'
-  | 'settings'
-  | 'materials';
+import Draft from './Draft';
+type WorkView = 'prepareAssistant' | 'prepareCode' | 'preview' | 'publish' | 'operations';
 const workbenchTrial = atomFamily((_key: string) => atom<AITrial | null>(null));
 
 /** Side navigation is independent from the central chat, including its unsent input. */
@@ -43,6 +41,12 @@ export default function ProjectInspector() {
   const workAtom = useMemo(() => atom<{ view: WorkView; open: boolean } | null>(null), []);
   const [dialog, setDialog] = useAtom(workAtom);
   const work = dialog?.open ? dialog.view : null;
+  const [tab, setTab] = useAtom(
+    useMemo(
+      () => atom({ projectId: selection?.projectId, value: 'overview' }),
+      [selection?.projectId],
+    ),
+  );
   const close = () => setDialog((previous) => previous && { ...previous, open: false });
   const [expanded, setExpanded] = useAtom(useMemo(() => atom(false), []));
   const trigger = useRef<HTMLElement | null>(null);
@@ -108,11 +112,8 @@ export default function ProjectInspector() {
     prepareCode: 'com_project_bind_code',
     prepareAssistant: 'com_project_prepare_assistant',
     preview: 'com_project_trial_records',
-    settings: 'com_project_settings',
-    materials: 'com_knowledge_title',
   } as const;
   const title = t(titles[work ?? 'preview']);
-  const sideConfig = dialog?.view === 'settings' || dialog?.view === 'materials';
   const assistantWorkbench = ready && section === 'assistant' && !!assistant;
   let trialPath = '';
   if (selectedTrial && project) {
@@ -204,54 +205,97 @@ export default function ProjectInspector() {
             section === 'assistant' &&
             (assistant ? (
               <div className="flex h-full min-h-0 flex-col">
-                <div className="border-border-light flex h-[clamp(9rem,27dvh,16.25rem)] min-h-0 shrink-0 flex-col border-b">
-                  <Graph
-                    key={(user?.id ?? 'anonymous') + ':' + project._id}
-                    layoutKey={(user?.id ?? 'anonymous') + ':' + project._id}
-                    draft={trials.data}
-                    activity={selectedTrial?.digest === trials.data?.digest ? activity : undefined}
-                    onEdit={(node, element) =>
-                      open(node === 'assistant' ? 'settings' : 'materials', element)
-                    }
-                  />
-                  <div className="flex shrink-0 flex-wrap items-center gap-1 px-2 pb-1">
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      onClick={(e) => open('settings', e.currentTarget)}
-                    >
-                      {t('com_project_settings')}
-                    </Button>
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      onClick={(e) => open('materials', e.currentTarget)}
-                    >
-                      {t('com_project_materials')}
-                    </Button>
-                    <span className="flex-1" />
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      disabled={!startup?.aiTrialsEnabled}
-                      onClick={(e) => open('preview', e.currentTarget)}
-                    >
-                      {t('com_project_trial_records')}
-                    </Button>
-                    {trialPath && (
-                      <Button asChild size="icon-sm" variant="ghost">
-                        <a
-                          href={trialPath.replace(/&trialPane=1$/, '')}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title={t('com_project_trial_new_tab')}
-                          aria-label={t('com_project_trial_new_tab')}
+                <div className="border-border-light h-[46%] min-h-0 shrink-0 border-b">
+                  <Tabs
+                    value={tab.value}
+                    onValueChange={(value) => setTab({ ...tab, value })}
+                    className="flex h-full min-h-0 flex-col"
+                  >
+                    <div className="flex shrink-0 flex-wrap items-center justify-between gap-1 px-2 py-1">
+                      <TabsList>
+                        <TabsTrigger value="overview">
+                          {t('com_project_trace_overview')}
+                        </TabsTrigger>
+                        <TabsTrigger value="knowledge">
+                          {t('com_project_trace_knowledge')}
+                        </TabsTrigger>
+                        <TabsTrigger value="config">{t('com_project_trace_config')}</TabsTrigger>
+                      </TabsList>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          disabled={!startup?.aiTrialsEnabled}
+                          onClick={(e) => open('preview', e.currentTarget)}
                         >
-                          <ExternalLink className="size-4" aria-hidden="true" />
-                        </a>
-                      </Button>
-                    )}
-                  </div>
+                          {t('com_project_trial_records')}
+                        </Button>
+                        {trialPath && (
+                          <Button asChild size="icon-sm" variant="ghost">
+                            <a
+                              href={trialPath.replace(/&trialPane=1$/, '')}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={t('com_project_trial_new_tab')}
+                              aria-label={t('com_project_trial_new_tab')}
+                            >
+                              <ExternalLink className="size-4" aria-hidden="true" />
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <TabsContent value="overview" className="mt-0 flex min-h-0 flex-1 flex-col">
+                      {selectedTrial && activity?.trace?.length ? (
+                        <p className="text-text-secondary px-3 text-xs">
+                          {t('com_trials_version')} {selectedTrial.number}
+                        </p>
+                      ) : null}
+                      <div className="min-h-0 flex-1">
+                        <Graph
+                          key={selectedTrial?.id}
+                          trace={activity?.trace}
+                          toolName={
+                            selectedTrial?.digest === trials.data?.digest
+                              ? trials.data?.config?.tool_reference?.split(':')[2]
+                              : undefined
+                          }
+                        />
+                      </div>
+                    </TabsContent>
+                    <TabsContent
+                      forceMount
+                      value="knowledge"
+                      className="mt-0 min-h-0 flex-1 overflow-auto data-[state=inactive]:hidden"
+                    >
+                      <div className="p-3">
+                        {id && (
+                          <Knowledge
+                            key={id}
+                            projectId={id}
+                            embedded
+                            inlineLibrary
+                            enabled={tab.value === 'knowledge'}
+                          />
+                        )}
+                      </div>
+                    </TabsContent>
+                    <TabsContent
+                      forceMount
+                      value="config"
+                      className="mt-0 min-h-0 flex-1 overflow-auto data-[state=inactive]:hidden"
+                    >
+                      <div className="p-3">
+                        {id && trials.data && <Draft key={id} projectId={id} draft={trials.data} />}
+                        {trials.isLoading && <p role="status">{t('com_ui_loading')}</p>}
+                        {trials.isError && (
+                          <Button size="xs" variant="outline" onClick={() => void trials.refetch()}>
+                            {t('com_ui_retry')}
+                          </Button>
+                        )}
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </div>
                 <section
                   aria-label={t('com_project_trial_frame')}
@@ -325,10 +369,7 @@ export default function ProjectInspector() {
           if (!value) close();
         }}
       >
-        <OGDialogContent
-          placement={sideConfig ? 'left' : 'center'}
-          className={sideConfig ? 'sm:max-w-lg' : 'max-h-[90vh] overflow-y-auto sm:max-w-4xl'}
-        >
+        <OGDialogContent placement="center" className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
           <OGDialogTitle>{title}</OGDialogTitle>
           <OGDialogDescription>{project?.name}</OGDialogDescription>
           {work && project && (work === 'prepareAssistant' || work === 'prepareCode') && (
@@ -338,8 +379,7 @@ export default function ProjectInspector() {
             />
           )}
           {id && work === 'publish' && <Releases projectId={id} embedded />}
-          {id && work === 'materials' && <Knowledge projectId={id} embedded />}
-          {id && (work === 'preview' || work === 'settings') && (
+          {id && work === 'preview' && (
             <Trials
               projectId={id}
               nativeProjectId={project?._id}
