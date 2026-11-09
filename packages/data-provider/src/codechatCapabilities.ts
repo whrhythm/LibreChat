@@ -6,6 +6,7 @@ import { EModelEndpoint } from './schemas';
 export const codechatCapabilitiesSchema = z
   .object({
     enabled: z.boolean().default(false),
+    projectDevelopment: z.boolean().optional(),
     endpoint: z.string().min(1).default('LiteLLM'),
     chatRoute: z.string().min(1).default('codechat-chat'),
     codingRoute: z.string().min(1).default('codechat-coding'),

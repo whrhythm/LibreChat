@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { atom, useAtom } from 'jotai';
 import { atomFamily } from 'jotai/utils';
 import { useQuery } from '@tanstack/react-query';
-import { X, ExternalLink, Maximize2, Minimize2, Send } from 'lucide-react';
+import { X, ExternalLink, Maximize2, Minimize2, Send, Settings2, ArrowLeft } from 'lucide-react';
 import { aiProjects, workspaceProject, projectTrials, QueryKeys } from 'librechat-data-provider';
 import {
   Button,
@@ -21,6 +21,7 @@ import { deliveryAddress } from '~/components/CodeChat/delivery';
 import Applications from '~/components/CodeChat/Applications';
 import PersonalFiles from '~/components/CodeChat/Files';
 import Knowledge from '~/components/CodeChat/Knowledge';
+import Workbench from '~/components/CodeChat/Workbench';
 import { useAuthContext, useLocalize } from '~/hooks';
 import Releases from '~/components/CodeChat/Releases';
 import Trials from '~/components/CodeChat/Trials';
@@ -31,6 +32,7 @@ import ProjectWeb from './Web';
 import Graph from './Graph';
 import Draft from './Draft';
 type WorkView = 'prepareAssistant' | 'prepareCode' | 'preview' | 'publish' | 'operations';
+const developerPanel = atomFamily((_key: string) => atom<'project' | 'default' | null>(null));
 const workbenchTrial = atomFamily((_key: string) => atom<AITrial | null>(null));
 
 /** Side navigation is independent from the central chat, including its unsent input. */
@@ -48,6 +50,9 @@ export default function ProjectInspector() {
     ),
   );
   const close = () => setDialog((previous) => previous && { ...previous, open: false });
+  const [settingsScope, setSettingsScope] = useAtom(
+    developerPanel((user?.id ?? 'anonymous') + ':' + (selection?.projectId ?? '')),
+  );
   const [expanded, setExpanded] = useAtom(useMemo(() => atom(false), []));
   const trigger = useRef<HTMLElement | null>(null);
   const [pinned, setPinned] = useAtom(
@@ -100,8 +105,11 @@ export default function ProjectInspector() {
     )
       setDialog((previous) => previous && { ...previous, open: false });
   }, [work, assistant?.state, id, setDialog]);
+  useEffect(() => {
+    setSettingsScope(selection?.section === 'development' ? 'project' : null);
+  }, [selection, setSettingsScope]);
   if (!selection) return null;
-  let section = selection.section;
+  let section = selection.section === 'development' ? 'overview' : selection.section;
   if (section === 'overview' && assistant) section = 'assistant';
   if (section === 'overview' && id) section = 'code';
   const ready = native.isSuccess && assistants.isSuccess && (!id || context.isSuccess);
@@ -128,15 +136,13 @@ export default function ProjectInspector() {
   }
   return (
     <aside
-      className={`text-text-primary border-border-light absolute inset-0 z-20 flex min-h-0 min-w-0 flex-col border-s text-sm lg:static lg:z-auto lg:shrink-0 ${assistantWorkbench ? 'bg-surface-canvas' : 'bg-surface-primary'} ${expanded ? 'lg:w-3/5' : 'lg:w-2/5 lg:max-w-3xl'}`}
+      className={`text-text-primary border-border-light absolute inset-0 z-20 flex min-h-0 min-w-0 flex-col border-s text-sm lg:static lg:z-auto lg:shrink-0 ${assistantWorkbench ? 'bg-surface-canvas' : 'bg-surface-primary'} ${expanded ? 'lg:w-3/5' : 'lg:w-[440px] lg:max-w-[50vw]'}`}
       aria-label={t('com_project_workbench')}
     >
       <header className="border-border-light flex items-center justify-between gap-2 border-b px-3 py-2">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-sm font-semibold" title={project?.name}>
             {project?.name ?? t('com_ui_loading')}
-            {!assistantWorkbench &&
-              ' · ' + t(section === 'files' ? 'com_project_files' : 'com_project_try_pane')}
           </h2>
         </div>
         {assistantWorkbench && (
@@ -161,6 +167,17 @@ export default function ProjectInspector() {
             </Button>
           </>
         )}
+        {id && startup?.codechat?.capabilities?.projectDevelopment && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t('com_codechat_programming_settings')}
+            aria-pressed={settingsScope !== null}
+            onClick={() => setSettingsScope(settingsScope ? null : 'project')}
+          >
+            <Settings2 className="size-4" />
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon-sm"
@@ -174,8 +191,40 @@ export default function ProjectInspector() {
           <X className="size-4" aria-hidden="true" />
         </Button>
       </header>
+      {settingsScope && id ? (
+        <section className="min-h-0 flex-1 overflow-auto">
+          <div className="border-border-light flex items-center gap-2 border-b px-3 py-2">
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              aria-label={t('com_ui_back')}
+              onClick={() => setSettingsScope(null)}
+            >
+              <ArrowLeft className="size-4" />
+            </Button>
+            <Tabs
+              value={settingsScope}
+              onValueChange={(value) =>
+                setSettingsScope(value === 'default' ? 'default' : 'project')
+              }
+            >
+              <TabsList>
+                <TabsTrigger value="project">{t('com_development_project')}</TabsTrigger>
+                <TabsTrigger value="default">{t('com_development_personal')}</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          <Workbench
+            key={id + settingsScope}
+            conversationId={settingsScope === 'default' ? 'default' : 'project-' + id}
+            rootPath={settingsScope === 'project' ? path : undefined}
+            embedded
+            disabled={false}
+          />
+        </section>
+      ) : null}
       <div
-        className={`min-h-0 flex-1 overflow-x-hidden ${assistantWorkbench ? 'overflow-hidden' : 'overflow-y-auto'}`}
+        className={`${settingsScope ? 'hidden' : ''} min-h-0 flex-1 overflow-x-hidden ${assistantWorkbench ? 'overflow-hidden' : 'overflow-y-auto'}`}
       >
         <div className={assistantWorkbench ? 'h-full' : 'flex min-h-full flex-col gap-3 p-3'}>
           {!ready && !failed && (
@@ -205,7 +254,7 @@ export default function ProjectInspector() {
             section === 'assistant' &&
             (assistant ? (
               <div className="flex h-full min-h-0 flex-col">
-                <div className="border-border-light h-[46%] min-h-0 shrink-0 border-b">
+                <div className="border-border-light h-[260px] max-h-[45%] min-h-0 shrink-0 border-b">
                   <Tabs
                     value={tab.value}
                     onValueChange={(value) => setTab({ ...tab, value })}
@@ -336,24 +385,30 @@ export default function ProjectInspector() {
               </div>
             ))}
           {ready && project && section === 'code' && (
-            <div className="flex min-h-[28rem] flex-1 flex-col gap-3">
-              {path && <ProjectWeb path={path} deployed={address} />}
-              {path ? (
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  onClick={(e) => open('operations', e.currentTarget)}
-                >
-                  {t('com_project_operations')}
-                </Button>
-              ) : (
-                !id && (
-                  <Button className="w-full" onClick={(e) => open('prepareCode', e.currentTarget)}>
+            <Tabs defaultValue="preview" className="flex min-h-0 flex-1 flex-col">
+              <TabsList className="shrink-0">
+                <TabsTrigger value="preview">{t('com_ui_preview')}</TabsTrigger>
+                <TabsTrigger value="files">{t('com_project_files')}</TabsTrigger>
+                <TabsTrigger value="running">{t('com_development_running')}</TabsTrigger>
+              </TabsList>
+              <TabsContent
+                value="preview"
+                className="min-h-0 flex-1 flex-col data-[state=active]:flex"
+              >
+                {path && <ProjectWeb path={path} deployed={address} />}
+                {!id && (
+                  <Button onClick={(e) => open('prepareCode', e.currentTarget)}>
                     {t('com_project_bind_code')}
                   </Button>
-                )
-              )}
-            </div>
+                )}
+              </TabsContent>
+              <TabsContent value="files" className="min-h-0 flex-1 overflow-auto">
+                {path && <PersonalFiles key={path} expanded rootPath={path} />}
+              </TabsContent>
+              <TabsContent value="running" className="min-h-0 flex-1 overflow-auto">
+                {path && <Applications path={path} canPublish enabled projectOnly />}
+              </TabsContent>
+            </Tabs>
           )}
           {ready &&
             section === 'files' &&

@@ -42,6 +42,8 @@ export interface EndpointDbMethods {
 
 /** Transport-free state consumed while resolving provider credentials and configuration. */
 export interface EndpointRuntimeContext {
+  /** Owner-resolved project binding; never copied from the submitted body. */
+  developmentProjectId?: string;
   appConfig?: AppConfig;
   user?: IUser;
   requestBody: RequestBody;

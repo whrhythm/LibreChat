@@ -42,9 +42,17 @@ const Markdown = memo(function Markdown({ content = '', isLatestMessage }: TCont
   const taskReference = content
     .trim()
     .match(
-      /^\[编程任务\]\(#starbridge-task-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)$/,
+      /^\[编程任务\]\(#starbridge-task-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)$/m,
     );
-  if (taskReference) return <ProgrammingTask id={taskReference[1]} />;
+  if (taskReference) {
+    const explanation = content.slice(0, taskReference.index).trim();
+    return (
+      <>
+        {explanation && <Markdown content={explanation} isLatestMessage={false} />}
+        <ProgrammingTask id={taskReference[1]} />
+      </>
+    );
+  }
 
   if (isInitializing) {
     return (

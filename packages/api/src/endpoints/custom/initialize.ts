@@ -188,7 +188,7 @@ export async function initializeCustom(
   params: ProviderInitializeParams,
 ): Promise<InitializeResultBase> {
   const { endpoint, model_parameters, inferenceParameters, db } = params;
-  const { appConfig, user, requestBody } = resolveEndpointRuntime(params);
+  const { appConfig, user, requestBody, developmentProjectId } = resolveEndpointRuntime(params);
   const { key: expiresAt } = requestBody;
 
   const configuredEndpoint = getCustomEndpointConfig({
@@ -359,6 +359,8 @@ export async function initializeCustom(
     clientOptions.headers = {
       ...(customOptions.headers as Record<string, string> | undefined),
       'X-CodeChat-Capability': !nativeAgent && selectedCapability === 'coding' ? 'coding' : 'chat',
+      'X-CodeChat-Project':
+        capabilityConfig.projectDevelopment && !nativeAgent ? (developmentProjectId ?? '') : '',
       'X-CodeChat-Conversation':
         typeof requestBody.conversationId === 'string' &&
         /^[a-zA-Z0-9_-]{1,64}$/.test(requestBody.conversationId)

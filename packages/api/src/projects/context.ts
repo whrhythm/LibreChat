@@ -6,6 +6,7 @@ import { resolveChatProjectResources } from './resources';
 
 export interface ResolvedChatProjectContext {
   projectId: string;
+  platformProjectId?: string;
   contextRevision: number;
   instructions: string;
   file_ids: string[];
@@ -20,6 +21,7 @@ export type ConversationSnapshot = Partial<IConversation> & {
 };
 
 type ProjectSnapshot = Pick<IChatProject, 'instructions' | 'contextRevision' | 'file_ids'> & {
+  platformProjectId?: string;
   _id?: { toString(): string } | string;
   tenantId?: string | null;
 };
@@ -259,6 +261,7 @@ export async function resolveChatProjectContext(
         });
   return {
     projectId: projectIdFromRecord,
+    ...(project.platformProjectId ? { platformProjectId: project.platformProjectId } : {}),
     contextRevision:
       typeof project.contextRevision === 'number' && Number.isSafeInteger(project.contextRevision)
         ? project.contextRevision

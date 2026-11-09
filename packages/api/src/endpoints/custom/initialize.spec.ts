@@ -46,6 +46,40 @@ jest.mock('~/app/config', () => ({
 import { getTokenConfigKey, initializeCustom } from './initialize';
 import { SCOPED_TOKEN_CONFIG_KEY_PREFIX } from '../keys';
 
+describe('project development transport', () => {
+  it.each([false, true])(
+    'only ordinary owner project chat can delegate (saved Agent: %s)',
+    async (saved) => {
+      const params = createParams({});
+      const appConfig = {
+        config: {
+          codechat: {
+            capabilities: { enabled: true, projectDevelopment: true, endpoint: 'test-custom' },
+          },
+        },
+      } as BaseInitializeParams['req']['config'];
+      await initializeCustom({
+        endpoint: params.endpoint,
+        db: params.db,
+        model_parameters: params.model_parameters,
+        runtime: {
+          appConfig,
+          user: params.req.user,
+          requestBody: { conversationId: 'chat', ...(saved ? { agent_id: 'business-agent' } : {}) },
+          developmentProjectId: 'owner-project',
+        },
+      });
+      expect(mockGetOpenAIConfig).toHaveBeenLastCalledWith(
+        'sk-test-key',
+        expect.objectContaining({
+          headers: expect.objectContaining({ 'X-CodeChat-Project': saved ? '' : 'owner-project' }),
+        }),
+        'test-custom',
+      );
+    },
+  );
+});
+
 function createParams(overrides: {
   apiKey?: string;
   baseURL?: string;

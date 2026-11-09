@@ -5,6 +5,7 @@ export const programmingPreferenceSchema = z
     conversation_id: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/),
     revision: z.number().int().nonnegative(),
     project_path: z.string().max(255),
+    coding_model: z.string().max(200).optional(),
     strategy: z.enum(['implement', 'plan', 'review']),
     approval: z.enum(['strict', 'workspace_auto']),
     mcp_servers: z

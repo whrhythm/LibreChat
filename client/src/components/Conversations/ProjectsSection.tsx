@@ -4,9 +4,9 @@ import { useDrop } from 'react-dnd';
 import { useRecoilValue } from 'recoil';
 import * as Ariakit from '@ariakit/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bot, PanelsTopLeft, PanelRight, Files } from 'lucide-react';
 import { aiProjects, Constants, QueryKeys } from 'librechat-data-provider';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Bot, PanelsTopLeft, PanelRight, Files, Settings2 } from 'lucide-react';
 import {
   ChevronDown,
   ChevronRight,
@@ -288,6 +288,15 @@ const ProjectItem = memo(
         },
         ...(isCodeChatEnabled() && project.platformProjectId
           ? [
+              {
+                id: `${menuId}-development`,
+                label: localize('com_codechat_programming_settings'),
+                icon: <Settings2 className="text-text-secondary size-4" aria-hidden="true" />,
+                onClick: () => {
+                  select({ projectId: project._id, section: 'development' });
+                  toggleNav();
+                },
+              },
               {
                 id: `${menuId}-files`,
                 label: localize('com_project_files'),

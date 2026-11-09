@@ -14,6 +14,7 @@ import { ModelSelectorChatProvider } from './ModelSelectorChatContext';
 import { CustomMenu as Menu, CustomMenuItem } from './CustomMenu';
 import { getSelectedIcon, getDisplayValue } from './utils';
 import Workbench from '~/components/CodeChat/Workbench';
+import { useGetStartupConfig } from '~/data-provider';
 import DialogManager from './DialogManager';
 import { useLocalize } from '~/hooks';
 
@@ -21,6 +22,7 @@ const defaultInterface = getConfigDefaults().interface;
 
 function ModelSelectorContent() {
   const localize = useLocalize();
+  const { data: startup } = useGetStartupConfig();
   const modelSelectorHint = useShortcutHint('openModelSelector', localize('com_ui_select_model'));
   const modelSelectorAriaKey = useShortcutAriaKey('openModelSelector');
 
@@ -110,7 +112,8 @@ function ModelSelectorContent() {
         comboboxLabel={localize('com_endpoint_search_models')}
         trigger={trigger}
       >
-        {workspace.endpoint &&
+        {!startup?.codechat?.capabilities?.projectDevelopment &&
+          workspace.endpoint &&
           (!searchValue ||
             localize('com_codechat_openhands')
               .toLowerCase()

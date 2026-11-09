@@ -59,7 +59,7 @@ export default function Catalog() {
       return ui.filter !== 'mine' || !ui.sharedOnly || !!(count && count.active + count.pending);
     }) ?? [];
   const coding = startup?.codechat?.capabilities;
-  const openCoding = ui.filter === 'all' && coding?.enabled;
+  const openCoding = ui.filter === 'all' && coding?.enabled && !coding.projectDevelopment;
   const invitations = ui.filter !== 'mine' ? (list.data?.invitations ?? []) : [];
   const openManagement = (button: HTMLButtonElement, id: string, name: string, tab: ReleaseTab) => {
     trigger.current = button;

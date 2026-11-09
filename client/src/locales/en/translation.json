@@ -1,4 +1,8 @@
 {
+  "com_development_default_model": "平台默认",
+  "com_development_project": "当前项目",
+  "com_development_personal": "个人默认",
+  "com_development_running": "运行",
   "com_project_tool_catalog_title": "Project tools",
   "com_project_tool_catalog_review": "Review",
   "com_project_tool_catalog_unsubmitted": "Awaiting submission",

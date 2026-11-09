@@ -1602,6 +1602,9 @@ export async function initializeAgent(
       appConfig,
       user,
       requestBody: runtime.requestBody,
+      developmentProjectId: shouldUseChatProjectContext
+        ? runtime.chatProjectContext?.platformProjectId
+        : undefined,
     },
     endpoint: provider,
     model_parameters: finalModelOptions,
