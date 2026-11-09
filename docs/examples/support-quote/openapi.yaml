@@ -3,7 +3,7 @@ info:
   title: 星桥演示报价
   version: 1.0.0
 servers:
-  - url: http://starbridge-demo-tool.librechat.svc.cluster.local:8080
+  - url: http://starbridge-demo-tool.librechat.svc.cluster.local
 paths:
   /v1/quote:
     get:
