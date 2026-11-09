@@ -12,11 +12,17 @@ import {
   aiProjects,
   AITrialError,
   getSpeechText,
+  generatedToolBounds,
   generatedToolProposal,
   projectTrials,
   QueryKeys,
 } from 'librechat-data-provider';
-import type { AITrials, GeneratedToolTask, TMessage } from 'librechat-data-provider';
+import type {
+  AITrials,
+  GeneratedToolBounds,
+  GeneratedToolTask,
+  TMessage,
+} from 'librechat-data-provider';
 import { useGetStartupConfig, useProjectQuery } from '~/data-provider';
 import { useLatestMessage } from '~/hooks/Messages/useLatestMessage';
 import { useAuthContext, useLocalize } from '~/hooks';
@@ -65,6 +71,7 @@ export default function AssistantDraft({
     draft: AITrials;
   } | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const [invalidBounds, setInvalidBounds] = useState(false);
   const select = useSetAtom(projectInspector(user?.id ?? 'anonymous'));
   const enabled = !!token && !!startup?.aiTrialsEnabled && window.self === window.top;
   const { data: project } = useProjectQuery(projectId, { enabled, retry: false });
@@ -117,13 +124,16 @@ export default function AssistantDraft({
     },
   });
   const generate = useMutation({
-    mutationFn: (operation: 'start' | 'review') =>
+    mutationFn: (operation: 'start' | GeneratedToolBounds) =>
       operation === 'start'
         ? projectTrials<GeneratedToolTask>(token!, id!, '/generated-tools', {
             ...candidate!,
             request_id: requestId,
           })
-        : projectTrials<GeneratedToolTask>(token!, id!, buildPath, {}),
+        : projectTrials<GeneratedToolTask>(token!, id!, buildPath, {
+            bounds: operation,
+            expected_reference: build.data?.review?.reference ?? null,
+          }),
     onSuccess: (task) => cache.setQueryData(buildKey, task),
   });
   const save = useMutation({
@@ -201,6 +211,10 @@ export default function AssistantDraft({
   const canReview =
     !!base && proposal.length > 0 && proposal.length <= 32000 && saved !== latest?.messageId;
   const outdated = canReview && base !== (current.data.digest ?? 'new');
+  const updateTool =
+    !!approved && !!current.data.config && current.data.config.tool_reference !== approved;
+  const canAuthorize =
+    updateTool || (canReview && !outdated && !invalidTool && (!candidate || !!approved));
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-2 px-4 pb-1">
       <Button
@@ -236,7 +250,7 @@ export default function AssistantDraft({
       {canReview && !outdated && invalidTool && (
         <span role="alert">{t('com_project_tool_unavailable')}</span>
       )}
-      {candidate && !outdated && (
+      {candidate && (!outdated || build.data?.status === 'completed') && (
         <div className="border-border-light w-full rounded-md border p-2 text-xs">
           <details>
             <summary className="cursor-pointer font-medium">{candidate.title}</summary>
@@ -265,14 +279,72 @@ export default function AssistantDraft({
                 )}
               </span>
             )}
-            {build.data?.status === 'completed' && !build.data.review && (
-              <Button
-                size="xs"
-                disabled={generate.isLoading}
-                onClick={() => generate.mutate('review')}
+            {build.data?.status === 'completed' && (
+              <form
+                key={build.data.review?.reference ?? build.data.id}
+                className="w-full space-y-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const form = new FormData(event.currentTarget);
+                  const bounds = generatedToolBounds.safeParse(
+                    Object.fromEntries(
+                      candidate.parameters.map((key) => [
+                        key,
+                        {
+                          minimum: Number(form.get(key + '-min')),
+                          maximum: Number(form.get(key + '-max')),
+                        },
+                      ]),
+                    ),
+                  );
+                  setInvalidBounds(!bounds.success);
+                  if (bounds.success) generate.mutate(bounds.data);
+                }}
               >
-                {t('com_project_tool_build_review')}
-              </Button>
+                <fieldset className="space-y-2" disabled={generate.isLoading}>
+                  <legend className="font-medium">{t('com_project_tool_bounds')}</legend>
+                  {candidate.parameters.map((key) => (
+                    <div key={key} className="flex flex-wrap items-center gap-2">
+                      <span className="min-w-20 font-mono">{key}</span>
+                      {(['min', 'max'] as const).map((edge) => (
+                        <label key={edge} className="flex items-center gap-1">
+                          <span>
+                            {t(
+                              edge === 'min'
+                                ? 'com_project_tool_minimum'
+                                : 'com_project_tool_maximum',
+                            )}
+                          </span>
+                          <input
+                            className="border-border-light bg-surface-primary w-28 rounded border px-2 py-1"
+                            aria-label={
+                              key +
+                              ' ' +
+                              t(
+                                edge === 'min'
+                                  ? 'com_project_tool_minimum'
+                                  : 'com_project_tool_maximum',
+                              )
+                            }
+                            type="number"
+                            name={key + '-' + edge}
+                            defaultValue={
+                              build.data?.bounds?.[key]?.[edge === 'min' ? 'minimum' : 'maximum']
+                            }
+                            min={-100000000}
+                            max={100000000}
+                            step={1}
+                            required
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  ))}
+                  <Button type="submit" size="xs">
+                    {t('com_project_tool_build_review')}
+                  </Button>
+                </fieldset>
+              </form>
             )}
             {build.data?.review && (
               <span role="status">{t(`com_releases_tool_${build.data.review.state}`)}</span>
@@ -282,18 +354,33 @@ export default function AssistantDraft({
                 {t('com_releases_refresh')}
               </Button>
             )}
-            {generate.isError && <span role="alert">{t('com_project_tool_build_failed')}</span>}
+            {invalidBounds && <span role="alert">{t('com_project_tool_bounds_invalid')}</span>}
+            {generate.isError && (
+              <span role="alert">
+                {t(
+                  generate.error instanceof AITrialError &&
+                    generate.error.code === 'ai_generated_tool_bounds_no_cases'
+                    ? 'com_project_tool_bounds_no_cases'
+                    : 'com_project_tool_build_failed',
+                )}
+              </span>
+            )}
           </div>
         </div>
       )}
-      {canReview && !outdated && !invalidTool && (!candidate || !!approved) && (
+      {canAuthorize && (
         <Button
           ref={trigger}
           size="xs"
           disabled={busy}
           onClick={() => {
             save.reset();
-            setReview({ instructions: proposal, toolReference, calculator, draft: current.data });
+            setReview({
+              instructions: updateTool ? current.data.config!.instructions : proposal,
+              toolReference,
+              calculator: updateTool ? current.data.config?.calculator_enabled : calculator,
+              draft: current.data,
+            });
           }}
         >
           {t(candidate ? 'com_project_tool_build_authorize' : 'com_project_authoring_review')}
@@ -327,6 +414,18 @@ export default function AssistantDraft({
                 <p className="text-sm font-medium">
                   {reviewedTool.service} / {reviewedTool.name}
                 </p>
+              )}
+              {review.toolReference === approved && build.data?.bounds && (
+                <dl className="text-xs">
+                  {Object.entries(build.data.bounds).map(([key, value]) => (
+                    <div className="flex gap-2" key={key}>
+                      <dt>{key}</dt>
+                      <dd>
+                        {value.minimum}–{value.maximum}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
               )}
               {reviewedTool && (
                 <p className="text-text-secondary text-xs">

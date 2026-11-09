@@ -15,6 +15,22 @@ export const trialToolReference = z.union([
   releasableToolReference,
 ]);
 const toolInteger = z.number().int().min(-100000000).max(100000000);
+export const generatedToolBounds = z
+  .record(
+    z.string().regex(/^[a-z][a-z0-9_]{0,31}$/),
+    z
+      .object({ minimum: toolInteger, maximum: toolInteger })
+      .strict()
+      .refine((v) => v.minimum <= v.maximum),
+  )
+  .refine((v) => Object.keys(v).length > 0 && Object.keys(v).length <= 8);
+export const generatedToolReview = z
+  .object({
+    bounds: generatedToolBounds.optional(),
+    expected_reference: generatedToolReference.nullable().optional(),
+  })
+  .strict();
+export type GeneratedToolBounds = z.infer<typeof generatedToolBounds>;
 export const generatedToolProposal = z
   .object({
     name: z.string().regex(/^[a-z][a-z0-9_]{0,47}$/),
@@ -35,6 +51,7 @@ export const generatedToolTask = z.object({
   id: z.string().uuid(),
   status: z.string(),
   path: z.string(),
+  bounds: generatedToolBounds.nullish(),
   review: z
     .object({
       reference: generatedToolReference,

@@ -19,7 +19,13 @@ import {
 import type { Response } from 'express';
 import type { TrialDependencies, TrialTransport } from './trials';
 import type { ServerRequest } from '~/types';
-import { TrialFailure, trialClient, fixedSnapshotSchema, applyFixedSnapshot } from './trials';
+import {
+  TrialFailure,
+  trialClient,
+  fixedSnapshotSchema,
+  applyFixedSnapshot,
+  generatedToolInstructions,
+} from './trials';
 import { appIdFromAgent, getTrialContext, setTrialContext } from './trialContext';
 import { availableTrialActions } from './trialActions';
 
@@ -294,7 +300,8 @@ export async function preparePublishedApp(
       data.number +
       '。你是面向受邀成员的业务助手，模型费用由创建者承担。按获授权知识和实际工具结果回答。' +
       (definition
-        ? `查询工具 ${definition.name} 在本发布版本的实际调用名为 ${reviewedTrialToolName}。`
+        ? `查询工具 ${definition.name} 在本发布版本的实际调用名为 ${reviewedTrialToolName}。` +
+          (data.generated_tool ? generatedToolInstructions : '')
         : ''),
   );
   setTrialContext(req, { ...getTrialContext(req)!, entryId: id });
