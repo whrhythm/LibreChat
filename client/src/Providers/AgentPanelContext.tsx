@@ -63,7 +63,7 @@ export function AgentPanelProvider({
     useMCPServerManager({ observeToolAuthorization: observeVisibleToolAuthorization });
   const { data: startupConfig } = useGetStartupConfig();
   const { data: actions } = useGetActionsQuery(EModelEndpoint.agents, {
-    enabled: observeToolAuthorization,
+    enabled: panelVisible || observeToolAuthorization || !!agent_id,
   });
 
   const { data: regularTools } = useAvailableToolsQuery(EModelEndpoint.agents);
