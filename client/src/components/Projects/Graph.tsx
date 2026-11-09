@@ -37,7 +37,7 @@ type Props = {
   layoutKey: string;
   draft?: AITrials;
   activity?: Activity;
-  onEdit: (id: 'assistant' | 'knowledge') => void;
+  onEdit: (id: 'assistant' | 'knowledge', trigger?: HTMLElement) => void;
 };
 
 function Step({ id, data }: NodeProps<FlowNode>) {
@@ -235,11 +235,13 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
       ),
     );
   }
-  const open: NodeMouseHandler<FlowNode> = (_event, node) => {
-    if (node.id === 'assistant' || node.id === 'knowledge') onEdit(node.id);
+  const open: NodeMouseHandler<FlowNode> = (event, node) => {
+    if (node.id === 'assistant' || node.id === 'knowledge') {
+      onEdit(node.id, event.currentTarget instanceof HTMLElement ? event.currentTarget : undefined);
+    }
   };
   return (
-    <div className="min-h-0 flex-1" aria-label={t('com_project_graph')}>
+    <div className="min-h-0 flex-1 overflow-clip" aria-label={t('com_project_graph')}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -248,6 +250,9 @@ export default function Graph({ layoutKey, draft, activity, onEdit }: Props) {
         fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
         minZoom={0.25}
         maxZoom={2}
+        autoPanOnNodeFocus={false}
+        autoPanOnNodeDrag={false}
+        nodeDragThreshold={5}
         nodesConnectable={false}
         edgesReconnectable={false}
         deleteKeyCode={null}

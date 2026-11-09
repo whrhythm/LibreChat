@@ -95,11 +95,11 @@ it('opens node settings and materials while preserving the versioned trial frame
   const frame = screen.getByTitle('com_project_trial_frame');
   expect(frame.closest('[role="tabpanel"]')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Assistant node' }));
-  expect(await screen.findByRole('dialog')).toBeVisible();
+  expect(await screen.findByRole('dialog')).toHaveClass('left-0');
   expect(frame).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'com_project_return_chat' }));
   fireEvent.click(screen.getByRole('button', { name: 'com_project_materials' }));
-  expect(await screen.findByRole('dialog')).toBeVisible();
+  expect(await screen.findByRole('dialog')).toHaveClass('left-0');
   expect(screen.getByTitle('com_project_trial_frame')).toBe(frame);
   fireEvent.click(screen.getByRole('button', { name: 'com_project_return_chat' }));
   expect(screen.getByTitle('com_project_trial_frame')).toBe(frame);
@@ -123,15 +123,26 @@ it('opens publishing from the header and returns without replacing the chat', as
   expect(screen.getByLabelText('chat draft')).toHaveValue('Keep this unsent request');
 });
 
-it('restores the last ready trial when the current draft has no trial yet', async () => {
+it('restores the previous trial and switches versions through the trial records', async () => {
   (projectTrials as jest.Mock).mockResolvedValue({
     digest: 'updated',
-    trials: [{ id: 'older', state: 'ready', digest: 'prior', agent_id: 'agent_trial_prior' }],
+    revision: 2,
+    models: ['test-model'],
+    config: { model: 'test-model' },
+    trials: [
+      { id: 'older', number: 1, state: 'ready', digest: 'prior', agent_id: 'agent_trial_prior' },
+    ],
   });
   mount();
   const frame = await screen.findByTitle('com_project_trial_frame');
   expect(frame).toHaveAttribute('src', expect.stringContaining('agent_id=agent_trial_prior'));
-  expect(screen.getByRole('button', { name: 'com_project_trial_switch' })).toBeVisible();
+  expect(screen.queryByText('com_project_graph_previous')).not.toBeInTheDocument();
+  expect(screen.queryByText('com_project_trial_switch')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'com_project_trial_records' }));
+  expect(await screen.findByRole('button', { name: 'com_trials_create' })).toBeVisible();
+  fireEvent.click(await screen.findByRole('button', { name: 'com_trials_open' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(screen.getByTitle('com_project_trial_frame')).toBe(frame);
 });
 
 it('does not report missing resources when the service failed and can retry', async () => {

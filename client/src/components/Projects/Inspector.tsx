@@ -40,8 +40,10 @@ export default function ProjectInspector() {
   const { user, token } = useAuthContext();
   const t = useLocalize();
   const [selection, select] = useAtom(projectInspector(user?.id ?? 'anonymous'));
-  const workAtom = useMemo(() => atom<WorkView | null>(null), []);
-  const [work, setWork] = useAtom(workAtom);
+  const workAtom = useMemo(() => atom<{ view: WorkView; open: boolean } | null>(null), []);
+  const [dialog, setDialog] = useAtom(workAtom);
+  const work = dialog?.open ? dialog.view : null;
+  const close = () => setDialog((previous) => previous && { ...previous, open: false });
   const [expanded, setExpanded] = useAtom(useMemo(() => atom(false), []));
   const trigger = useRef<HTMLElement | null>(null);
   const [pinned, setPinned] = useAtom(
@@ -83,17 +85,17 @@ export default function ProjectInspector() {
   const app = context.data?.application;
   const address = app ? deliveryAddress(app) : null;
   const path = context.data?.path ?? assistant?.project.path;
-  const open = (view: WorkView, element: HTMLElement) => {
-    trigger.current = element;
-    setWork(view);
+  const open = (view: WorkView, element?: HTMLElement) => {
+    trigger.current = element ?? null;
+    setDialog({ view, open: true });
   };
   useEffect(() => {
     if (
       (work === 'prepareAssistant' && assistant?.state === 'ready') ||
       (work === 'prepareCode' && id)
     )
-      setWork(null);
-  }, [work, assistant?.state, id, setWork]);
+      setDialog((previous) => previous && { ...previous, open: false });
+  }, [work, assistant?.state, id, setDialog]);
   if (!selection) return null;
   let section = selection.section;
   if (section === 'overview' && assistant) section = 'assistant';
@@ -110,6 +112,7 @@ export default function ProjectInspector() {
     materials: 'com_knowledge_title',
   } as const;
   const title = t(titles[work ?? 'preview']);
+  const sideConfig = dialog?.view === 'settings' || dialog?.view === 'materials';
   const assistantWorkbench = ready && section === 'assistant' && !!assistant;
   let trialPath = '';
   if (selectedTrial && project) {
@@ -162,7 +165,7 @@ export default function ProjectInspector() {
           size="icon-sm"
           aria-label={t('com_ui_close')}
           onClick={() => {
-            setWork(null);
+            close();
             setExpanded(false);
             select(null);
           }}
@@ -207,7 +210,9 @@ export default function ProjectInspector() {
                     layoutKey={(user?.id ?? 'anonymous') + ':' + project._id}
                     draft={trials.data}
                     activity={selectedTrial?.digest === trials.data?.digest ? activity : undefined}
-                    onEdit={(node) => setWork(node === 'assistant' ? 'settings' : 'materials')}
+                    onEdit={(node, element) =>
+                      open(node === 'assistant' ? 'settings' : 'materials', element)
+                    }
                   />
                   <div className="flex shrink-0 flex-wrap items-center gap-1 px-2 pb-1">
                     <Button
@@ -225,27 +230,14 @@ export default function ProjectInspector() {
                       {t('com_project_materials')}
                     </Button>
                     <span className="flex-1" />
-                    {selectedTrial && selectedTrial.digest !== trials.data?.digest && (
-                      <span className="text-text-secondary text-xs">
-                        {t('com_project_graph_previous')}
-                      </span>
-                    )}
-                    {currentTrial && selectedTrial?.id !== currentTrial.id ? (
-                      <Button size="xs" variant="outline" onClick={() => setPinned(currentTrial)}>
-                        {t('com_project_trial_switch')}
-                      </Button>
-                    ) : (
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        disabled={!startup?.aiTrialsEnabled}
-                        onClick={(e) => open('preview', e.currentTarget)}
-                      >
-                        {selectedTrial && !currentTrial
-                          ? t('com_project_trial_switch')
-                          : t('com_project_trial_records')}
-                      </Button>
-                    )}
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      disabled={!startup?.aiTrialsEnabled}
+                      onClick={(e) => open('preview', e.currentTarget)}
+                    >
+                      {t('com_project_trial_records')}
+                    </Button>
                     {trialPath && (
                       <Button asChild size="icon-sm" variant="ghost">
                         <a
@@ -330,10 +322,13 @@ export default function ProjectInspector() {
         open={work !== null}
         triggerRef={trigger}
         onOpenChange={(value) => {
-          if (!value) setWork(null);
+          if (!value) close();
         }}
       >
-        <OGDialogContent placement="center" className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+        <OGDialogContent
+          placement={sideConfig ? 'left' : 'center'}
+          className={sideConfig ? 'sm:max-w-lg' : 'max-h-[90vh] overflow-y-auto sm:max-w-4xl'}
+        >
           <OGDialogTitle>{title}</OGDialogTitle>
           <OGDialogDescription>{project?.name}</OGDialogDescription>
           {work && project && (work === 'prepareAssistant' || work === 'prepareCode') && (
@@ -351,13 +346,21 @@ export default function ProjectInspector() {
               embedded
               mode={work}
               openInNewTab
+              onSelectTrial={
+                work === 'preview'
+                  ? (trial) => {
+                      setPinned(trial);
+                      close();
+                    }
+                  : undefined
+              }
             />
           )}
           {path && work === 'operations' && (
             <Applications path={path} canPublish enabled projectOnly />
           )}
           <div className="border-border-light mt-4 flex justify-end border-t pt-3">
-            <Button variant="outline" onClick={() => setWork(null)}>
+            <Button variant="outline" onClick={close}>
               {t('com_project_return_chat')}
             </Button>
           </div>

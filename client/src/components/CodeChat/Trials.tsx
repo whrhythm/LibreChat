@@ -31,6 +31,7 @@ export default function Trials({
   mode = 'all',
   nativeProjectId,
   openInNewTab = false,
+  onSelectTrial,
 }: {
   projectId: string;
   embedded?: boolean;
@@ -38,6 +39,7 @@ export default function Trials({
   mode?: 'all' | 'settings' | 'preview';
   nativeProjectId?: string;
   openInNewTab?: boolean;
+  onSelectTrial?: (trial: AITrial) => void;
 }) {
   const { user, token } = useAuthContext();
   const conversationId = useMatch('/c/:conversationId')?.params.conversationId;
@@ -327,7 +329,12 @@ export default function Trials({
                     </p>
                     {trial.acceptance && <p className="text-xs">{trial.acceptance.note}</p>}
                     <div className="flex flex-wrap gap-2">
-                      {trial.state === 'ready' ? (
+                      {trial.state === 'ready' && onSelectTrial && (
+                        <Button size="xs" onClick={() => onSelectTrial(trial)}>
+                          {t('com_trials_open')}
+                        </Button>
+                      )}
+                      {trial.state === 'ready' && !onSelectTrial && (
                         <Button size="xs" asChild>
                           <a
                             target={openInNewTab ? '_blank' : undefined}
@@ -343,7 +350,8 @@ export default function Trials({
                             {t('com_trials_open')}
                           </a>
                         </Button>
-                      ) : (
+                      )}
+                      {trial.state !== 'ready' && (
                         <Button
                           size="xs"
                           disabled={busy}

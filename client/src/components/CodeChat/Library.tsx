@@ -1,7 +1,6 @@
 import { Suspense, useMemo, useRef } from 'react';
 import { atom, useAtom } from 'jotai';
 import { libraryRequest, QueryKeys } from 'librechat-data-provider';
-import { Eye, Pencil, Trash2, Type, Upload, RefreshCw } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
@@ -10,6 +9,18 @@ import {
   OGDialogTitle,
   OGDialogDescription,
 } from '@librechat/client';
+import {
+  ChevronRight,
+  Eye,
+  FileText,
+  Folder,
+  FolderOpen,
+  Pencil,
+  RefreshCw,
+  Trash2,
+  Type,
+  Upload,
+} from 'lucide-react';
 import type { LibraryDetail, LibraryEdit } from 'librechat-data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { lazyWithRecovery } from '~/lib/assets/lazy';
@@ -377,51 +388,88 @@ export default function Library({
             }
           >
             <div className="min-w-0">
-              <ul className="divide-border-light divide-y" aria-label={t('com_library_files')}>
-                {head?.manifest.map((file) => (
-                  <li key={file.name} className="flex items-center gap-2 py-3">
-                    <button
-                      className="min-w-0 flex-1 text-start"
-                      onClick={() =>
-                        select({ name: file.name, revision: head.id, mode: 'preview' })
-                      }
+              <details open className="group border-border-light rounded-md border">
+                <summary className="hover:bg-surface-hover flex cursor-pointer list-none items-center gap-1.5 rounded-md px-2 py-1.5 text-sm [&::-webkit-details-marker]:hidden">
+                  <ChevronRight
+                    className="size-3.5 shrink-0 group-open:rotate-90"
+                    aria-hidden="true"
+                  />
+                  <Folder className="size-4 shrink-0 group-open:hidden" aria-hidden="true" />
+                  <FolderOpen
+                    className="hidden size-4 shrink-0 group-open:block"
+                    aria-hidden="true"
+                  />
+                  <span className="min-w-0 flex-1 truncate" title={data.name}>
+                    {data.name}
+                  </span>
+                  <span className="text-text-secondary text-xs">{head?.manifest.length ?? 0}</span>
+                </summary>
+                <ul
+                  className="border-border-light ms-4 max-h-80 overflow-y-auto border-s py-1"
+                  aria-label={t('com_library_files')}
+                >
+                  {head?.manifest.map((file) => (
+                    <li
+                      key={file.name}
+                      className={`hover:bg-surface-hover flex min-w-0 items-center gap-1 pe-1 ${selected?.name === file.name ? 'bg-surface-active' : ''}`}
                     >
-                      <span className="block truncate text-sm">{file.name}</span>
-                      <span className="text-text-secondary text-xs">
-                        {storageSize(file.bytes)} · {t(states[head.state])}
-                      </span>
-                    </button>
-                    <div className="flex shrink-0 gap-0.5">
-                      {(
-                        [
-                          { mode: 'preview', icon: Eye, key: 'com_library_preview' },
-                          { mode: 'edit', icon: Pencil, key: 'com_library_edit' },
-                          { mode: 'rename', icon: Type, key: 'com_library_rename' },
-                          { mode: 'remove', icon: Trash2, key: 'com_library_remove' },
-                        ] as const
-                      ).map((action) => (
-                        <Button
-                          key={action.mode}
-                          size="icon-sm"
-                          variant="ghost"
-                          aria-label={t(action.key) + ' ' + file.name}
-                          disabled={mutate.isLoading}
-                          onClick={() =>
-                            select({ name: file.name, revision: head.id, mode: action.mode })
-                          }
-                        >
-                          <action.icon className="size-3.5" aria-hidden="true" />
-                        </Button>
-                      ))}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              {!head?.manifest.length && (
-                <p className="text-text-secondary py-8 text-center text-sm">
-                  {t('com_library_upload_hint')}
-                </p>
-              )}
+                      <button
+                        className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5 text-start"
+                        aria-pressed={selected?.name === file.name}
+                        title={
+                          file.name +
+                          ' · ' +
+                          storageSize(file.bytes) +
+                          ' · ' +
+                          t(states[head.state])
+                        }
+                        onClick={() =>
+                          select({ name: file.name, revision: head.id, mode: 'preview' })
+                        }
+                      >
+                        <FileText
+                          className="text-text-secondary size-3.5 shrink-0"
+                          aria-hidden="true"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm">{file.name}</span>
+                          <span className="text-text-secondary block truncate text-xs">
+                            {storageSize(file.bytes)} · {t(states[head.state])}
+                          </span>
+                        </span>
+                      </button>
+                      <div className="flex shrink-0 gap-0.5">
+                        {(
+                          [
+                            { mode: 'preview', icon: Eye, key: 'com_library_preview' },
+                            { mode: 'edit', icon: Pencil, key: 'com_library_edit' },
+                            { mode: 'rename', icon: Type, key: 'com_library_rename' },
+                            { mode: 'remove', icon: Trash2, key: 'com_library_remove' },
+                          ] as const
+                        ).map((action) => (
+                          <Button
+                            key={action.mode}
+                            size="icon-sm"
+                            variant="ghost"
+                            aria-label={t(action.key) + ' ' + file.name}
+                            disabled={mutate.isLoading}
+                            onClick={() =>
+                              select({ name: file.name, revision: head.id, mode: action.mode })
+                            }
+                          >
+                            <action.icon className="size-3.5" aria-hidden="true" />
+                          </Button>
+                        ))}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {!head?.manifest.length && (
+                  <p className="text-text-secondary py-8 text-center text-sm">
+                    {t('com_library_upload_hint')}
+                  </p>
+                )}
+              </details>
             </div>
             {selected && (
               <FileView
