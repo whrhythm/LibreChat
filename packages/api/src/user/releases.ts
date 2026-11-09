@@ -13,6 +13,8 @@ import {
   releaseToolReviewSchema,
   trialsSchema,
   reviewedTrialToolName,
+  trialToolSchema,
+  releasableToolReference,
 } from 'librechat-data-provider';
 import type { Response } from 'express';
 import type { TrialDependencies, TrialTransport } from './trials';
@@ -129,7 +131,7 @@ export function createReleaseHandlers(
         if (action === 'publish') {
           const input = publishSchema.parse(req.body);
           if (
-            input.confirm_tool_reference &&
+            input.confirm_tool_reference?.startsWith('action:') &&
             !(await availableTrialActions(req, deps, input.confirm_tool_reference)).length
           )
             throw new TrialFailure(409, 'ai_releases_tool_review_required');
@@ -234,6 +236,7 @@ const resolvedSchema = appEntrySchema.extend({
       owner_native_id: z.string().regex(/^[0-9a-f]{24}$/),
     })
     .nullish(),
+  generated_tool: trialToolSchema.nullish(),
 });
 export async function preparePublishedApp(
   params: Parameters<typeof import('./trials').prepareProjectTrial>[0],
@@ -273,13 +276,16 @@ export async function preparePublishedApp(
   const data = resolvedSchema.parse(await call('entries/' + id + '/resolve', run));
   if (data.entry_id !== id || data.agent_id !== 'agent_app_' + id.replace(/-/g, ''))
     throw new TrialFailure(503, 'ai_releases_unavailable');
-  const reference = data.snapshot.tools.find((tool) => tool.tool_id.startsWith('action:'))?.tool_id;
-  if (reference !== data.personal_tool?.reference)
+  const reference = data.snapshot.tools.find(
+    (tool) => releasableToolReference.safeParse(tool.tool_id).success,
+  )?.tool_id;
+  if (reference !== (data.personal_tool?.reference ?? data.generated_tool?.reference))
     throw new TrialFailure(403, 'ai_releases_tool_review_required');
   const tool = data.personal_tool
     ? (await availableTrialActions(req, deps, reference, data.personal_tool.owner_native_id))[0]
     : undefined;
-  if (reference && !tool) throw new TrialFailure(403, 'ai_releases_tool_review_required');
+  if (data.personal_tool && !tool) throw new TrialFailure(403, 'ai_releases_tool_review_required');
+  const definition = tool?.definition ?? data.generated_tool;
   applyFixedSnapshot(
     params,
     data,
@@ -287,21 +293,28 @@ export async function preparePublishedApp(
     '平台状态：已发布版本 ' +
       data.number +
       '。你是面向受邀成员的业务助手，模型费用由创建者承担。按获授权知识和实际工具结果回答。' +
-      (tool
-        ? `查询工具 ${tool.definition.name} 在本发布版本的实际调用名为 ${reviewedTrialToolName}。`
+      (definition
+        ? `查询工具 ${definition.name} 在本发布版本的实际调用名为 ${reviewedTrialToolName}。`
         : ''),
   );
   setTrialContext(req, { ...getTrialContext(req)!, entryId: id });
-  if (tool) {
+  if (definition) {
     setTrialContext(req, {
       ...getTrialContext(req)!,
       reviewedTool: {
-        definition: tool.definition,
+        definition,
         invoke: async (input, signal) => {
           const admission = z
-            .object({ allowed: z.literal(true) })
-            .parse(await call('entries/' + id + '/tool-admission', run, signal));
-          if (admission.allowed) return tool.invoke(input, signal);
+            .object({ allowed: z.literal(true), text: z.string().max(12000).optional() })
+            .parse(
+              await call(
+                'entries/' + id + '/tool-admission',
+                tool ? run : { ...run, arguments: input },
+                signal,
+              ),
+            );
+          if (tool) return tool.invoke(input, signal);
+          if (admission.text != null) return admission.text;
           throw new TrialFailure(403, 'ai_releases_access_denied');
         },
       },

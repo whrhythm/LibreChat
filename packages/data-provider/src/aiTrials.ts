@@ -3,10 +3,47 @@ import { z } from 'zod';
 export const personalTrialToolReference = z
   .string()
   .regex(/^action:[A-Za-z0-9_-]{1,64}:[0-9a-f]{64}$/);
+export const generatedToolReference = z
+  .string()
+  .regex(/^projecttool:[a-z][a-z0-9_]{0,47}:[0-9a-f]{64}$/);
+export const releasableToolReference = z.union([
+  personalTrialToolReference,
+  generatedToolReference,
+]);
 export const trialToolReference = z.union([
   z.string().regex(/^mcp:(?:deepwiki|mcp-[0-9a-f]{32}):[A-Za-z0-9_-]{1,64}:[1-9][0-9]{0,8}$/),
-  personalTrialToolReference,
+  releasableToolReference,
 ]);
+const toolInteger = z.number().int().min(-100000000).max(100000000);
+export const generatedToolProposal = z
+  .object({
+    name: z.string().regex(/^[a-z][a-z0-9_]{0,47}$/),
+    title: z.string().trim().min(1).max(80),
+    requirements: z.string().trim().min(1).max(1500),
+    parameters: z
+      .array(z.string().regex(/^[a-z][a-z0-9_]{0,31}$/))
+      .min(1)
+      .max(8),
+    cases: z
+      .array(z.object({ inputs: z.record(z.string(), toolInteger), result: toolInteger }).strict())
+      .min(2)
+      .max(8),
+  })
+  .strict();
+export const generatedToolBuild = generatedToolProposal.extend({ request_id: z.string().uuid() });
+export const generatedToolTask = z.object({
+  id: z.string().uuid(),
+  status: z.string(),
+  path: z.string(),
+  review: z
+    .object({
+      reference: generatedToolReference,
+      state: z.enum(['pending', 'approved', 'rejected', 'revoked']),
+    })
+    .nullable(),
+});
+export type GeneratedToolProposal = z.infer<typeof generatedToolProposal>;
+export type GeneratedToolTask = z.infer<typeof generatedToolTask>;
 export const trialToolSchema = z.object({
   reference: trialToolReference,
   name: z.string().max(64),

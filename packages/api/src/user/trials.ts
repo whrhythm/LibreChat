@@ -17,6 +17,8 @@ import {
   personalTrialToolReference,
   actionDelimiter,
   AgentCapabilities,
+  generatedToolBuild,
+  generatedToolTask,
 } from 'librechat-data-provider';
 import type { Response, NextFunction } from 'express';
 import type { TrialCapabilityDependencies } from './trialActions';
@@ -120,7 +122,7 @@ export function trialClient(
     const result = await response.json();
     if (!response.ok) {
       const parsed = z
-        .object({ detail: z.string().regex(/^ai_(trials|releases)_[a-z_]+$/) })
+        .object({ detail: z.string().regex(/^ai_(trials|releases|generated_tool)_[a-z_]+$/) })
         .safeParse(result);
       throw new TrialFailure(
         [400, 403, 404, 409, 422].includes(response.status) ? response.status : 503,
@@ -155,225 +157,246 @@ const messageSchema = z
   })
   .passthrough();
 
+type TrialAction =
+  | 'list'
+  | 'initialize'
+  | 'update'
+  | 'create'
+  | 'resume'
+  | 'accept'
+  | 'startTool'
+  | 'toolStatus'
+  | 'submitTool';
+
 export function createTrialHandlers(
   deps: TrialDependencies,
-): Record<
-  'list' | 'initialize' | 'update' | 'create' | 'resume' | 'accept',
-  (req: Request, res: Response) => Promise<Response>
-> {
-  const handler =
-    (action: 'list' | 'initialize' | 'update' | 'create' | 'resume' | 'accept') =>
-    async (req: Request, res: Response) => {
-      res.setHeader('Cache-Control', 'no-store');
-      try {
-        const call = trialClient(req, deps);
-        let toolAccess: Promise<boolean> | undefined;
-        const canUseTools = () =>
-          (toolAccess ??= deps.canUseReviewedTools?.(req) ?? Promise.resolve(false));
-        const canUseCalculator = () =>
-          deps.canUseTrialCapability?.(req, AgentCapabilities.tools) ?? Promise.resolve(false);
-        const validateTools = async (config: {
-          tool_reference?: string | null;
-          calculator_enabled?: boolean;
-        }) => {
-          const ref = config.tool_reference;
-          if (ref?.startsWith('action:')) {
-            if (!(await availableTrialActions(req, deps, ref)).length)
-              throw new TrialFailure(403, 'ai_trials_tool_unavailable');
-          } else if (ref && !(await canUseTools())) {
+): Record<TrialAction, (req: Request, res: Response) => Promise<Response>> {
+  const handler = (action: TrialAction) => async (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const call = trialClient(req, deps);
+      let toolAccess: Promise<boolean> | undefined;
+      const canUseTools = () =>
+        (toolAccess ??= deps.canUseReviewedTools?.(req) ?? Promise.resolve(false));
+      const canUseCalculator = () =>
+        deps.canUseTrialCapability?.(req, AgentCapabilities.tools) ?? Promise.resolve(false);
+      const validateTools = async (config: {
+        tool_reference?: string | null;
+        calculator_enabled?: boolean;
+      }) => {
+        const ref = config.tool_reference;
+        if (ref?.startsWith('action:')) {
+          if (!(await availableTrialActions(req, deps, ref)).length)
             throw new TrialFailure(403, 'ai_trials_tool_unavailable');
-          }
-          if (config.calculator_enabled && !(await canUseCalculator()))
-            throw new TrialFailure(403, 'ai_trials_tool_unavailable');
-        };
-        const visibleDraft = async (payload: unknown) => {
-          const draft = trialsSchema.parse(payload);
-          const ref = draft.config?.tool_reference;
-          const [personal, reviewed, calculator] = await Promise.all([
-            availableTrialActions(req, deps),
-            draft.available_tools?.length || ref?.startsWith('mcp:') ? canUseTools() : false,
-            canUseCalculator(),
-          ]);
-          if (
-            ref?.startsWith('action:') &&
-            !personal.some((item) => item.definition.reference === ref)
-          )
-            personal.unshift(...(await availableTrialActions(req, deps, ref)));
-          const unavailable =
-            (ref?.startsWith('action:') &&
-              !personal.some((item) => item.definition.reference === ref)) ||
-            (ref?.startsWith('mcp:') && !reviewed) ||
-            (draft.config?.calculator_enabled && !calculator);
-          return {
-            ...draft,
-            available_tools: [
-              ...personal.map((item) => item.definition),
-              ...(reviewed ? (draft.available_tools ?? []) : []),
-            ].slice(0, 12),
-            available_builtin_tools: calculator ? ['calculator' as const] : [],
-            unavailable_reason: unavailable
-              ? 'ai_trials_tool_unavailable'
-              : draft.unavailable_reason,
-          };
-        };
-        const params = z
-          .object({ projectId: z.string().uuid(), trialId: z.string().uuid().optional() })
-          .parse(req.params);
-        const prefix = params.projectId;
-        if (action === 'list') {
-          const result = await visibleDraft(await call(prefix + '/trials'));
-          await deps.archivePlatformConversations?.(
-            req.user!.id,
-            prefix,
-            result.trials.map((trial) => trial.agent_id),
-          );
-          return res.json(result);
+        } else if (ref?.startsWith('mcp:') && !(await canUseTools())) {
+          throw new TrialFailure(403, 'ai_trials_tool_unavailable');
         }
-        if (action === 'initialize') {
-          const input = trialConfigSchema
-            .pick({ instructions: true, tool_reference: true, calculator_enabled: true })
-            .partial()
-            .extend({ expected_knowledge_revision_id: z.string().uuid().nullable().optional() })
-            .parse(req.body);
-          await validateTools(input);
-          const record = z
-            .object({
-              id: z.string(),
-              author: z.unknown(),
-              instructions: z.string().nullish(),
-              model: z.string().nullish(),
-            })
-            .parse(await deps.getAgent({ id: 'agent_' + prefix.replace(/-/g, '') }));
-          if (String(record.author) !== req.user!.id)
-            throw new TrialFailure(403, 'ai_trials_owner_mismatch');
-          const config = trialConfigSchema.parse({
-            instructions: input.instructions ?? record.instructions,
-            model: record.model,
-            temperature: 0,
-            max_output_tokens: 2048,
-            response_style: 'grounded',
-            tool_reference: input.tool_reference,
-            calculator_enabled: input.calculator_enabled,
-          });
-          return res.json(
-            await visibleDraft(
-              await call(prefix + '/draft/initialize', {
-                config,
-                expected_knowledge_revision_id: input.expected_knowledge_revision_id,
-              }),
+        if (config.calculator_enabled && !(await canUseCalculator()))
+          throw new TrialFailure(403, 'ai_trials_tool_unavailable');
+      };
+      const visibleDraft = async (payload: unknown) => {
+        const draft = trialsSchema.parse(payload);
+        const ref = draft.config?.tool_reference;
+        const [personal, reviewed, calculator] = await Promise.all([
+          availableTrialActions(req, deps),
+          draft.available_tools?.length || ref?.startsWith('mcp:') ? canUseTools() : false,
+          canUseCalculator(),
+        ]);
+        if (
+          ref?.startsWith('action:') &&
+          !personal.some((item) => item.definition.reference === ref)
+        )
+          personal.unshift(...(await availableTrialActions(req, deps, ref)));
+        const unavailable =
+          (ref?.startsWith('action:') &&
+            !personal.some((item) => item.definition.reference === ref)) ||
+          (ref?.startsWith('mcp:') && !reviewed) ||
+          (draft.config?.calculator_enabled && !calculator);
+        return {
+          ...draft,
+          available_tools: [
+            ...(draft.available_tools ?? []).filter(
+              (item) => reviewed || item.reference.startsWith('projecttool:'),
+            ),
+            ...personal.map((item) => item.definition),
+          ].slice(0, 12),
+          available_builtin_tools: calculator ? ['calculator' as const] : [],
+          unavailable_reason: unavailable ? 'ai_trials_tool_unavailable' : draft.unavailable_reason,
+        };
+      };
+      const params = z
+        .object({ projectId: z.string().uuid(), trialId: z.string().uuid().optional() })
+        .parse(req.params);
+      const prefix = params.projectId;
+      if (action === 'startTool')
+        return res.json(
+          generatedToolTask.parse(
+            await call(prefix + '/generated-tools', generatedToolBuild.parse(req.body)),
+          ),
+        );
+      if (action === 'toolStatus' || action === 'submitTool') {
+        const { taskId: task } = z.object({ taskId: z.string().uuid() }).parse(req.params);
+        return res.json(
+          generatedToolTask.parse(
+            await call(
+              prefix + '/generated-tools/' + task,
+              action === 'submitTool' ? z.object({}).strict().parse(req.body) : undefined,
+            ),
+          ),
+        );
+      }
+      if (action === 'list') {
+        const result = await visibleDraft(await call(prefix + '/trials'));
+        await deps.archivePlatformConversations?.(
+          req.user!.id,
+          prefix,
+          result.trials.map((trial) => trial.agent_id),
+        );
+        return res.json(result);
+      }
+      if (action === 'initialize') {
+        const input = trialConfigSchema
+          .pick({ instructions: true, tool_reference: true, calculator_enabled: true })
+          .partial()
+          .extend({ expected_knowledge_revision_id: z.string().uuid().nullable().optional() })
+          .parse(req.body);
+        await validateTools(input);
+        const record = z
+          .object({
+            id: z.string(),
+            author: z.unknown(),
+            instructions: z.string().nullish(),
+            model: z.string().nullish(),
+          })
+          .parse(await deps.getAgent({ id: 'agent_' + prefix.replace(/-/g, '') }));
+        if (String(record.author) !== req.user!.id)
+          throw new TrialFailure(403, 'ai_trials_owner_mismatch');
+        const config = trialConfigSchema.parse({
+          instructions: input.instructions ?? record.instructions,
+          model: record.model,
+          temperature: 0,
+          max_output_tokens: 2048,
+          response_style: 'grounded',
+          tool_reference: input.tool_reference,
+          calculator_enabled: input.calculator_enabled,
+        });
+        return res.json(
+          await visibleDraft(
+            await call(prefix + '/draft/initialize', {
+              config,
+              expected_knowledge_revision_id: input.expected_knowledge_revision_id,
+            }),
+          ),
+        );
+      }
+      if (action === 'update') {
+        const input = trialUpdateSchema.parse(req.body);
+        await validateTools(input.config);
+        if (inspectContent(extractAgentContent(input.config), { filters: req.config?.filters }))
+          throw new TrialFailure(400, 'ai_trials_content_rejected');
+        return res.json(await visibleDraft(await call(prefix + '/draft', input)));
+      }
+      if (action === 'accept') {
+        if (!params.trialId) throw new TrialFailure(400, 'ai_trials_invalid_request');
+        const input = trialAcceptanceSchema.parse(req.body);
+        const agentId = 'agent_trial_' + params.trialId.replace(/-/g, '');
+        const convo = convoSchema.parse(await deps.getConvo(req.user!.id, input.conversation_id));
+        if (convo.agent_id !== agentId) throw new TrialFailure(409, 'ai_trials_session_mismatch');
+        const messages = z
+          .array(messageSchema)
+          .parse(
+            await deps.getMessages(
+              { user: req.user!.id, conversationId: input.conversation_id },
+              'messageId parentMessageId isCreatedByUser isUserSubmitted error unfinished isTemporary text content finish_reason',
+              { sort: { createdAt: -1 }, limit: 100 },
             ),
           );
-        }
-        if (action === 'update') {
-          const input = trialUpdateSchema.parse(req.body);
-          await validateTools(input.config);
-          if (inspectContent(extractAgentContent(input.config), { filters: req.config?.filters }))
-            throw new TrialFailure(400, 'ai_trials_content_rejected');
-          return res.json(await visibleDraft(await call(prefix + '/draft', input)));
-        }
-        if (action === 'accept') {
-          if (!params.trialId) throw new TrialFailure(400, 'ai_trials_invalid_request');
-          const input = trialAcceptanceSchema.parse(req.body);
-          const agentId = 'agent_trial_' + params.trialId.replace(/-/g, '');
-          const convo = convoSchema.parse(await deps.getConvo(req.user!.id, input.conversation_id));
-          if (convo.agent_id !== agentId) throw new TrialFailure(409, 'ai_trials_session_mismatch');
-          const messages = z
-            .array(messageSchema)
-            .parse(
-              await deps.getMessages(
-                { user: req.user!.id, conversationId: input.conversation_id },
-                'messageId parentMessageId isCreatedByUser isUserSubmitted error unfinished isTemporary text content finish_reason',
-                { sort: { createdAt: -1 }, limit: 100 },
-              ),
-            );
-          const answer = messages.find((m) => !m.isCreatedByUser);
-          const question = messages.find(
-            (m) => m.messageId === answer?.parentMessageId && m.isCreatedByUser,
-          );
-          if (
-            !answer ||
-            !question ||
-            answer.isUserSubmitted ||
-            answer.error ||
-            answer.unfinished ||
-            answer.isTemporary ||
-            ['length', 'content_filter', 'cancelled'].includes(answer.finish_reason ?? '') ||
-            !(
-              answer.text?.trim() ||
-              answer.content?.some(
-                (c) =>
-                  z.object({ type: z.literal('text'), text: z.string().min(1) }).safeParse(c)
-                    .success,
-              )
-            )
-          )
-            throw new TrialFailure(409, 'ai_trials_answer_required');
-          const transcript_digest = createHash('sha256')
-            .update(JSON.stringify({ question, answer }))
-            .digest('hex');
-          return res.json(
-            trialSchema.parse(
-              await call(prefix + '/trials/' + params.trialId + '/acceptance', {
-                ...input,
-                message_id: answer.messageId,
-                transcript_digest,
-              }),
-            ),
-          );
-        }
-        let trialId = params.trialId;
-        if (action === 'create') {
-          const created = trialSchema.parse(
-            await call(prefix + '/trials', trialCreateSchema.parse(req.body)),
-          );
-          trialId = created.id;
-        } else z.object({}).strict().parse(req.body);
-        if (!trialId) throw new TrialFailure(400, 'ai_trials_invalid_request');
-        const prepared = preparedSchema.parse(
-          await call(prefix + '/trials/' + trialId + '/prepare', {}),
+        const answer = messages.find((m) => !m.isCreatedByUser);
+        const question = messages.find(
+          (m) => m.messageId === answer?.parentMessageId && m.isCreatedByUser,
         );
         if (
-          prepared.project_id !== prefix ||
-          prepared.id !== trialId ||
-          prepared.agent_id !== 'agent_trial_' + trialId.replace(/-/g, '')
+          !answer ||
+          !question ||
+          answer.isUserSubmitted ||
+          answer.error ||
+          answer.unfinished ||
+          answer.isTemporary ||
+          ['length', 'content_filter', 'cancelled'].includes(answer.finish_reason ?? '') ||
+          !(
+            answer.text?.trim() ||
+            answer.content?.some(
+              (c) =>
+                z.object({ type: z.literal('text'), text: z.string().min(1) }).safeParse(c).success,
+            )
+          )
         )
-          throw new TrialFailure(503, 'ai_trials_unavailable');
-        const agent = await deps.ensurePrivateTrialAgent({
-          ...prepared.initial_agent,
-          id: prepared.agent_id,
-          author: req.user!.id,
-          allowCreate: prepared.state === 'preparing',
-        });
-        if (agent.ownerId !== req.user!.id || agent.id !== prepared.agent_id)
-          throw new TrialFailure(403, 'ai_trials_owner_mismatch');
-        if (prepared.state === 'preparing') {
-          for (const [resourceType, accessRoleId] of [
-            [ResourceType.AGENT, AccessRoleIds.AGENT_OWNER],
-            [ResourceType.REMOTE_AGENT, AccessRoleIds.REMOTE_AGENT_OWNER],
-          ] as const) {
-            await deps.grantPermission({
-              principalType: PrincipalType.USER,
-              principalId: req.user!.id,
-              resourceType,
-              resourceId: agent.resourceId,
-              accessRoleId,
-              grantedBy: req.user!.id,
-            });
-          }
-        }
-        const confirmed = trialSchema.parse(
-          await call(prefix + '/trials/' + trialId + '/confirm', {}),
+          throw new TrialFailure(409, 'ai_trials_answer_required');
+        const transcript_digest = createHash('sha256')
+          .update(JSON.stringify({ question, answer }))
+          .digest('hex');
+        return res.json(
+          trialSchema.parse(
+            await call(prefix + '/trials/' + params.trialId + '/acceptance', {
+              ...input,
+              message_id: answer.messageId,
+              transcript_digest,
+            }),
+          ),
         );
-        await deps.archivePlatformConversations?.(req.user!.id, prefix, [confirmed.agent_id]);
-        return res.json(confirmed);
-      } catch (error) {
-        if (error instanceof TrialFailure)
-          return res.status(error.status).json({ code: error.code });
-        if (error instanceof z.ZodError)
-          return res.status(400).json({ code: 'ai_trials_invalid_request' });
-        return res.status(503).json({ code: 'ai_trials_recovery_required' });
       }
-    };
+      let trialId = params.trialId;
+      if (action === 'create') {
+        const created = trialSchema.parse(
+          await call(prefix + '/trials', trialCreateSchema.parse(req.body)),
+        );
+        trialId = created.id;
+      } else z.object({}).strict().parse(req.body);
+      if (!trialId) throw new TrialFailure(400, 'ai_trials_invalid_request');
+      const prepared = preparedSchema.parse(
+        await call(prefix + '/trials/' + trialId + '/prepare', {}),
+      );
+      if (
+        prepared.project_id !== prefix ||
+        prepared.id !== trialId ||
+        prepared.agent_id !== 'agent_trial_' + trialId.replace(/-/g, '')
+      )
+        throw new TrialFailure(503, 'ai_trials_unavailable');
+      const agent = await deps.ensurePrivateTrialAgent({
+        ...prepared.initial_agent,
+        id: prepared.agent_id,
+        author: req.user!.id,
+        allowCreate: prepared.state === 'preparing',
+      });
+      if (agent.ownerId !== req.user!.id || agent.id !== prepared.agent_id)
+        throw new TrialFailure(403, 'ai_trials_owner_mismatch');
+      if (prepared.state === 'preparing') {
+        for (const [resourceType, accessRoleId] of [
+          [ResourceType.AGENT, AccessRoleIds.AGENT_OWNER],
+          [ResourceType.REMOTE_AGENT, AccessRoleIds.REMOTE_AGENT_OWNER],
+        ] as const) {
+          await deps.grantPermission({
+            principalType: PrincipalType.USER,
+            principalId: req.user!.id,
+            resourceType,
+            resourceId: agent.resourceId,
+            accessRoleId,
+            grantedBy: req.user!.id,
+          });
+        }
+      }
+      const confirmed = trialSchema.parse(
+        await call(prefix + '/trials/' + trialId + '/confirm', {}),
+      );
+      await deps.archivePlatformConversations?.(req.user!.id, prefix, [confirmed.agent_id]);
+      return res.json(confirmed);
+    } catch (error) {
+      if (error instanceof TrialFailure) return res.status(error.status).json({ code: error.code });
+      if (error instanceof z.ZodError)
+        return res.status(400).json({ code: 'ai_trials_invalid_request' });
+      return res.status(503).json({ code: 'ai_trials_recovery_required' });
+    }
+  };
   return {
     list: handler('list'),
     initialize: handler('initialize'),
@@ -381,6 +404,9 @@ export function createTrialHandlers(
     create: handler('create'),
     resume: handler('resume'),
     accept: handler('accept'),
+    startTool: handler('startTool'),
+    toolStatus: handler('toolStatus'),
+    submitTool: handler('submitTool'),
   };
 }
 
@@ -487,7 +513,9 @@ export async function prepareProjectTrial(
   );
   if (resolved.id !== id || resolved.agent_id !== 'agent_trial_' + id.replace(/-/g, ''))
     throw new TrialFailure(503, 'ai_trials_unavailable');
-  const external = resolved.snapshot.tools.filter((tool) => tool.tool_id.startsWith('mcp:'));
+  const external = resolved.snapshot.tools.filter(
+    (tool) => tool.tool_id.startsWith('mcp:') || tool.tool_id.startsWith('projecttool:'),
+  );
   const definition = resolved.reviewed_tool;
   if (
     (external.length || definition) &&

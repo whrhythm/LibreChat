@@ -55,7 +55,8 @@ export default function Releases({
     retry: false,
   });
   const reference = trials.data?.config?.tool_reference;
-  const personal = reference?.startsWith('action:') ? reference : null;
+  const personal =
+    reference?.startsWith('action:') || reference?.startsWith('projecttool:') ? reference : null;
   const reviewKey = [...key, 'tool-review', personal];
   const review = useQuery({
     queryKey: reviewKey,

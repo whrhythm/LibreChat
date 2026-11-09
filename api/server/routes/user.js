@@ -212,6 +212,26 @@ router.post(
   trials.initialize,
 );
 router.post(
+  '/workspace/ai-projects/:projectId/trials/generated-tools',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  trials.startTool,
+);
+router.get(
+  '/workspace/ai-projects/:projectId/trials/generated-tools/:taskId',
+  requireJwtAuth,
+  configMiddleware,
+  trials.toolStatus,
+);
+router.post(
+  '/workspace/ai-projects/:projectId/trials/generated-tools/:taskId',
+  requireJwtAuth,
+  checkAIProjectCreate,
+  configMiddleware,
+  trials.submitTool,
+);
+router.post(
   '/workspace/ai-projects/:projectId/trials/update',
   requireJwtAuth,
   checkAIProjectCreate,

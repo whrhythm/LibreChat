@@ -12,10 +12,11 @@ import {
   aiProjects,
   AITrialError,
   getSpeechText,
+  generatedToolProposal,
   projectTrials,
   QueryKeys,
 } from 'librechat-data-provider';
-import type { AITrials, TMessage } from 'librechat-data-provider';
+import type { AITrials, GeneratedToolTask, TMessage } from 'librechat-data-provider';
 import { useGetStartupConfig, useProjectQuery } from '~/data-provider';
 import { useLatestMessage } from '~/hooks/Messages/useLatestMessage';
 import { useAuthContext, useLocalize } from '~/hooks';
@@ -25,6 +26,18 @@ import { authoringContext } from './context';
 const proposalPattern = /^```assistant-draft[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/gm;
 const toolPattern = /^```assistant-tool[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/gm;
 const builtinPattern = /^```assistant-builtin[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/gm;
+const buildPattern = /^```assistant-tool-build[ \t]*\r?\n([\s\S]{1,8192}?)\r?\n```[ \t]*$/gm;
+
+function buildProposal(text: string) {
+  const matches = Array.from(text.matchAll(buildPattern));
+  if (matches.length !== 1) return;
+  try {
+    const candidate = generatedToolProposal.safeParse(JSON.parse(matches[0][1]));
+    if (candidate.success) return candidate.data;
+  } catch {
+    // Assistant text may contain an incomplete or invalid JSON block.
+  }
+}
 
 export default function AssistantDraft({
   projectId,
@@ -69,6 +82,49 @@ export default function AssistantDraft({
     queryKey: key,
     queryFn: () => projectTrials(token!, id!),
     enabled: enabled && !!id && !!linked,
+  });
+  const finished =
+    latest &&
+    latest.conversationId === conversationId &&
+    !latest.isCreatedByUser &&
+    !latest.error &&
+    !latest.unfinished &&
+    !latest.isTemporary &&
+    !busy;
+  const source = messages?.find(
+    (message) => message.isCreatedByUser && message.messageId === latest?.parentMessageId,
+  );
+  const base =
+    source && /^\[starbridge-draft:(new|[a-f0-9]{64})\]$/m.exec(getSpeechText(source))?.[1];
+  const requestId =
+    finished && base && /^[a-f0-9-]{36}$/.test(latest.messageId) ? latest.messageId : null;
+  const candidate = requestId && latest ? buildProposal(getSpeechText(latest)) : null;
+  const buildKey = [...key, 'generated-tool', requestId];
+  const buildPath = '/generated-tools/' + requestId;
+  const build = useQuery({
+    queryKey: buildKey,
+    queryFn: () => projectTrials<GeneratedToolTask>(token!, id!, buildPath),
+    enabled: !!enabled && !!linked && !!candidate,
+    retry: false,
+    refetchInterval: (task) =>
+      task &&
+      (['queued', 'running', 'awaiting_approval', 'cancelling'].includes(task.status) ||
+        task.review?.state === 'pending')
+        ? 2500
+        : false,
+    onSuccess: (task) => {
+      if (task.review?.state === 'approved') void cache.invalidateQueries(key, { exact: true });
+    },
+  });
+  const generate = useMutation({
+    mutationFn: (operation: 'start' | 'review') =>
+      operation === 'start'
+        ? projectTrials<GeneratedToolTask>(token!, id!, '/generated-tools', {
+            ...candidate!,
+            request_id: requestId,
+          })
+        : projectTrials<GeneratedToolTask>(token!, id!, buildPath, {}),
+    onSuccess: (task) => cache.setQueryData(buildKey, task),
   });
   const save = useMutation({
     mutationFn: async ({
@@ -129,8 +185,10 @@ export default function AssistantDraft({
   const builtin = builtinChoices[0]?.[1].trim();
   const calculator =
     builtin == null ? current.data.config?.calculator_enabled : builtin === 'calculator';
+  const approved = build.data?.review?.state === 'approved' ? build.data.review.reference : null;
   const toolReference =
-    requested === 'none' ? null : (requested ?? current.data.config?.tool_reference ?? null);
+    approved ??
+    (requested === 'none' ? null : (requested ?? current.data.config?.tool_reference ?? null));
   const invalidTool =
     choices.length > 1 ||
     builtinChoices.length > 1 ||
@@ -140,11 +198,6 @@ export default function AssistantDraft({
       requested !== 'none' &&
       !tools.some((tool) => tool.reference === requested));
   const reviewedTool = tools.find((tool) => tool.reference === review?.toolReference);
-  const source = messages?.find(
-    (message) => message.isCreatedByUser && message.messageId === latest?.parentMessageId,
-  );
-  const base =
-    source && /^\[starbridge-draft:(new|[a-f0-9]{64})\]$/m.exec(getSpeechText(source))?.[1];
   const canReview =
     !!base && proposal.length > 0 && proposal.length <= 32000 && saved !== latest?.messageId;
   const outdated = canReview && base !== (current.data.digest ?? 'new');
@@ -165,6 +218,8 @@ export default function AssistantDraft({
               t('com_project_authoring_prompt') +
               '\n' +
               t('com_project_authoring_tool_prompt') +
+              '\n' +
+              t('com_project_tool_build_prompt') +
               '\n\n' +
               t('com_project_authoring_current') +
               '\n' +
@@ -181,7 +236,57 @@ export default function AssistantDraft({
       {canReview && !outdated && invalidTool && (
         <span role="alert">{t('com_project_tool_unavailable')}</span>
       )}
-      {canReview && !outdated && !invalidTool && (
+      {candidate && !outdated && (
+        <div className="border-border-light w-full rounded-md border p-2 text-xs">
+          <details>
+            <summary className="cursor-pointer font-medium">{candidate.title}</summary>
+            <p className="mt-2">{candidate.requirements}</p>
+            <p className="mt-1">{t('com_project_tool_build_scope')}</p>
+            <pre className="mt-1 overflow-x-auto">{JSON.stringify(candidate.cases, null, 2)}</pre>
+          </details>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {!build.data && (
+              <Button
+                size="xs"
+                disabled={generate.isLoading || build.isFetching}
+                onClick={() => generate.mutate('start')}
+              >
+                {t('com_project_tool_build_start')}
+              </Button>
+            )}
+            {build.data && !build.data.review && build.data.status !== 'completed' && (
+              <span role="status">
+                {t(
+                  ['queued', 'running', 'awaiting_approval', 'cancelling'].includes(
+                    build.data.status,
+                  )
+                    ? 'com_project_tool_build_running'
+                    : 'com_project_tool_build_failed',
+                )}
+              </span>
+            )}
+            {build.data?.status === 'completed' && !build.data.review && (
+              <Button
+                size="xs"
+                disabled={generate.isLoading}
+                onClick={() => generate.mutate('review')}
+              >
+                {t('com_project_tool_build_review')}
+              </Button>
+            )}
+            {build.data?.review && (
+              <span role="status">{t(`com_releases_tool_${build.data.review.state}`)}</span>
+            )}
+            {build.data?.review?.state === 'pending' && (
+              <Button size="xs" variant="ghost" onClick={() => void build.refetch()}>
+                {t('com_releases_refresh')}
+              </Button>
+            )}
+            {generate.isError && <span role="alert">{t('com_project_tool_build_failed')}</span>}
+          </div>
+        </div>
+      )}
+      {canReview && !outdated && !invalidTool && (!candidate || !!approved) && (
         <Button
           ref={trigger}
           size="xs"
@@ -191,7 +296,7 @@ export default function AssistantDraft({
             setReview({ instructions: proposal, toolReference, calculator, draft: current.data });
           }}
         >
-          {t('com_project_authoring_review')}
+          {t(candidate ? 'com_project_tool_build_authorize' : 'com_project_authoring_review')}
         </Button>
       )}
       {saved && saved === latest?.messageId && (
